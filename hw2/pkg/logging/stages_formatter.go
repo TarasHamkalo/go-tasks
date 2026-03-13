@@ -110,7 +110,6 @@ func (s *StagesFormatterBuilder) WithProperties(
 ) *StagesFormatterBuilder {
 
 	s.stages = append(s.stages, func(record *LogRecord, output *bytes.Buffer) {
-		output.WriteString("\t\t")
 		propertiesCount := len(record.Properties) / 2
 		for i := 0; i < propertiesCount; i++ {
 
