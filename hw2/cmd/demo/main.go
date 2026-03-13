@@ -12,13 +12,19 @@ var DemoLogger = NewCleanLogger().
 	WithSink(
 		NewBaseSink(
 			NewStagesFormatterBuilder().
-				WithProperties(Cyan, Magenta).
 				WithMessage(Yellow).
+				WithProperties(Cyan, Magenta).
 				Build(),
 			NewConsoleAppender(),
 			LevelDebug,
 		),
 	)
+
+func DemoSection(title string) {
+	DemoLogger.Info("------------------------------------------------------------")
+	DemoLogger.Info(title)
+	DemoLogger.Info("------------------------------------------------------------")
+}
 
 // Create formatter and configure logger with it
 type SimpleFormatter struct{}
@@ -35,6 +41,7 @@ func (f *SimpleFormatter) Format(record *LogRecord) ([]byte, error) {
 }
 
 func ExampleCustomFormatter() {
+	DemoSection("Example: create and register custom Formatter")
 	log := NewCleanLogger().
 		WithSink(
 			NewBaseSink(
@@ -71,6 +78,10 @@ func (m *MemoryAppender) Close() error {
 }
 
 func ExampleCustomAppender() {
+	DemoSection(
+		"Example: create and register custom appender (store messages in memory)",
+	)
+
 	appender := NewMemoryAppender()
 	formatter := NewJsonFormatter()
 
@@ -82,14 +93,14 @@ func ExampleCustomAppender() {
 	log.Info("Stored in memory")
 	log.Info("Stored in memory")
 
-	fmt.Println("Stored records:", len(appender.Records))
+	DemoLogger.Info("Stored records", "n", len(appender.Records))
 }
 
 // ------------------------------------------------------------------------------
 
 // Log levels example
-
 func ExampleLogLevels() {
+	DemoSection("Example: log levels (warning threshold)")
 	log := NewCleanLogger().
 		WithConsoleSink(LevelWarning, true) // warning level, colorize=true
 
@@ -103,6 +114,15 @@ func ExampleLogLevels() {
 
 // Log to multiple destinations with different levels and colorization
 func ExampleMultipleSinks() {
+	DemoSection(
+		"Example: multiple log destinations with " +
+			"different levels (console + json + file)",
+	)
+
+	DemoLogger.Info(
+		"Files are:", "json", "logs/all-logs.jsonl", "plaintext", "logs/error.log",
+	)
+
 	log := NewCleanLogger().
 		WithConsoleSink(LevelWarning, true).
 		WithJsonFileSink("logs/all-logs.jsonl", LevelDebug).
@@ -117,6 +137,8 @@ func ExampleMultipleSinks() {
 }
 
 func ExampleConsoleSink() {
+	DemoSection("Example: console sink (colorized vs clean)")
+
 	logColorized := NewCleanLogger().
 		WithConsoleSink(LevelDebug, true)
 
@@ -131,7 +153,7 @@ func ExampleConsoleSink() {
 }
 
 func ExampleCustomTextFormat() {
-
+	DemoSection("Example: custom text formatting (colors per field and ordering)")
 	// specify colors per log level
 	customLogLevelColorMap := map[LogLevel]AnsiColor{
 		LevelDebug:   BrightYellow,
@@ -163,6 +185,8 @@ func ExampleCustomTextFormat() {
 }
 
 func ExampleFileLogging() {
+	DemoSection("Example: file logging (to \"logs/app.log\")")
+
 	log := NewCleanLogger().
 		WithFileSink("logs/app.log", LevelDebug, false)
 
