@@ -34,7 +34,7 @@ func NewDefaultStagesFormatter() *StagesFormatter {
 func NewNoColorStagesFormatter() *StagesFormatter {
 	return NewStagesFormatterBuilder().
 		WithTimestamp(time.TimeOnly, NoColor).
-		WithLogLevel(LogLevelColorMap).
+		WithLogLevel(map[LogLevel]AnsiColor{}).
 		WithMessage(NoColor).
 		WithProperties(NoColor, NoColor).
 		Build()
@@ -63,7 +63,7 @@ func (s *StagesFormatterBuilder) WithLogLevel(
 	s.stages = append(s.stages, func(record *LogRecord, output *bytes.Buffer) {
 		color, ok := colorMap[record.Level]
 		if !ok {
-			color = LogLevelColorMap[record.Level]
+			color = NoColor
 		}
 
 		output.WriteString(string(color))
