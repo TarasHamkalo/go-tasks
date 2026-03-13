@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+// Logger handles LogRecord constructions and
+// unifies logic of LogRecord serialization as write/store.
+//
+// Should be closed after use.
 type Logger interface {
 	Info(msg string, structuredData ...interface{})
 
@@ -20,24 +24,29 @@ type Logger interface {
 	Close() error
 }
 
+// BaseLogger implements Logger interface.
 type BaseLogger struct {
-	sinks []Sink
+	sinks []Sink // all registered sinks see Sink
 
-	errorOutput io.Writer
+	errorOutput io.Writer // were to write errors occurred during logging
 }
 
 func NewBaseLogger(sinks []Sink, errorOutput io.Writer) *BaseLogger {
 	return &BaseLogger{sinks: sinks, errorOutput: errorOutput}
 }
 
+// NewCleanLogger constructs BaseLogger with no sinks setup and
+// os.Stderr as errorOutput.
 func NewCleanLogger() *BaseLogger {
-	return &BaseLogger{
-		sinks:       make([]Sink, 0, 3),
-		errorOutput: os.Stderr,
-	}
+	return NewBaseLogger(make([]Sink, 0, 3), os.Stderr)
 }
 
-func (b *BaseLogger) WithConsoleSink(level LogLevel, colorize bool) *BaseLogger {
+// WithConsoleSink adds console sink to existing base logger object.
+func (b *BaseLogger) WithConsoleSink(
+	level LogLevel,
+	colorize bool,
+) *BaseLogger {
+
 	var formatter Formatter
 	if colorize {
 		formatter = NewDefaultStagesFormatter()
@@ -57,6 +66,7 @@ func (b *BaseLogger) WithConsoleSink(level LogLevel, colorize bool) *BaseLogger 
 	return b
 }
 
+// WithJsonFileSink adds json sink to existing base logger object.
 func (b *BaseLogger) WithJsonFileSink(path string, level LogLevel) *BaseLogger {
 	fileAppender, err := NewFileAppender(path)
 	if err != nil {
@@ -76,6 +86,7 @@ func (b *BaseLogger) WithJsonFileSink(path string, level LogLevel) *BaseLogger {
 	return b
 }
 
+// WithFileSink adds file sink to existing base logger object.
 func (b *BaseLogger) WithFileSink(
 	path string,
 	level LogLevel,
@@ -107,6 +118,9 @@ func (b *BaseLogger) WithFileSink(
 	return b
 }
 
+// Close iteratively closes all registered sinks.
+//
+// All errors are joined as well as logged to errorOutput.
 func (b *BaseLogger) Close() error {
 	var errs []error
 	for _, sink := range b.sinks {
@@ -136,11 +150,14 @@ func (b *BaseLogger) Error(msg string, structuredData ...interface{}) {
 	b.log(LevelError, msg, structuredData...)
 }
 
+// log constructs LogRecord and passes down
+// given record to all registered sinks.
 func (b *BaseLogger) log(
 	level LogLevel,
 	msg string,
 	structuredData ...interface{},
 ) {
+	// (key, value) pairs, total number of elements should be even
 	if len(structuredData)%2 == 1 {
 		fmt.Fprintf(
 			b.errorOutput,

@@ -1,7 +1,10 @@
 package logging
 
-import "fmt"
+import (
+	"fmt"
+)
 
+// ConsoleAppender implements Appender, writes log records to os.Stdout.
 type ConsoleAppender struct{}
 
 func NewConsoleAppender() *ConsoleAppender {

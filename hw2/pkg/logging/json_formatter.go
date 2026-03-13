@@ -5,13 +5,17 @@ import (
 	"fmt"
 )
 
+// JsonFormatter serializes LogRecord to JSON bytes.
 type JsonFormatter struct{}
 
 func NewJsonFormatter() *JsonFormatter {
 	return &JsonFormatter{}
 }
 
-func (j JsonFormatter) Format(record *LogRecord) ([]byte, error) {
+// Format returns JSON bytes and error if any occurred during serialization.
+//
+// Create a map of fields and serialize to JSON.
+func (j *JsonFormatter) Format(record *LogRecord) ([]byte, error) {
 	propertiesCount := len(record.Properties) / 2
 
 	data := make(map[string]interface{}, 3+propertiesCount)

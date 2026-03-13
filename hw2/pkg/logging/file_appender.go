@@ -2,12 +2,15 @@ package logging
 
 import "os"
 
+// FileAppender implements Appender, should be closed after use.
 type FileAppender struct {
 	FilePath string
 
 	file *os.File
 }
 
+// NewFileAppender Returns FileAppender and error if any occurred during
+// file opening. File exists, then is opened in append mode, otherwise created.
 func NewFileAppender(path string) (*FileAppender, error) {
 	file, err := os.OpenFile(
 		path,

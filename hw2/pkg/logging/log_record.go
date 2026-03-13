@@ -4,9 +4,7 @@ import "time"
 
 type LogLevel uint8
 
-/*
-* Should be in order of increasing severity
- */
+// Should be in order of increasing severity
 const (
 	LevelDebug   LogLevel = iota
 	LevelInfo             = iota
@@ -14,11 +12,16 @@ const (
 	LevelError            = iota
 )
 
+// LogRecord model of how single log entry represented.
 type LogRecord struct {
 	Message   string
 	Timestamp time.Time
 	Level     LogLevel
 
+	// Properties field is array of key value pairs.
+	//
+	// Keys are located on even indexes (including zero).
+	// Values are located on odd indexes.
 	Properties []interface{}
 }
 

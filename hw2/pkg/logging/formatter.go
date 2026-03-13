@@ -1,5 +1,6 @@
 package logging
 
+// AnsiColor represents escape sequence to display given color.
 type AnsiColor string
 
 const (
@@ -21,6 +22,10 @@ const (
 	BrightBlue   AnsiColor = "\033[94m"
 )
 
+// LogLevelColorMap stores default colors used when
+// printing log levels to console.
+//
+// Should not be modified.
 var LogLevelColorMap = map[LogLevel]AnsiColor{
 	LevelDebug:   BrightBlue,
 	LevelInfo:    BrightGreen,
@@ -28,6 +33,7 @@ var LogLevelColorMap = map[LogLevel]AnsiColor{
 	LevelError:   BrightRed,
 }
 
+// Formatter handles serialization logic for LogRecord object.
 type Formatter interface {
 	Format(record *LogRecord) ([]byte, error)
 }

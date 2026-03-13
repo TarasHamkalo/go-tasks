@@ -5,12 +5,16 @@ import (
 	"io"
 )
 
+// Sink handles serialization and write/store logic of LogRecord object.
+//
+// Should be closed after use.
 type Sink interface {
 	Flush(record *LogRecord, errorOutput io.Writer)
 
 	Close() error
 }
 
+// BaseSink implements Sink, defines single (formatter, appender) pair.
 type BaseSink struct {
 	formatter Formatter
 	appender  Appender
@@ -25,6 +29,8 @@ func NewBaseSink(
 	return &BaseSink{formatter: formatter, appender: appender, level: level}
 }
 
+// Flush verifies log level and writes given record with defined appender
+// in format provided by formatter.
 func (b *BaseSink) Flush(record *LogRecord, errorOutput io.Writer) {
 	if b.level > record.Level {
 		return
