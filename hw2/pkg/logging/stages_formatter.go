@@ -24,10 +24,10 @@ func NewStagesFormatterBuilder() *StagesFormatterBuilder {
 
 func NewDefaultStagesFormatter() *StagesFormatter {
 	return NewStagesFormatterBuilder().
-		WithTimestamp(time.TimeOnly, MAGENTA).
+		WithTimestamp(time.TimeOnly, Magenta).
 		WithLogLevel(LogLevelColorMap).
-		WithMessage(NO_COLOR).
-		WithProperties(CYAN, GREEN).
+		WithMessage(NoColor).
+		WithProperties(Cyan, Green).
 		Build()
 }
 
@@ -41,7 +41,7 @@ func (s *StagesFormatterBuilder) WithTimestamp(
 
 		output.WriteString(string(color))
 		output.WriteString(timestamp)
-		output.WriteString(string(RESET))
+		output.WriteString(string(Reset))
 		output.WriteByte(' ')
 	})
 
@@ -59,7 +59,7 @@ func (s *StagesFormatterBuilder) WithLogLevel(
 
 		output.WriteString(string(color))
 		output.WriteString(record.Level.String())
-		output.WriteString(string(RESET))
+		output.WriteString(string(Reset))
 		output.WriteByte(' ')
 	})
 
@@ -72,7 +72,7 @@ func (s *StagesFormatterBuilder) WithMessage(
 	s.stages = append(s.stages, func(record *LogRecord, output *bytes.Buffer) {
 		output.WriteString(string(color))
 		output.WriteString(record.Message)
-		output.WriteString(string(RESET))
+		output.WriteString(string(Reset))
 		output.WriteByte(' ')
 	})
 
@@ -94,13 +94,13 @@ func (s *StagesFormatterBuilder) WithProperties(
 
 			output.WriteString(string(keyColor))
 			output.WriteString(fmt.Sprint(key))
-			output.WriteString(string(RESET))
+			output.WriteString(string(Reset))
 
 			output.WriteByte('=')
 
 			output.WriteString(string(valueColor))
 			output.WriteString(fmt.Sprint(value))
-			output.WriteString(string(RESET))
+			output.WriteString(string(Reset))
 
 			output.WriteByte(' ')
 		}

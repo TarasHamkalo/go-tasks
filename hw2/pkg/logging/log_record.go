@@ -8,10 +8,10 @@ type LogLevel uint8
 * Should be in order of increasing severity
  */
 const (
-	LEVEL_DEBUG   LogLevel = iota
-	LEVEL_INFO             = iota
-	LEVEL_WARNING          = iota
-	LEVEL_ERROR            = iota
+	LevelDebug   LogLevel = iota
+	LevelInfo             = iota
+	LevelWarning          = iota
+	LevelError            = iota
 )
 
 type LogRecord struct {
@@ -38,13 +38,13 @@ func NewLogRecord(
 
 func (l LogLevel) String() string {
 	switch l {
-	case LEVEL_INFO:
+	case LevelInfo:
 		return "INFO"
-	case LEVEL_WARNING:
+	case LevelWarning:
 		return "WARNING"
-	case LEVEL_DEBUG:
+	case LevelDebug:
 		return "DEBUG"
-	case LEVEL_ERROR:
+	case LevelError:
 		return "ERROR"
 	default:
 		return ""

@@ -23,19 +23,19 @@ func NewBaseLogger(sinks []Sink) *BaseLogger {
 }
 
 func (b *BaseLogger) Info(msg string, structuredData ...interface{}) {
-	b.log(LEVEL_INFO, msg, structuredData)
+	b.log(LevelInfo, msg, structuredData)
 }
 
 func (b *BaseLogger) Debug(msg string, structuredData ...interface{}) {
-	b.log(LEVEL_DEBUG, msg, structuredData)
+	b.log(LevelDebug, msg, structuredData)
 }
 
 func (b *BaseLogger) Warning(msg string, structuredData ...interface{}) {
-	b.log(LEVEL_WARNING, msg, structuredData)
+	b.log(LevelWarning, msg, structuredData)
 }
 
 func (b *BaseLogger) Error(msg string, structuredData ...interface{}) {
-	b.log(LEVEL_ERROR, msg, structuredData)
+	b.log(LevelError, msg, structuredData)
 }
 
 func (b *BaseLogger) log(
