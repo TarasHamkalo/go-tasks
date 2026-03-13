@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -9,10 +9,9 @@ import (
 type AnsiColor string
 
 const (
-	NONE  AnsiColor = ""
-	RESET AnsiColor = "\033[0m"
+	NO_COLOR AnsiColor = ""
+	RESET    AnsiColor = "\033[0m"
 
-	// basic colors
 	BLACK   AnsiColor = "\033[30m"
 	RED     AnsiColor = "\033[31m"
 	GREEN   AnsiColor = "\033[32m"
@@ -28,16 +27,7 @@ const (
 	BRIGHT_BLUE   AnsiColor = "\033[94m"
 )
 
-type FormatterStage int
-
-const (
-	TIMESTAMP  FormatterStage = iota
-	LEVEL      FormatterStage = iota
-	MESSAGE    FormatterStage = iota
-	PROPERTIES FormatterStage = iota
-)
-
-var LOG_LEVEL_COLOR_MAP map[LogLevel]AnsiColor = map[LogLevel]AnsiColor{
+var LOG_LEVEL_COLOR_MAP = map[LogLevel]AnsiColor{
 	LEVEL_DEBUG:   BRIGHT_BLUE,
 	LEVEL_INFO:    BRIGHT_GREEN,
 	LEVEL_WARNING: BRIGHT_YELLOW,
@@ -48,116 +38,138 @@ type Formatter interface {
 	Format(record *LogRecord) string
 }
 
+type stageFunc func(record *LogRecord, output *strings.Builder)
+
+type StagesFormatterBuilder struct {
+	stages []stageFunc
+}
+
 type StagesFormatter struct {
-	stages      map[FormatterStage]func(record *LogRecord, output *strings.Builder)
-	stagesOrder []FormatterStage
+	stages []stageFunc
 }
 
-func (s *StagesFormatter) WithTimestamp(
-	layout string,
-	color AnsiColor,
-) *StagesFormatter {
-	if _, ok := s.stages[TIMESTAMP]; !ok {
-		s.stagesOrder = append(s.stagesOrder, TIMESTAMP)
+func NewStagesFormatterBuilder() *StagesFormatterBuilder {
+	return &StagesFormatterBuilder{
+		stages: make([]stageFunc, 0, 4),
 	}
-
-	s.stages[TIMESTAMP] = func(record *LogRecord, output *strings.Builder) {
-		timestamp := record.Timestamp.Format(layout)
-		output.WriteString(fmt.Sprintf("%s%s%s ", color, timestamp, RESET))
-	}
-
-	return s
-}
-
-func (s *StagesFormatter) WithLogLevel(
-	colorMap map[LogLevel]AnsiColor,
-) *StagesFormatter {
-	if _, ok := s.stages[LEVEL]; !ok {
-		s.stagesOrder = append(s.stagesOrder, LEVEL)
-	}
-
-	s.stages[LEVEL] = func(record *LogRecord, output *strings.Builder) {
-		color, isPresent := colorMap[record.Level]
-		if !isPresent {
-			color = LOG_LEVEL_COLOR_MAP[record.Level]
-		}
-
-		output.WriteString(
-			fmt.Sprintf("%s%s%s ", color, record.Level, RESET),
-		)
-	}
-
-	return s
-}
-
-func (s *StagesFormatter) WithMessage(color AnsiColor) *StagesFormatter {
-	if _, ok := s.stages[MESSAGE]; !ok {
-		s.stagesOrder = append(s.stagesOrder, MESSAGE)
-	}
-
-	s.stages[MESSAGE] = func(record *LogRecord, output *strings.Builder) {
-		output.WriteString(
-			fmt.Sprintf("%s%s%s ", color, record.Message, RESET),
-		)
-	}
-
-	return s
-}
-
-func (s *StagesFormatter) WithProperties(
-	keyColor AnsiColor,
-	valueColor AnsiColor,
-) *StagesFormatter {
-	if _, ok := s.stages[PROPERTIES]; !ok {
-		s.stagesOrder = append(s.stagesOrder, PROPERTIES)
-	}
-
-	s.stages[PROPERTIES] = func(record *LogRecord, output *strings.Builder) {
-		output.WriteString("\t\t")
-		propertiesCount := len(record.Properties) / 2
-		for i := 0; i < propertiesCount; i++ {
-			output.WriteString(string(keyColor))
-			output.WriteString(fmt.Sprint(record.Properties[i*2]))
-			output.WriteString(string(RESET))
-			output.WriteByte('=')
-			output.WriteString(string(valueColor))
-			output.WriteString(fmt.Sprint(record.Properties[i*2+1]))
-			output.WriteString(string(RESET))
-			output.WriteByte(' ')
-		}
-	}
-	return s
 }
 
 func NewDefaultStagesFormatter() *StagesFormatter {
-	s := &StagesFormatter{
-		stages: make(
-			map[FormatterStage]func(record *LogRecord, output *strings.Builder), 4,
-		),
-	}
-
-	return s.
+	return NewStagesFormatterBuilder().
 		WithTimestamp(time.TimeOnly, MAGENTA).
 		WithLogLevel(LOG_LEVEL_COLOR_MAP).
-		WithMessage(NONE).
-		WithProperties(CYAN, GREEN)
+		WithMessage(NO_COLOR).
+		WithProperties(CYAN, GREEN).
+		Build()
 }
 
-func NewStagesFormatter() *StagesFormatter {
+func (s *StagesFormatterBuilder) WithTimestamp(
+	layout string,
+	color AnsiColor,
+) *StagesFormatterBuilder {
+
+	s.stages = append(s.stages, func(record *LogRecord, output *strings.Builder) {
+		timestamp := record.Timestamp.Format(layout)
+
+		output.WriteString(string(color))
+		output.WriteString(timestamp)
+		output.WriteString(string(RESET))
+		output.WriteByte(' ')
+	})
+
+	return s
+}
+
+func (s *StagesFormatterBuilder) WithLogLevel(
+	colorMap map[LogLevel]AnsiColor,
+) *StagesFormatterBuilder {
+	s.stages = append(s.stages, func(record *LogRecord, output *strings.Builder) {
+		color, ok := colorMap[record.Level]
+		if !ok {
+			color = LOG_LEVEL_COLOR_MAP[record.Level]
+		}
+
+		output.WriteString(string(color))
+		output.WriteString(record.Level.String())
+		output.WriteString(string(RESET))
+		output.WriteByte(' ')
+	})
+
+	return s
+}
+
+func (s *StagesFormatterBuilder) WithMessage(
+	color AnsiColor,
+) *StagesFormatterBuilder {
+	s.stages = append(s.stages, func(record *LogRecord, output *strings.Builder) {
+		output.WriteString(string(color))
+		output.WriteString(record.Message)
+		output.WriteString(string(RESET))
+		output.WriteByte(' ')
+	})
+
+	return s
+}
+
+func (s *StagesFormatterBuilder) WithProperties(
+	keyColor AnsiColor,
+	valueColor AnsiColor,
+) *StagesFormatterBuilder {
+
+	s.stages = append(s.stages, func(record *LogRecord, output *strings.Builder) {
+		output.WriteString("\t\t")
+		propertiesCount := len(record.Properties) / 2
+		for i := 0; i < propertiesCount; i++ {
+
+			key := record.Properties[i*2]
+			value := record.Properties[i*2+1]
+
+			output.WriteString(string(keyColor))
+			writeAny(output, key)
+			output.WriteString(string(RESET))
+
+			output.WriteByte('=')
+
+			output.WriteString(string(valueColor))
+			writeAny(output, value)
+			output.WriteString(string(RESET))
+
+			output.WriteByte(' ')
+		}
+	})
+
+	return s
+}
+
+func (s *StagesFormatterBuilder) Build() *StagesFormatter {
 	return &StagesFormatter{
-		stages: make(
-			map[FormatterStage]func(record *LogRecord, output *strings.Builder), 4,
-		),
-		stagesOrder: make([]FormatterStage, 0, 4),
+		stages: s.stages,
 	}
 }
 
 func (s *StagesFormatter) Format(record *LogRecord) string {
-	output := &strings.Builder{}
-	output.Grow(len(record.Message) + len(time.TimeOnly))
-	for _, stage := range s.stagesOrder {
-		s.stages[stage](record, output)
+	var output strings.Builder
+	output.Grow(len(record.Message) + 32) // at least timestamp
+	for _, stage := range s.stages {
+		stage(record, &output)
 	}
 
 	return output.String()
+}
+
+func writeAny(b *strings.Builder, v any) {
+	switch x := v.(type) {
+	case string:
+		b.WriteString(x)
+	case int:
+		b.WriteString(strconv.Itoa(x))
+	case int64:
+		b.WriteString(strconv.FormatInt(x, 10))
+	case float64:
+		b.WriteString(strconv.FormatFloat(x, 'f', -1, 64))
+	case bool:
+		b.WriteString(strconv.FormatBool(x))
+	default:
+		b.WriteString("<?>")
+	}
 }
