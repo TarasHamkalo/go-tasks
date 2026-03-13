@@ -1,14 +1,23 @@
 package main
 
-import "hw2/pkg/logging"
+import (
+	. "hw2/pkg/logging"
+	"time"
+)
 
 func main() {
-	log := logging.NewBaseLogger(
-		[]logging.Sink{
-			logging.NewBaseSink(
-				logging.NewBaseFormatter(),
-				logging.NewConsoleAppender(),
-				logging.LEVEL_INFO,
+	log := NewBaseLogger(
+		[]Sink{
+			NewBaseSink(
+				NewStagesFormatterBuilder().
+					WithMessage(GREEN).
+					WithTimestamp(time.DateOnly, RED).
+					WithLogLevel(map[LogLevel]AnsiColor{
+						LEVEL_INFO: WHITE,
+					}).
+					Build(),
+				NewConsoleAppender(),
+				LEVEL_INFO,
 			),
 		},
 	)
