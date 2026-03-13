@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"fmt"
 	"time"
 )
 
@@ -48,14 +47,7 @@ func (b *BaseLogger) log(
 		panic("Either key or value missing in log record")
 	}
 
-	keysCount := len(structuredData) / 2
-	properties := make(map[string]string, keysCount)
-	for i := 0; i < keysCount; i++ {
-		key := fmt.Sprint(structuredData[2*i])
-		properties[key] = fmt.Sprint(structuredData[2*i+1])
-	}
-
-	record := NewLogRecord(msg, time.Now(), level, properties)
+	record := NewLogRecord(msg, time.Now(), level, structuredData)
 	for _, sink := range b.sinks {
 		sink.Flush(record)
 	}

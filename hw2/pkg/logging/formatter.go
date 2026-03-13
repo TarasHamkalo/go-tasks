@@ -114,12 +114,16 @@ func (s *StagesFormatter) WithProperties(
 
 	s.stages[PROPERTIES] = func(record *LogRecord, output *strings.Builder) {
 		output.WriteString("\t\t")
-		for key, value := range record.Properties {
-			output.WriteString(
-				fmt.Sprintf(
-					"%s%s%s=%s%s%s ", keyColor, key, RESET, valueColor, value, RESET,
-				),
-			)
+		propertiesCount := len(record.Properties) / 2
+		for i := 0; i < propertiesCount; i++ {
+			output.WriteString(string(keyColor))
+			output.WriteString(fmt.Sprint(record.Properties[i*2]))
+			output.WriteString(string(RESET))
+			output.WriteByte('=')
+			output.WriteString(string(valueColor))
+			output.WriteString(fmt.Sprint(record.Properties[i*2+1]))
+			output.WriteString(string(RESET))
+			output.WriteByte(' ')
 		}
 	}
 	return s

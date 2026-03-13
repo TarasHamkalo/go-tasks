@@ -19,14 +19,14 @@ type LogRecord struct {
 	Timestamp time.Time
 	Level     LogLevel
 
-	Properties map[string]string
+	Properties []interface{}
 }
 
 func NewLogRecord(
 	message string,
 	timestamp time.Time,
 	level LogLevel,
-	properties map[string]string,
+	properties []interface{},
 ) *LogRecord {
 	return &LogRecord{
 		Message:    message,
