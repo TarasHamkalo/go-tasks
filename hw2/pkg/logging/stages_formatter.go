@@ -31,6 +31,15 @@ func NewDefaultStagesFormatter() *StagesFormatter {
 		Build()
 }
 
+func NewNoColorStagesFormatter() *StagesFormatter {
+	return NewStagesFormatterBuilder().
+		WithTimestamp(time.TimeOnly, NoColor).
+		WithLogLevel(LogLevelColorMap).
+		WithMessage(NoColor).
+		WithProperties(NoColor, NoColor).
+		Build()
+}
+
 func (s *StagesFormatterBuilder) WithTimestamp(
 	layout string,
 	color AnsiColor,
@@ -115,12 +124,12 @@ func (s *StagesFormatterBuilder) Build() *StagesFormatter {
 	}
 }
 
-func (s *StagesFormatter) Format(record *LogRecord) []byte {
+func (s *StagesFormatter) Format(record *LogRecord) ([]byte, error) {
 	var output bytes.Buffer
 	output.Grow(len(record.Message) + 32) // at least timestamp
 	for _, stage := range s.stages {
 		stage(record, &output)
 	}
 
-	return output.Bytes()
+	return output.Bytes(), nil
 }

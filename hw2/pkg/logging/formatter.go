@@ -29,5 +29,5 @@ var LogLevelColorMap = map[LogLevel]AnsiColor{
 }
 
 type Formatter interface {
-	Format(record *LogRecord) []byte
+	Format(record *LogRecord) ([]byte, error)
 }

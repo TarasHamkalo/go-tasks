@@ -1,7 +1,12 @@
 package logging
 
+import (
+	"fmt"
+	"io"
+)
+
 type Sink interface {
-	Flush(record *LogRecord)
+	Flush(record *LogRecord, errorOutput io.Writer)
 }
 
 type BaseSink struct {
@@ -18,11 +23,19 @@ func NewBaseSink(
 	return &BaseSink{formatter: formatter, appender: appender, level: level}
 }
 
-func (b *BaseSink) Flush(record *LogRecord) {
+func (b *BaseSink) Flush(record *LogRecord, errorOutput io.Writer) {
 	if b.level > record.Level {
 		return
 	}
 
-	formatted := b.formatter.Format(record)
-	b.appender.Append(formatted)
+	data, err := b.formatter.Format(record)
+	if err != nil {
+		fmt.Fprintf(errorOutput, "Log formatting failed: %v\n", err)
+		return
+	}
+
+	err = b.appender.Append(data)
+	if err != nil {
+		fmt.Fprintf(errorOutput, "Log write failed: %v\n", err)
+	}
 }

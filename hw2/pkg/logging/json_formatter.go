@@ -11,7 +11,7 @@ func NewJsonFormatter() *JsonFormatter {
 	return &JsonFormatter{}
 }
 
-func (j JsonFormatter) Format(record *LogRecord) []byte {
+func (j JsonFormatter) Format(record *LogRecord) ([]byte, error) {
 	propertiesCount := len(record.Properties) / 2
 
 	data := make(map[string]interface{}, 3+propertiesCount)
@@ -23,11 +23,5 @@ func (j JsonFormatter) Format(record *LogRecord) []byte {
 		value := fmt.Sprint(record.Properties[i*2+1])
 		data[key] = value
 	}
-
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		return []byte(`{"error":"json marshal failed"}`)
-	}
-
-	return jsonBytes
+	return json.Marshal(data)
 }
