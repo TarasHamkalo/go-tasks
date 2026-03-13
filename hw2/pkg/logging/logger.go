@@ -41,6 +41,11 @@ func NewCleanLogger() *BaseLogger {
 	return NewBaseLogger(make([]Sink, 0, 3), os.Stderr)
 }
 
+func (b *BaseLogger) WithSink(sink Sink) *BaseLogger {
+	b.sinks = append(b.sinks, sink)
+	return b
+}
+
 // WithConsoleSink adds console sink to existing base logger object.
 func (b *BaseLogger) WithConsoleSink(
 	level LogLevel,
