@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// DemoLogger used to log content not related to examples
+// DemoLogger logs meta information about the examples themselves.
 var DemoLogger = NewCleanLogger().
 	WithSink(
 		NewBaseSink(
@@ -26,7 +26,11 @@ func DemoSection(title string) {
 	DemoLogger.Info("------------------------------------------------------------")
 }
 
-// Create formatter and configure logger with it
+//--------------------------------------------------------------------------
+// Custom formatter example
+//--------------------------------------------------------------------------
+
+// SimpleFormatter demonstrates a user-defined log formatter.
 type SimpleFormatter struct{}
 
 func (f *SimpleFormatter) Format(record *LogRecord) ([]byte, error) {
@@ -40,8 +44,10 @@ func (f *SimpleFormatter) Format(record *LogRecord) ([]byte, error) {
 	return []byte(out), nil
 }
 
+// ExampleCustomFormatter shows how to register and use a custom formatter.
 func ExampleCustomFormatter() {
 	DemoSection("Example: create and register custom Formatter")
+
 	log := NewCleanLogger().
 		WithSink(
 			NewBaseSink(
@@ -52,12 +58,14 @@ func ExampleCustomFormatter() {
 		)
 
 	defer log.Close()
+
 	log.Info("Using custom formatter")
 }
 
-//------------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+// Custom appender example
+//--------------------------------------------------------------------------
 
-// Create custom appender and configure logger with it
 type MemoryAppender struct {
 	Records [][]byte
 }
@@ -77,6 +85,7 @@ func (m *MemoryAppender) Close() error {
 	return nil
 }
 
+// ExampleCustomAppender demonstrates registering a custom appender.
 func ExampleCustomAppender() {
 	DemoSection(
 		"Example: create and register custom appender (store messages in memory)",
@@ -96,13 +105,16 @@ func ExampleCustomAppender() {
 	DemoLogger.Info("Stored records", "n", len(appender.Records))
 }
 
-// ------------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+// Log level filtering example
+//--------------------------------------------------------------------------
 
-// Log levels example
+// ExampleLogLevels demonstrates sink-level filtering.
 func ExampleLogLevels() {
 	DemoSection("Example: log levels (warning threshold)")
+
 	log := NewCleanLogger().
-		WithConsoleSink(LevelWarning, true) // warning level, colorize=true
+		WithConsoleSink(LevelWarning, true)
 
 	defer log.Close()
 
@@ -112,11 +124,14 @@ func ExampleLogLevels() {
 	log.Error("error message - will appear")
 }
 
-// Log to multiple destinations with different levels and colorization
+//--------------------------------------------------------------------------
+// Multiple sink example
+//--------------------------------------------------------------------------
+
+// ExampleMultipleSinks logs to console, JSON file, and plaintext file.
 func ExampleMultipleSinks() {
 	DemoSection(
-		"Example: multiple log destinations with " +
-			"different levels (console + json + file)",
+		"Example: multiple log destinations with different levels (console + json + file)",
 	)
 
 	DemoLogger.Info(
@@ -136,6 +151,11 @@ func ExampleMultipleSinks() {
 	log.Error("Error message", "version", "1.0.0", "tag", "initial")
 }
 
+//--------------------------------------------------------------------------
+// Console sink example
+//--------------------------------------------------------------------------
+
+// ExampleConsoleSink compares colorized and non-colorized console output.
 func ExampleConsoleSink() {
 	DemoSection("Example: console sink (colorized vs clean)")
 
@@ -152,9 +172,14 @@ func ExampleConsoleSink() {
 	logClean.Info("hello [clean] console")
 }
 
+//--------------------------------------------------------------------------
+// Custom text formatting example
+//--------------------------------------------------------------------------
+
+// ExampleCustomTextFormat demonstrates configuring colors and layout.
 func ExampleCustomTextFormat() {
 	DemoSection("Example: custom text formatting (colors per field and ordering)")
-	// specify colors per log level
+
 	customLogLevelColorMap := map[LogLevel]AnsiColor{
 		LevelDebug:   BrightYellow,
 		LevelInfo:    BrightRed,
@@ -184,6 +209,11 @@ func ExampleCustomTextFormat() {
 	log.Error("error colored", "prop", "value")
 }
 
+//--------------------------------------------------------------------------
+// File logging example
+//--------------------------------------------------------------------------
+
+// ExampleFileLogging writes logs to a file.
 func ExampleFileLogging() {
 	DemoSection("Example: file logging (to \"logs/app.log\")")
 
@@ -195,6 +225,10 @@ func ExampleFileLogging() {
 	log.Info("application started")
 	log.Error("something failed")
 }
+
+//--------------------------------------------------------------------------
+// Program entry point
+//--------------------------------------------------------------------------
 
 func main() {
 	ExampleCustomFormatter()
