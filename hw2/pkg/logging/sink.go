@@ -7,6 +7,8 @@ import (
 
 type Sink interface {
 	Flush(record *LogRecord, errorOutput io.Writer)
+
+	Close() error
 }
 
 type BaseSink struct {
@@ -38,4 +40,8 @@ func (b *BaseSink) Flush(record *LogRecord, errorOutput io.Writer) {
 	if err != nil {
 		fmt.Fprintf(errorOutput, "Log write failed: %v\n", err)
 	}
+}
+
+func (b *BaseSink) Close() error {
+	return b.appender.Close()
 }

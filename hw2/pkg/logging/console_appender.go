@@ -9,6 +9,10 @@ func NewConsoleAppender() *ConsoleAppender {
 }
 
 func (c *ConsoleAppender) Append(record []byte) error {
-	fmt.Println(string(record))
+	_, err := fmt.Println(string(record))
+	return err
+}
+
+func (c *ConsoleAppender) Close() error {
 	return nil
 }
