@@ -7,35 +7,19 @@ import (
 )
 
 func main() {
-	fileAppender, err := NewFileAppender("logs/app-log.jsonl")
-	if err != nil {
-		panic(err)
-	}
+	log := NewCleanLogger().
+		WithConsoleSink(LevelWarning, false).
+		WithFileSink("logs/plaintext.log", LevelError, true).
+		WithJsonFileSink("logs/jlogs.jsonl", LevelDebug)
 
-	defer func(fileAppender *FileAppender) {
-		err = fileAppender.Close()
+	defer func(log *BaseLogger) {
+		err := log.Close()
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Fprintf(os.Stderr, "could not close logger: %v\n", err)
 		}
-	}(fileAppender)
+	}(log)
 
-	log := NewBaseLogger(
-		[]Sink{
-			NewBaseSink(
-				NewDefaultStagesFormatter(),
-				NewConsoleAppender(),
-				LevelInfo,
-			),
-			NewBaseSink(
-				NewJsonFormatter(),
-				fileAppender,
-				LevelDebug,
-			),
-		},
-		os.Stderr,
-	)
-
-	log.Debug("Debug message", "version", "1.0.0", "tag", os.Stderr)
+	log.Debug("Debug message", "version", "1.0.0", "tag", "initial")
 	log.Info("Info message", "version", "1.0.0", "tag", "initial")
 	log.Warning("Warning message", "version", "1.0.0", "tag", "initial")
 	log.Error("Error message", "version", "1.0.0", "tag", "initial")
