@@ -27,7 +27,7 @@ const (
 	BRIGHT_BLUE   AnsiColor = "\033[94m"
 )
 
-var LOG_LEVEL_COLOR_MAP = map[LogLevel]AnsiColor{
+var LogLevelColorMap = map[LogLevel]AnsiColor{
 	LEVEL_DEBUG:   BRIGHT_BLUE,
 	LEVEL_INFO:    BRIGHT_GREEN,
 	LEVEL_WARNING: BRIGHT_YELLOW,
@@ -57,7 +57,7 @@ func NewStagesFormatterBuilder() *StagesFormatterBuilder {
 func NewDefaultStagesFormatter() *StagesFormatter {
 	return NewStagesFormatterBuilder().
 		WithTimestamp(time.TimeOnly, MAGENTA).
-		WithLogLevel(LOG_LEVEL_COLOR_MAP).
+		WithLogLevel(LogLevelColorMap).
 		WithMessage(NO_COLOR).
 		WithProperties(CYAN, GREEN).
 		Build()
@@ -86,7 +86,7 @@ func (s *StagesFormatterBuilder) WithLogLevel(
 	s.stages = append(s.stages, func(record *LogRecord, output *strings.Builder) {
 		color, ok := colorMap[record.Level]
 		if !ok {
-			color = LOG_LEVEL_COLOR_MAP[record.Level]
+			color = LogLevelColorMap[record.Level]
 		}
 
 		output.WriteString(string(color))
@@ -143,7 +143,7 @@ func (s *StagesFormatterBuilder) WithProperties(
 
 func (s *StagesFormatterBuilder) Build() *StagesFormatter {
 	return &StagesFormatter{
-		stages: s.stages,
+		stages: append([]stageFunc{}, s.stages...),
 	}
 }
 
