@@ -9,7 +9,7 @@ import (
 )
 
 // Logger handles LogRecord constructions and
-// unifies logic of LogRecord serialization as write/store.
+// unifies logic of LogRecord serialization as well as write/store.
 //
 // Should be closed after use.
 type Logger interface {
@@ -35,7 +35,7 @@ func NewBaseLogger(sinks []Sink, errorOutput io.Writer) *BaseLogger {
 	return &BaseLogger{sinks: sinks, errorOutput: errorOutput}
 }
 
-// NewCleanLogger constructs BaseLogger with no sinks setup and
+// NewCleanLogger constructs BaseLogger with no sinks set and
 // os.Stderr as errorOutput.
 func NewCleanLogger() *BaseLogger {
 	return NewBaseLogger(make([]Sink, 0, 3), os.Stderr)
@@ -51,7 +51,6 @@ func (b *BaseLogger) WithConsoleSink(
 	level LogLevel,
 	colorize bool,
 ) *BaseLogger {
-
 	var formatter Formatter
 	if colorize {
 		formatter = NewDefaultStagesFormatter()

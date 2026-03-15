@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// Sink handles serialization and write/store logic of LogRecord object.
+// Sink unifies serialization and write/store logic of LogRecord object.
 //
 // Should be closed after use.
 type Sink interface {

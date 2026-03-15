@@ -7,9 +7,9 @@ type LogLevel uint8
 // Should be in order of increasing severity
 const (
 	LevelDebug   LogLevel = iota
-	LevelInfo             = iota
-	LevelWarning          = iota
-	LevelError            = iota
+	LevelInfo    LogLevel = iota
+	LevelWarning LogLevel = iota
+	LevelError   LogLevel = iota
 )
 
 // LogRecord model of how single log entry represented.

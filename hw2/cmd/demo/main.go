@@ -168,8 +168,8 @@ func ExampleConsoleSink() {
 	defer logColorized.Close()
 	defer logClean.Close()
 
-	logColorized.Info("hello [colorized] console")
-	logClean.Info("hello [clean] console")
+	logColorized.Info("hello [colorized] console", "prop", "value")
+	logClean.Info("hello [clean] console", "prop", "value")
 }
 
 //--------------------------------------------------------------------------

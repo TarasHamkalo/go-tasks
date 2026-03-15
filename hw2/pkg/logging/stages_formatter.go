@@ -70,7 +70,7 @@ func (s *StagesFormatterBuilder) WithTimestamp(
 }
 
 // WithLogLevel add LogLevel formatting stage.
-// It is, add LogLevel string to output with colors defined colorMap.
+// It is, add LogLevel string to output with colors defined by colorMap.
 func (s *StagesFormatterBuilder) WithLogLevel(
 	colorMap map[LogLevel]AnsiColor,
 ) *StagesFormatterBuilder {
