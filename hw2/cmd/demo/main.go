@@ -4,6 +4,7 @@ import (
 	"fmt"
 	. "hw2/pkg/logging"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -30,7 +31,7 @@ func DemoSection(title string) {
 // Custom formatter example
 //--------------------------------------------------------------------------
 
-// SimpleFormatter demonstrates a user-defined log formatter.
+// SimpleFormatter implements Formatter.
 type SimpleFormatter struct{}
 
 func (f *SimpleFormatter) Format(record *LogRecord) ([]byte, error) {
@@ -231,6 +232,17 @@ func ExampleFileLogging() {
 //--------------------------------------------------------------------------
 
 func main() {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		panic("Could not get current working directory")
+	}
+
+	logsDir := filepath.Join(workingDir, "logs")
+	err = os.MkdirAll(logsDir, os.ModePerm)
+	if err != nil {
+		panic(fmt.Errorf("could not create logs directory: %+v", err))
+	}
+
 	ExampleCustomFormatter()
 	ExampleCustomAppender()
 	ExampleLogLevels()
