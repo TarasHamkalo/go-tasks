@@ -41,6 +41,7 @@ func NewCleanLogger() *BaseLogger {
 	return NewBaseLogger(make([]Sink, 0, 3), os.Stderr)
 }
 
+// WithSink registers provided sink to logger instance.
 func (b *BaseLogger) WithSink(sink Sink) *BaseLogger {
 	b.sinks = append(b.sinks, sink)
 	return b
