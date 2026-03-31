@@ -5,12 +5,15 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 )
 
 type DownloadTask struct {
 	id string
+
+	downloadId string // cross reference
 
 	url string
 
@@ -21,9 +24,10 @@ type DownloadTask struct {
 	//cancel func later
 }
 
-func NewDownloadTask(url, destination string) *DownloadTask {
+func NewDownloadTask(downloadId, url, destination string) *DownloadTask {
 	return &DownloadTask{
 		id:          uuid.New().String(),
+		downloadId:  downloadId,
 		url:         url,
 		destination: destination,
 		progress:    NewProgressWriter(),
@@ -46,7 +50,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 
 	if err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.id,
+			d.downloadId,
 			fmt.Errorf("error opening file: %v", err),
 		)
 		return
@@ -56,7 +60,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 		err := file.Close()
 		if err != nil {
 			downloader.EventsChan() <- NewDownloadError(
-				d.Id(),
+				d.downloadId,
 				fmt.Errorf("error closing file: %v", err),
 			)
 		}
@@ -65,7 +69,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 	req, err := http.NewRequest("GET", d.url, nil)
 	if err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.Id(),
+			d.downloadId,
 			fmt.Errorf("error building request: %v", err),
 		)
 		return
@@ -77,7 +81,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.Id(),
+			d.downloadId,
 			fmt.Errorf("http client error: %v", err),
 		)
 		return
@@ -87,7 +91,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 		err := resp.Body.Close()
 		if err != nil {
 			downloader.EventsChan() <- NewDownloadError(
-				d.Id(),
+				d.downloadId,
 				fmt.Errorf("error closing http body: %s\n", err),
 			)
 		}
@@ -95,7 +99,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 
 	if resp.StatusCode != http.StatusOK {
 		downloader.EventsChan() <- NewDownloadError(
-			d.Id(),
+			d.downloadId,
 			fmt.Errorf("bad status: %s", resp.Status),
 		)
 		return
@@ -104,10 +108,14 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 	downloader.EventsChan() <- NewDownloadStart(d.id, resp.ContentLength)
 	d.progress.Reset()
 
+	tickerDone := make(chan struct{})
+	defer close(tickerDone)
+
+	go d.tickProgress(downloader, 200, tickerDone)
 	teeReader := io.TeeReader(resp.Body, d.progress)
 	if _, err := io.Copy(file, teeReader); err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.Id(),
+			d.downloadId,
 			fmt.Errorf("error downloading content: %s", err),
 		)
 		return
@@ -115,4 +123,24 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 
 	// TODO: should have completion event
 	downloader.EventsChan() <- NewDownloadComplete(d.id, d.progress.BytesRead())
+}
+
+func (d *DownloadTask) tickProgress(
+	downloader *Downloader,
+	ms int64,
+	done <-chan struct{},
+) {
+	ticker := time.NewTicker(time.Duration(ms) * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			downloader.EventsChan() <- NewDownloadUpdate(
+				d.downloadId,
+				d.progress.BytesRead(),
+			)
+		case <-done:
+			return
+		}
+	}
 }

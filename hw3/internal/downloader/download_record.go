@@ -47,7 +47,6 @@ type DownloadRecord struct {
 }
 
 func NewDownload(
-	taskId string,
 	url string,
 	destination string,
 ) *DownloadRecord {
@@ -56,7 +55,6 @@ func NewDownload(
 
 		id: uuid.New().String(),
 
-		taskId:      taskId,
 		url:         url,
 		destination: destination,
 
@@ -66,6 +64,11 @@ func NewDownload(
 
 		expectedSize: -1,
 	}
+}
+
+func (d *DownloadRecord) WithTaskId(taskId string) *DownloadRecord {
+	d.taskId = taskId
+	return d
 }
 
 func (d *DownloadRecord) DetachedView() DownloadView {
