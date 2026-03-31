@@ -1,8 +1,15 @@
-package internal
+package downloader
 
 import (
+	"sync/atomic"
 	"time"
 )
+
+type Progress struct {
+	Speed         float64
+	BytesRead     int64
+	ExpectedTotal int64
+}
 
 type ProgressWriter struct {
 	bytesRead int64
@@ -12,6 +19,12 @@ type ProgressWriter struct {
 
 	// trackingStartTime is time when received first byte
 	trackingStartTime time.Time
+}
+
+func (p *ProgressWriter) Reset(expectedSize int64) {
+	p.bytesRead = 0
+	p.trackingStartTime = time.Time{}
+	p.expectedSize = expectedSize
 }
 
 func NewProgressWriter(expectedSize int64) *ProgressWriter {
@@ -25,28 +38,20 @@ func (p *ProgressWriter) Write(b []byte) (n int, err error) {
 		p.trackingStartTime = time.Now()
 	}
 
-	p.bytesRead += int64(len(b))
+	//p.bytesRead += int64(len(b))
+	atomic.AddInt64(&p.bytesRead, int64(len(b)))
 	return len(b), nil
 }
 
 // Stat returns bytes per second and in case expectedSize is -1
 // returns bytes read bytes or percentage otherwise.
-func (p *ProgressWriter) Stat() (float64, float64) {
-	var speed float64
-	var progress float64
-
+func (p *ProgressWriter) Stat() Progress {
+	bytesRead := atomic.LoadInt64(&p.bytesRead)
 	duration := time.Since(p.trackingStartTime)
-	if duration.Seconds() > 0 {
-		speed = float64(p.bytesRead) / duration.Seconds()
-	}
 
-	if p.expectedSize < 0 {
-		// raw
-		progress = float64(p.bytesRead)
-	} else {
-		// percentage
-		progress = float64(p.bytesRead) / float64(p.expectedSize)
+	return Progress{
+		Speed:         float64(bytesRead) / duration.Seconds(),
+		BytesRead:     bytesRead,
+		ExpectedTotal: p.expectedSize,
 	}
-
-	return speed, progress
 }

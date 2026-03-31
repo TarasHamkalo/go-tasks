@@ -6,6 +6,8 @@ go 1.25.8
 // https://github.com/c-bata/go-prompt/issues/228#issuecomment-818132118
 require github.com/c-bata/go-prompt v0.2.5
 
+require github.com/google/uuid v1.6.0
+
 require (
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
