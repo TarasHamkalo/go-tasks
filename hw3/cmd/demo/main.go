@@ -1,81 +1,58 @@
 package main
 
 import (
+	"crypto/sha256"
+	"downloader/internal"
 	"fmt"
-	"time"
-
-	prompt "github.com/c-bata/go-prompt"
+	"io"
+	"log"
+	"os"
+	"strings"
 )
-import "sync"
 
-var mu sync.Mutex
-var LivePrefixState struct {
-	LivePrefix string
-	IsEnable   bool
+var resources = map[string]string{
+	"https://download.fedoraproject.org/pub/fedora/linux/releases/test/44_Beta/KDE/x86_64/iso/Fedora-KDE-Desktop-Live-44_Beta-1.2.x86_64.iso": "7608815abd264c6f26b606bbd919a50a6950fee61a839b6f8d5891cca74a365a",
+	//"https://nbg1-speed.hetzner.com/100MB.bin": "20492a4d0d84f8beb1767f6616229f85d44c2827b64bdbfb260ee12fa1109e0e",
 }
 
-func executor(in string) {
-	mu.Lock()
-	defer mu.Unlock()
-	fmt.Println("Your input: " + in)
-	if in == "" {
-		LivePrefixState.IsEnable = false
-		LivePrefixState.LivePrefix = in
-		return
+func verifyChecksum(trueChecksum string, file string) bool {
+	if len(trueChecksum) == 0 {
+		return true
 	}
-	LivePrefixState.LivePrefix = in + "> "
-	LivePrefixState.IsEnable = true
-}
 
-func completer(in prompt.Document) []prompt.Suggest {
-	s := []prompt.Suggest{
-		{Text: "users", Description: "Store the username and age"},
-		{Text: "articles", Description: "Store the article text posted by user"},
-		{Text: "comments", Description: "Store the text commented to articles"},
-		{Text: "groups", Description: "Combine users with specific rules"},
+	f, err := os.Open(file)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return prompt.FilterHasPrefix(s, in.GetWordBeforeCursor(), true)
-}
 
-func changeLivePrefix() (string, bool) {
-	return LivePrefixState.LivePrefix, LivePrefixState.IsEnable
-}
+	defer f.Close()
 
-func runRandomPrinter(writer prompt.ConsoleWriter) {
-	for {
-		mu.Lock()
-
-		writer.WriteRawStr("\n")
-		writer.WriteStr("Hello from my custom output!")
-		writer.WriteRawStr("\n")
-		writer.Flush()
-
-		mu.Unlock()
-
-		time.Sleep(2 * time.Second)
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		log.Fatal(err)
 	}
+
+	computedChecksum := fmt.Sprintf("%x", h.Sum(nil))
+	fmt.Println(computedChecksum)
+	return trueChecksum == computedChecksum
 }
 
 func main() {
+	downloader := internal.NewDownloader()
+	for resource, sum := range resources {
+		i := strings.LastIndex(resource, "/")
+		var filename string
+		if i > 0 {
+			filename = resource[i+1:]
+		} else {
+			filename = resource
+		}
 
-	//writer := prompt.NewStdoutWriter()
-	//go runRandomPrinter(writer)
-	//prompt.Input()
-	//prompt.Input()
-	msg := make(chan string)
-	p := prompt.New(
-		executor,
-		completer,
-		prompt.OptionPrefix(">>> "),
-		prompt.OptionLivePrefix(changeLivePrefix),
-		prompt.OptionTitle("live-prefix-example"),
-		prompt.OptionWithAsyncMessageChan(msg),
-	)
+		err := downloader.Download(resource, "/tmp/"+filename)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 
-	go (func() {
-		time.Sleep(2 * time.Second)
-		msg <- "[event] super important\n[event] super super important"
-	})()
-
-	p.Input()
+		fmt.Println("Checksums equal: ", verifyChecksum(sum, "/tmp/"+filename))
+	}
 }
