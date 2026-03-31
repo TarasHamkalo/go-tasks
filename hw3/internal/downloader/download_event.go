@@ -47,11 +47,11 @@ func NewDownloadError(id string, err error) DownloadEvent {
 	}
 }
 
-func NewDownloadFinished(id string) DownloadEvent {
+func NewDownloadComplete(id string, totalSize int64) DownloadEvent {
 	return DownloadEvent{
 		downloadId: id,
 		eventType:  DownloadEventComplete,
-		data:       nil,
+		data:       totalSize,
 	}
 }
 

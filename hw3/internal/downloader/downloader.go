@@ -20,6 +20,12 @@ func (d *Downloader) SubmitDownload(
 	url string,
 	destination string,
 ) {
+	downloadTask := NewDownloadTask(url, destination)
+	download := NewDownload(downloadTask.Id(), url, destination)
+
+	d.downloadTasks.AddTask(downloadTask)
+
+	go downloadTask.Execute(d)
 }
 
 func (d *Downloader) UserAgent() string {
