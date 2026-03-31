@@ -17,7 +17,7 @@ func NewTasksStore() *TasksStore {
 	}
 }
 
-func (s *TasksStore) RemoveTask(taskId string) (*DownloadTask, error) {
+func (s *TasksStore) Remove(taskId string) (*DownloadTask, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -30,7 +30,7 @@ func (s *TasksStore) RemoveTask(taskId string) (*DownloadTask, error) {
 	return nil, fmt.Errorf("task %s not found", taskId)
 }
 
-func (s *TasksStore) AddTask(task *DownloadTask) {
+func (s *TasksStore) Add(task *DownloadTask) {
 	// TODO: here should check whether id is not taken
 	s.lock.Lock()
 	defer s.lock.Unlock()
