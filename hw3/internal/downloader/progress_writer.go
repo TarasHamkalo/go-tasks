@@ -6,6 +6,7 @@ import (
 )
 
 type Progress struct {
+	// Speed is calculated in bytes per second
 	Speed         float64
 	BytesRead     int64
 	ExpectedTotal int64
@@ -45,11 +46,11 @@ func (p *ProgressWriter) Write(b []byte) (n int, err error) {
 
 // Stat returns bytes per second and in case expectedSize is -1
 // returns bytes read bytes or percentage otherwise.
-func (p *ProgressWriter) Stat() Progress {
+func (p *ProgressWriter) Stat() *Progress {
 	bytesRead := atomic.LoadInt64(&p.bytesRead)
 	duration := time.Since(p.trackingStartTime)
 
-	return Progress{
+	return &Progress{
 		Speed:         float64(bytesRead) / duration.Seconds(),
 		BytesRead:     bytesRead,
 		ExpectedTotal: p.expectedSize,

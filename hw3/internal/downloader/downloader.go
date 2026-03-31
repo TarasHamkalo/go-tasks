@@ -1,60 +1,31 @@
 package downloader
 
-import "fmt"
-
 type Downloader struct {
 	userAgent string
 
-	eventsChan chan Event
+	downloadTasks *TasksStore
 
-	tasksStore *TasksStore
-}
-
-func (d *Downloader) TasksStore() *TasksStore {
-	return d.tasksStore
+	eventsChan chan DownloadEvent
 }
 
 func NewDownloader() *Downloader {
 	return &Downloader{
-		userAgent:  "BOT FIT/CTU (student project)",
-		eventsChan: make(chan Event), // TODO: capacity?
-		tasksStore: NewTasksStore(),
+		userAgent:     "BOT FIT/CTU (student project)",
+		downloadTasks: NewTasksStore(),
+		eventsChan:    make(chan DownloadEvent),
 	}
 }
 
-func (d *Downloader) Start() {
-	go (func() {
-		for event := range d.eventsChan {
-			fmt.Printf("[%s] [%s]\n", event.TaskId(), event.EventType())
-			fmt.Println(event.Properties())
-
-			if event.EventType() == TaskDone {
-				d.tasksStore.WithTaskMeta(
-					event.TaskId(),
-					func(taskMeta *TaskMeta, err error) {
-						if err == nil {
-							taskMeta.completionChan <- struct{}{}
-						}
-					},
-				)
-			}
-		}
-	})()
-}
-
-func (d *Downloader) Submit(task Task) <-chan struct{} {
-	completionChan := make(chan struct{}, 1)
-
-	d.tasksStore.PushTaskMeta(NewTaskMeta(task, completionChan))
-	go task.Execute(d)
-
-	return completionChan
+func (d *Downloader) SubmitDownload(
+	url string,
+	destination string,
+) {
 }
 
 func (d *Downloader) UserAgent() string {
 	return d.userAgent
 }
 
-func (d *Downloader) EventsChan() chan<- Event {
+func (d *Downloader) EventsChan() chan<- DownloadEvent {
 	return d.eventsChan
 }
