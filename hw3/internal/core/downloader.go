@@ -55,36 +55,41 @@ func NewDownloader(
 	}
 }
 
-// TODO: context to event handler loop
-func (d *Downloader) Start() {
-	go d.startEventHandlerLoop()
+func (d *Downloader) Start(ctx context.Context) {
+	go d.startEventHandlerLoop(ctx)
 }
 
-func (d *Downloader) startEventHandlerLoop() {
-	for event := range d.eventsChan {
-		d.logger.Debug("download event",
-			zap.String("type", string(event.EventType())),
-			zap.String("downloadId", event.DownloadId()),
-			zap.String("taskId", event.TaskId()),
-		)
-
-		download, err := d.downloadsStore.Get(event.DownloadId())
-		if err != nil {
-			d.logger.Error("can not handle event",
+func (d *Downloader) startEventHandlerLoop(ctx context.Context) {
+	for {
+		select {
+		case event := <-d.eventsChan:
+			d.logger.Debug("download event",
 				zap.String("type", string(event.EventType())),
 				zap.String("downloadId", event.DownloadId()),
 				zap.String("taskId", event.TaskId()),
-				zap.Error(err),
 			)
 
-			d.broadcastPublic(
-				NewExternalDownloadError(event.DownloadId(), err),
-			)
+			download, err := d.downloadsStore.Get(event.DownloadId())
+			if err != nil {
+				d.logger.Error("can not handle event",
+					zap.String("type", string(event.EventType())),
+					zap.String("downloadId", event.DownloadId()),
+					zap.String("taskId", event.TaskId()),
+					zap.Error(err),
+				)
 
-			continue
+				d.broadcastPublic(
+					NewExternalDownloadError(event.DownloadId(), err),
+				)
+				continue
+			}
+
+			d.handleDownloadEvent(event, download)
+
+		case <-ctx.Done():
+			d.logger.Info("event loop stopped")
+			return
 		}
-
-		d.handleDownloadEvent(event, download)
 	}
 }
 
@@ -224,15 +229,15 @@ func (d *Downloader) UserAgent() string {
 	return d.userAgent
 }
 
-func (d *Downloader) writeEventsChan() chan<- DownloadEvent {
-	return d.eventsChan
-}
-
 func (d *Downloader) Subscribe() <-chan ExternalDownloadEvent {
 	ch := make(chan ExternalDownloadEvent, 10)
 	d.subscribers = append(d.subscribers, ch)
 
 	return ch
+}
+
+func (d *Downloader) writeEventsChan() chan<- DownloadEvent {
+	return d.eventsChan
 }
 
 func (d *Downloader) broadcastPublic(e ExternalDownloadEvent) {
