@@ -1,8 +1,11 @@
 package downloader
 
 import (
-	"fmt"
+	. "downloader/pkg/downloader"
+
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type Downloader struct {
@@ -18,21 +21,37 @@ type Downloader struct {
 	eventsChan chan DownloadEvent
 
 	// should be accessed by lib consumer
-	errorsChan chan error
+	subscribers []chan ExternalDownloadEvent
+
+	logger *zap.Logger
 }
 
-func NewDownloader() *Downloader {
-	return &Downloader{
-		userAgent: "BOT FIT/CTU (student project)",
+func NewDefaultDownloader(logger *zap.Logger) *Downloader {
+	return NewDownloader(
+		"BOT FIT/CTU (student project)",
+		time.Millisecond*200,
+		logger,
+	)
+}
 
-		statusUpdateInterval: time.Millisecond * 200,
+func NewDownloader(
+	userAgent string,
+	statusUpdateInterval time.Duration,
+	logger *zap.Logger,
+) *Downloader {
+
+	return &Downloader{
+		userAgent:            userAgent,
+		statusUpdateInterval: statusUpdateInterval,
 
 		downloadTasks:  NewTasksStore(),
 		downloadsStore: NewDownloadStore(),
 
 		eventsChan: make(chan DownloadEvent, 10),
 
-		errorsChan: make(chan error, 10),
+		subscribers: make([]chan ExternalDownloadEvent, 2),
+
+		logger: logger,
 	}
 }
 
@@ -42,14 +61,24 @@ func (d *Downloader) Start() {
 
 func (d *Downloader) startEventHandlerLoop() {
 	for event := range d.eventsChan {
-		// TODO: add logging
-		fmt.Printf("[%s] [%s] [%s] [%v]\n", event.TaskId(), event.DownloadId(), event.EventType(), event.Data())
+		d.logger.Debug("download event",
+			zap.String("type", string(event.EventType())),
+			zap.String("downloadId", event.DownloadId()),
+			zap.String("taskId", event.TaskId()),
+		)
+
 		download, err := d.downloadsStore.Get(event.DownloadId())
 		if err != nil {
-			select {
-			case d.errorsChan <- err:
-			default:
-			}
+			d.logger.Error("can not handle event",
+				zap.String("type", string(event.EventType())),
+				zap.String("downloadId", event.DownloadId()),
+				zap.String("taskId", event.TaskId()),
+				zap.Error(err),
+			)
+
+			d.broadcastPublic(
+				NewExternalDownloadError(event.DownloadId(), err),
+			)
 
 			continue
 		}
@@ -57,29 +86,41 @@ func (d *Downloader) startEventHandlerLoop() {
 		switch event.EventType() {
 		case DownloadEventStart:
 			download.Start(event.Int64())
+			d.broadcastPublic(
+				NewExternalDownloadStart(event.DownloadId(), event.Int64()),
+			)
 		case DownloadEventUpdate:
 			download.SetBytesDownloaded(event.Int64())
 		case DownloadEventError:
-			_, err := d.downloadTasks.Remove(event.TaskId())
-			if err != nil {
-				// TODO: logging, err is not much of a problem here
-				fmt.Printf("[%s] [%s] Task not found\n", event.TaskId(), event.DownloadId())
-			}
-
+			d.handleTaskRemoval(event)
 			download.Fail(event.Error())
-		case DownloadEventComplete:
-			_, err := d.downloadTasks.Remove(event.TaskId())
-			if err != nil {
-				// TODO: logging, err is not much of a problem here
-				fmt.Printf("[%s] [%s] Task not found\n", event.TaskId(), event.DownloadId())
-			}
-			download.Complete(event.Int64())
-		default:
-			d.errorsChan <- fmt.Errorf(
-				"unknown event type [%s] [%s] [%v]",
-				event.DownloadId(), event.EventType(), event.Data(),
+
+			d.broadcastPublic(
+				NewExternalDownloadError(event.DownloadId(), event.Error()),
 			)
+		case DownloadEventComplete:
+			d.handleTaskRemoval(event)
+			download.Complete(event.Int64())
+
+			d.broadcastPublic(
+				NewExternalDownloadComplete(event.DownloadId(), event.Int64()),
+			)
+
+		default:
+			d.logger.Error("unknown event type", zap.Any("event", event))
 		}
+	}
+}
+
+func (d *Downloader) handleTaskRemoval(event DownloadEvent) {
+	_, err := d.downloadTasks.Remove(event.TaskId())
+	if err != nil {
+		d.logger.Warn(
+			"task not found for event",
+			zap.String("type", string(event.EventType())),
+			zap.String("downloadId", event.DownloadId()),
+			zap.String("taskId", event.TaskId()),
+		)
 	}
 }
 
@@ -121,10 +162,22 @@ func (d *Downloader) UserAgent() string {
 	return d.userAgent
 }
 
-func (d *Downloader) EventsChan() chan<- DownloadEvent {
+func (d *Downloader) writeEventsChan() chan<- DownloadEvent {
 	return d.eventsChan
 }
 
-func (d *Downloader) ErrorsChan() <-chan error {
-	return d.errorsChan
+func (d *Downloader) Subscribe() <-chan ExternalDownloadEvent {
+	ch := make(chan ExternalDownloadEvent, 10)
+	d.subscribers = append(d.subscribers, ch)
+
+	return ch
+}
+
+func (d *Downloader) broadcastPublic(e ExternalDownloadEvent) {
+	for _, sub := range d.subscribers {
+		select {
+		case sub <- e:
+		default:
+		}
+	}
 }

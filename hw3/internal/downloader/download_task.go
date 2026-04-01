@@ -51,7 +51,6 @@ func (d *DownloadTask) Done() <-chan struct{} {
 	return d.done
 }
 
-// TODO: refactor exec
 func (d *DownloadTask) Execute(downloader *Downloader) {
 	defer close(d.done)
 
@@ -89,7 +88,7 @@ func (d *DownloadTask) openFile(downloader *Downloader) (*os.File, error) {
 		0644,
 	)
 	if err != nil {
-		downloader.EventsChan() <- NewDownloadError(
+		downloader.writeEventsChan() <- NewDownloadError(
 			d, fmt.Errorf("error opening file: %v", err),
 		)
 		return nil, err
@@ -99,7 +98,7 @@ func (d *DownloadTask) openFile(downloader *Downloader) (*os.File, error) {
 
 func (d *DownloadTask) closeFile(file *os.File, downloader *Downloader) {
 	if err := file.Close(); err != nil {
-		downloader.EventsChan() <- NewDownloadError(
+		downloader.writeEventsChan() <- NewDownloadError(
 			d, fmt.Errorf("error closing file: %v", err),
 		)
 	}
@@ -112,7 +111,7 @@ func (d *DownloadTask) doRequest(
 ) (*http.Response, error) {
 	req, err := http.NewRequest("GET", d.url, nil)
 	if err != nil {
-		downloader.EventsChan() <- NewDownloadError(
+		downloader.writeEventsChan() <- NewDownloadError(
 			d, fmt.Errorf("error building request: %v", err),
 		)
 		return nil, err
@@ -123,7 +122,7 @@ func (d *DownloadTask) doRequest(
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		downloader.EventsChan() <- NewDownloadError(
+		downloader.writeEventsChan() <- NewDownloadError(
 			d, fmt.Errorf("http client error: %v", err),
 		)
 		return nil, err
@@ -137,7 +136,7 @@ func (d *DownloadTask) closeResponse(
 	downloader *Downloader,
 ) {
 	if err := resp.Body.Close(); err != nil {
-		downloader.EventsChan() <- NewDownloadError(
+		downloader.writeEventsChan() <- NewDownloadError(
 			d, fmt.Errorf("error closing http body: %v", err),
 		)
 	}
@@ -149,7 +148,7 @@ func (d *DownloadTask) validateResponse(
 ) error {
 	if resp.StatusCode != http.StatusOK {
 		err := fmt.Errorf("bad status: %s", resp.Status)
-		downloader.EventsChan() <- NewDownloadError(d, err)
+		downloader.writeEventsChan() <- NewDownloadError(d, err)
 		return err
 	}
 	return nil
@@ -159,7 +158,7 @@ func (d *DownloadTask) startDownload(
 	downloader *Downloader,
 	resp *http.Response,
 ) {
-	downloader.EventsChan() <- NewDownloadStart(d, resp.ContentLength)
+	downloader.writeEventsChan() <- NewDownloadStart(d, resp.ContentLength)
 	d.progress.Reset()
 }
 
@@ -175,7 +174,7 @@ func (d *DownloadTask) downloadBody(
 	teeReader := io.TeeReader(resp.Body, d.progress)
 
 	if _, err := io.Copy(file, teeReader); err != nil {
-		downloader.EventsChan() <- NewDownloadError(
+		downloader.writeEventsChan() <- NewDownloadError(
 			d,
 			fmt.Errorf("error downloading content: %s", err),
 		)
@@ -194,7 +193,9 @@ func (d *DownloadTask) tickProgress(
 	for {
 		select {
 		case <-ticker.C:
-			downloader.EventsChan() <- NewDownloadUpdate(d, d.progress.BytesRead())
+			downloader.writeEventsChan() <- NewDownloadUpdate(
+				d, d.progress.BytesRead(),
+			)
 		case <-done:
 			return
 		}
@@ -202,5 +203,7 @@ func (d *DownloadTask) tickProgress(
 }
 
 func (d *DownloadTask) finishDownload(downloader *Downloader) {
-	downloader.EventsChan() <- NewDownloadComplete(d, d.progress.BytesRead())
+	downloader.writeEventsChan() <- NewDownloadComplete(
+		d, d.progress.BytesRead(),
+	)
 }
