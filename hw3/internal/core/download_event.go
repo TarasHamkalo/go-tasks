@@ -6,6 +6,9 @@ const (
 	// DownloadEventStart implies data field with expected size
 	DownloadEventStart DownloadEventType = "start"
 
+	// DownloadEventCancel implies data field is empty (user interrupt)
+	DownloadEventCancel DownloadEventType = "cancel"
+
 	// DownloadEventUpdate implies data field contains
 	// count of currently downloaded bytes
 	DownloadEventUpdate DownloadEventType = "update"
@@ -36,6 +39,14 @@ func NewDownloadStart(d *DownloadTask, expectedSize int64) DownloadEvent {
 		downloadId: d.downloadId,
 		eventType:  DownloadEventStart,
 		data:       expectedSize,
+	}
+}
+
+func NewDownloadCancel(d *DownloadTask) DownloadEvent {
+	return DownloadEvent{
+		taskId:     d.id,
+		downloadId: d.downloadId,
+		eventType:  DownloadEventCancel,
 	}
 }
 

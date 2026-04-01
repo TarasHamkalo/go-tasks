@@ -12,6 +12,7 @@ type DownloadStatus string
 const (
 	StatusFailed     DownloadStatus = "failed"
 	StatusRequested  DownloadStatus = "requested"
+	StatusCanceled   DownloadStatus = "canceled"
 	StatusInProgress DownloadStatus = "in_progress"
 	StatusCompleted  DownloadStatus = "completed"
 )
@@ -69,16 +70,17 @@ func NewDownload(
 	}
 }
 
+// TODO: rename to set task id
 func (d *DownloadRecord) WithTaskId(taskId string) *DownloadRecord {
 	d.taskId = taskId
 	return d
 }
 
-func (d *DownloadRecord) DetachedView() DownloadView {
+func (d *DownloadRecord) DetachedView() *DownloadView {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
-	return DownloadView{
+	return &DownloadView{
 		Id:              d.id,
 		Url:             d.url,
 		Destination:     d.destination,
@@ -115,6 +117,15 @@ func (d *DownloadRecord) SetBytesDownloaded(bytesDownloaded int64) {
 	}
 
 	d.bytesDownloaded = bytesDownloaded
+}
+
+func (d *DownloadRecord) Cancel() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.status = StatusCanceled
+	d.taskId = ""
+	d.endTime = time.Now()
 }
 
 // Fail can entered failed state never been started
