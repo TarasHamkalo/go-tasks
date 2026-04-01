@@ -9,7 +9,11 @@ type Downloader struct {
 
 	downloadsStore *DownloadStore
 
+	// should be accessed only by given package
 	eventsChan chan DownloadEvent
+
+	// should be accessed by lib consumer
+	errorsChan chan error
 }
 
 func NewDownloader() *Downloader {
@@ -20,17 +24,56 @@ func NewDownloader() *Downloader {
 		downloadsStore: NewDownloadStore(),
 
 		eventsChan: make(chan DownloadEvent, 10),
+
+		errorsChan: make(chan error, 10),
 	}
 }
 
 func (d *Downloader) Start() {
-	go (func() {
-		for event := range d.eventsChan {
-			fmt.Printf("[%s] [%s] [%v]\n", event.DownloadId(), event.EventType(), event.Data())
-			// TODO: implement even handling
-		}
-	})()
+	go d.startEventHandlerLoop()
+}
 
+func (d *Downloader) startEventHandlerLoop() {
+	for event := range d.eventsChan {
+		// TODO: add logging
+		fmt.Printf("[%s] [%s] [%s] [%v]\n", event.TaskId(), event.DownloadId(), event.EventType(), event.Data())
+		download, err := d.downloadsStore.Get(event.DownloadId())
+		if err != nil {
+			select {
+			case d.errorsChan <- err:
+			default:
+			}
+
+			continue
+		}
+
+		switch event.EventType() {
+		case DownloadEventStart:
+			download.Start(event.Int64())
+		case DownloadEventUpdate:
+			download.SetBytesDownloaded(event.Int64())
+		case DownloadEventError:
+			_, err := d.downloadTasks.Remove(event.TaskId())
+			if err != nil {
+				// TODO: logging, err is not much of a problem here
+				fmt.Printf("[%s] [%s] Task not found\n", event.TaskId(), event.DownloadId())
+			}
+
+			download.Fail(event.Error())
+		case DownloadEventComplete:
+			_, err := d.downloadTasks.Remove(event.TaskId())
+			if err != nil {
+				// TODO: logging, err is not much of a problem here
+				fmt.Printf("[%s] [%s] Task not found\n", event.TaskId(), event.DownloadId())
+			}
+			download.Complete(event.Int64())
+		default:
+			d.errorsChan <- fmt.Errorf(
+				"unknown event type [%s] [%s] [%v]",
+				event.DownloadId(), event.EventType(), event.Data(),
+			)
+		}
+	}
 }
 
 // SubmitDownload returns downloadID
@@ -73,4 +116,8 @@ func (d *Downloader) UserAgent() string {
 
 func (d *Downloader) EventsChan() chan<- DownloadEvent {
 	return d.eventsChan
+}
+
+func (d *Downloader) ErrorsChan() <-chan error {
+	return d.errorsChan
 }
