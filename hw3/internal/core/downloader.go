@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -22,8 +23,8 @@ type Downloader struct {
 
 	// should be accessed by lib consumer
 	subscribers []chan ExternalDownloadEvent
-
-	logger *zap.Logger
+	subMu       sync.RWMutex
+	logger      *zap.Logger
 }
 
 func NewDefaultDownloader(logger *zap.Logger) *Downloader {
@@ -63,6 +64,7 @@ func (d *Downloader) startEventHandlerLoop(ctx context.Context) {
 	for {
 		select {
 		case event := <-d.eventsChan:
+			fmt.Println("Event Received: ", event)
 			d.logger.Debug("download event",
 				zap.String("type", string(event.EventType())),
 				zap.String("downloadId", event.DownloadId()),
@@ -87,6 +89,8 @@ func (d *Downloader) startEventHandlerLoop(ctx context.Context) {
 			d.handleDownloadEvent(event, download)
 
 		case <-ctx.Done():
+			// TODO: await tasks completion for few seconds
+			d.logger.Sync()
 			d.logger.Info("event loop stopped")
 			return
 		}
@@ -230,6 +234,8 @@ func (d *Downloader) UserAgent() string {
 }
 
 func (d *Downloader) Subscribe() <-chan ExternalDownloadEvent {
+	d.subMu.Lock()
+	defer d.subMu.Unlock()
 	ch := make(chan ExternalDownloadEvent, 10)
 	d.subscribers = append(d.subscribers, ch)
 
@@ -241,6 +247,9 @@ func (d *Downloader) writeEventsChan() chan<- DownloadEvent {
 }
 
 func (d *Downloader) broadcastPublic(e ExternalDownloadEvent) {
+	d.subMu.RLock()
+	defer d.subMu.RUnlock()
+
 	for _, sub := range d.subscribers {
 		select {
 		case sub <- e:
