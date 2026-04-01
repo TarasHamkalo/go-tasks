@@ -201,7 +201,6 @@ func (d *Downloader) CancelDownload(downloadId string) error {
 	return nil
 }
 
-// TODO: just return closed chan
 func (d *Downloader) CompletionChan(
 	downloadId string,
 ) (<-chan struct{}, error) {
@@ -212,7 +211,10 @@ func (d *Downloader) CompletionChan(
 
 	taskEntry, err := d.downloadTasks.Get(download.taskId)
 	if err != nil {
-		return nil, err
+		// task already finished and removed, just return closed chan
+		ch := make(chan struct{})
+		close(ch)
+		return ch, nil
 	}
 
 	return taskEntry.Task.Done(), nil
