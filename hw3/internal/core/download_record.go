@@ -70,8 +70,7 @@ func NewDownload(
 	}
 }
 
-// TODO: rename to set task id
-func (d *DownloadRecord) WithTaskId(taskId string) *DownloadRecord {
+func (d *DownloadRecord) SetTaskId(taskId string) *DownloadRecord {
 	d.taskId = taskId
 	return d
 }

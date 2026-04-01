@@ -158,7 +158,7 @@ func (d *Downloader) SubmitDownload(
 	download := NewDownload(url, destination)
 	downloadTask := NewDownloadTask(download.Id(), url, destination)
 
-	download.WithTaskId(downloadTask.Id())
+	download.SetTaskId(downloadTask.Id())
 
 	d.downloadsStore.Add(download)
 	d.downloadTasks.Add(NewTaskEntry(downloadTask, cancelFunc))
