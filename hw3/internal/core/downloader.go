@@ -1,8 +1,6 @@
-package downloader
+package core
 
 import (
-	. "downloader/pkg/downloader"
-
 	"time"
 
 	"go.uber.org/zap"
