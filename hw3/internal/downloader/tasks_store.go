@@ -7,13 +7,13 @@ import (
 
 type TasksStore struct {
 	tasks map[string]*DownloadTask
-	lock  sync.Mutex
+	lock  sync.RWMutex
 }
 
 func NewTasksStore() *TasksStore {
 	return &TasksStore{
 		tasks: make(map[string]*DownloadTask, 10),
-		lock:  sync.Mutex{},
+		lock:  sync.RWMutex{},
 	}
 }
 
@@ -28,6 +28,18 @@ func (s *TasksStore) Remove(taskId string) (*DownloadTask, error) {
 	}
 
 	return nil, fmt.Errorf("task %s not found", taskId)
+}
+
+func (s *TasksStore) Get(id string) (*DownloadTask, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	d, ok := s.tasks[id]
+	if ok {
+		return d, nil
+	}
+
+	return nil, fmt.Errorf("task %s not found", id)
 }
 
 func (s *TasksStore) Add(task *DownloadTask) {

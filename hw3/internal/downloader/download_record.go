@@ -19,7 +19,10 @@ const (
 type DownloadRecord struct {
 	mu sync.RWMutex
 
-	id     string
+	id string
+
+	// taskId stores id of task executing this download, would be better to hold
+	// as cross table, but currently left here
 	taskId string
 
 	url         string

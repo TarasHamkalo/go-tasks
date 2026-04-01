@@ -10,18 +10,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// DownloadTask represents a temporary object of running download.
+// Based on that, it does not contain status but rather holds data
+// need to cancel download or track its completion.
+// For full metadata stored about donwload see DownloadRecord.
 type DownloadTask struct {
 	id string
 
-	downloadId string // cross reference
+	// cross reference
+	downloadId string
 
 	url string
 
 	destination string
 
-	progress *ProgressWriter
+	// will be closed after task finishes
+	done chan struct{}
 
 	//cancel func later
+
+	progress *ProgressWriter
 }
 
 func NewDownloadTask(downloadId, url, destination string) *DownloadTask {
@@ -31,6 +39,7 @@ func NewDownloadTask(downloadId, url, destination string) *DownloadTask {
 		url:         url,
 		destination: destination,
 		progress:    NewProgressWriter(),
+		done:        make(chan struct{}),
 	}
 }
 
@@ -38,7 +47,14 @@ func (d *DownloadTask) Id() string {
 	return d.id
 }
 
+func (d *DownloadTask) Done() <-chan struct{} {
+	return d.done
+}
+
+// TODO: refactor exec
 func (d *DownloadTask) Execute(downloader *Downloader) {
+	defer close(d.done)
+
 	// TODO: client := &http.Client{ Timeout: time.Second * 5, }; ?
 	// TODO: NewRequestWithContext
 	// TODO: |os.O_EXCL
@@ -121,7 +137,6 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 		return
 	}
 
-	// TODO: should have completion event
 	downloader.EventsChan() <- NewDownloadComplete(d.id, d.progress.BytesRead())
 }
 
