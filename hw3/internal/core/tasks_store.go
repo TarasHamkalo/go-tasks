@@ -1,51 +1,61 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
 
+type TaskEntry struct {
+	Task   *DownloadTask
+	Cancel context.CancelFunc
+}
+
+func NewTaskEntry(task *DownloadTask, cancel context.CancelFunc) *TaskEntry {
+	return &TaskEntry{Task: task, Cancel: cancel}
+}
+
 type TasksStore struct {
-	tasks map[string]*DownloadTask
-	lock  sync.RWMutex
+	entries map[string]*TaskEntry
+	lock    sync.RWMutex
 }
 
 func NewTasksStore() *TasksStore {
 	return &TasksStore{
-		tasks: make(map[string]*DownloadTask, 10),
-		lock:  sync.RWMutex{},
+		entries: make(map[string]*TaskEntry, 10),
+		lock:    sync.RWMutex{},
 	}
 }
 
-func (s *TasksStore) Remove(taskId string) (*DownloadTask, error) {
+func (s *TasksStore) Remove(taskId string) (*TaskEntry, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	task, ok := s.tasks[taskId]
+	entry, ok := s.entries[taskId]
 	if ok {
-		delete(s.tasks, taskId)
-		return task, nil
+		delete(s.entries, taskId)
+		return entry, nil
 	}
 
 	return nil, fmt.Errorf("task %s not found", taskId)
 }
 
-func (s *TasksStore) Get(id string) (*DownloadTask, error) {
+func (s *TasksStore) Get(id string) (*TaskEntry, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	d, ok := s.tasks[id]
+	entry, ok := s.entries[id]
 	if ok {
-		return d, nil
+		return entry, nil
 	}
 
 	return nil, fmt.Errorf("task %s not found", id)
 }
 
-func (s *TasksStore) Add(task *DownloadTask) {
+func (s *TasksStore) Add(entry *TaskEntry) {
 	// TODO: here should check whether id is not taken
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.tasks[task.Id()] = task
+	s.entries[entry.Task.Id()] = entry
 }

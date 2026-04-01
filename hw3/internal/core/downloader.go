@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"go.uber.org/zap"
@@ -47,12 +49,13 @@ func NewDownloader(
 
 		eventsChan: make(chan DownloadEvent, 10),
 
-		subscribers: make([]chan ExternalDownloadEvent, 2),
+		subscribers: make([]chan ExternalDownloadEvent, 0),
 
 		logger: logger,
 	}
 }
 
+// TODO: context to event handler loop
 func (d *Downloader) Start() {
 	go d.startEventHandlerLoop()
 }
@@ -81,65 +84,124 @@ func (d *Downloader) startEventHandlerLoop() {
 			continue
 		}
 
-		switch event.EventType() {
-		case DownloadEventStart:
-			download.Start(event.Int64())
-			d.broadcastPublic(
-				NewExternalDownloadStart(event.DownloadId(), event.Int64()),
-			)
-		case DownloadEventUpdate:
-			download.SetBytesDownloaded(event.Int64())
-		case DownloadEventError:
-			d.handleTaskRemoval(event)
-			download.Fail(event.Error())
-
-			d.broadcastPublic(
-				NewExternalDownloadError(event.DownloadId(), event.Error()),
-			)
-		case DownloadEventComplete:
-			d.handleTaskRemoval(event)
-			download.Complete(event.Int64())
-
-			d.broadcastPublic(
-				NewExternalDownloadComplete(event.DownloadId(), event.Int64()),
-			)
-
-		default:
-			d.logger.Error("unknown event type", zap.Any("event", event))
-		}
+		d.handleDownloadEvent(event, download)
 	}
 }
 
-func (d *Downloader) handleTaskRemoval(event DownloadEvent) {
-	_, err := d.downloadTasks.Remove(event.TaskId())
+func (d *Downloader) handleDownloadEvent(
+	event DownloadEvent,
+	download *DownloadRecord,
+) {
+	switch event.EventType() {
+	case DownloadEventStart:
+		download.Start(event.Int64())
+		d.broadcastPublic(
+			NewExternalDownloadStart(event.DownloadId(), event.Int64()),
+		)
+
+	case DownloadEventUpdate:
+		download.SetBytesDownloaded(event.Int64())
+
+	case DownloadEventCancel:
+		d.handleTaskRemoval(event, false)
+		download.Cancel()
+
+		d.broadcastPublic(
+			NewExternalDownloadCancel(event.DownloadId()),
+		)
+
+	case DownloadEventError:
+		d.handleTaskRemoval(event, true)
+
+		download.Fail(event.Error())
+		d.broadcastPublic(
+			NewExternalDownloadError(event.DownloadId(), event.Error()),
+		)
+	case DownloadEventComplete:
+		d.handleTaskRemoval(event, true)
+		download.Complete(event.Int64())
+
+		d.broadcastPublic(
+			NewExternalDownloadComplete(event.DownloadId(), event.Int64()),
+		)
+
+	default:
+		d.logger.Error("unknown event type", zap.Any("event", event))
+	}
+}
+
+func (d *Downloader) handleTaskRemoval(event DownloadEvent, withCancel bool) {
+	taskEntry, err := d.downloadTasks.Remove(event.TaskId())
 	if err != nil {
 		d.logger.Warn(
-			"task not found for event",
+			"could not remove task",
 			zap.String("type", string(event.EventType())),
 			zap.String("downloadId", event.DownloadId()),
 			zap.String("taskId", event.TaskId()),
+			zap.Error(err),
 		)
+	}
+
+	if withCancel {
+		taskEntry.Cancel()
 	}
 }
 
 // SubmitDownload returns downloadID
 func (d *Downloader) SubmitDownload(
+	ctx context.Context,
 	url string,
 	destination string,
 ) string {
+	taskCtx, cancelFunc := context.WithCancel(ctx)
+
 	download := NewDownload(url, destination)
 	downloadTask := NewDownloadTask(download.Id(), url, destination)
 
 	download.WithTaskId(downloadTask.Id())
 
-	d.downloadTasks.Add(downloadTask)
 	d.downloadsStore.Add(download)
+	d.downloadTasks.Add(NewTaskEntry(downloadTask, cancelFunc))
 
-	go downloadTask.Execute(d)
+	go downloadTask.Execute(taskCtx, d)
 
 	return download.Id()
 }
 
+func (d *Downloader) DownloadStatus(downloadId string) (*DownloadView, error) {
+	download, err := d.downloadsStore.Get(downloadId)
+	if err != nil {
+		return nil, err
+	}
+
+	return download.DetachedView(), nil
+}
+
+func (d *Downloader) AllDownloadsStatus() []DownloadView {
+	return d.downloadsStore.GetAllViews()
+}
+
+func (d *Downloader) CancelDownload(downloadId string) error {
+	download, err := d.downloadsStore.Get(downloadId)
+	if err != nil {
+		return err
+	}
+
+	taskEntry, err := d.downloadTasks.Get(download.TaskId())
+	if err != nil {
+		d.logger.Warn(
+			"download is not cancellable anymore (no active task)",
+			zap.String("downloadId", download.Id()),
+		)
+
+		return fmt.Errorf("download is not cancellable anymore")
+	}
+
+	taskEntry.Cancel()
+	return nil
+}
+
+// TODO: just return closed chan
 func (d *Downloader) CompletionChan(
 	downloadId string,
 ) (<-chan struct{}, error) {
@@ -148,12 +210,12 @@ func (d *Downloader) CompletionChan(
 		return nil, err
 	}
 
-	task, err := d.downloadTasks.Get(download.taskId)
+	taskEntry, err := d.downloadTasks.Get(download.taskId)
 	if err != nil {
 		return nil, err
 	}
 
-	return task.Done(), nil
+	return taskEntry.Task.Done(), nil
 }
 
 func (d *Downloader) UserAgent() string {

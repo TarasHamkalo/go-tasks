@@ -32,6 +32,15 @@ func NewExternalDownloadStart(
 	}
 }
 
+func NewExternalDownloadCancel(
+	downloadId string,
+) ExternalDownloadEvent {
+	return ExternalDownloadEvent{
+		downloadId: downloadId,
+		eventType:  EDownloadEventError,
+	}
+}
+
 func NewExternalDownloadComplete(
 	downloadId string,
 	totalSize int64,

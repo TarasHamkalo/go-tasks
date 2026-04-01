@@ -1,6 +1,8 @@
 package core
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -27,19 +29,24 @@ type DownloadTask struct {
 	// will be closed after task finishes
 	done chan struct{}
 
-	//cancel func later
-
 	progress *ProgressWriter
 }
 
-func NewDownloadTask(downloadId, url, destination string) *DownloadTask {
+func NewDownloadTask(
+	downloadId string,
+	url string,
+	destination string,
+) *DownloadTask {
 	return &DownloadTask{
-		id:          uuid.New().String(),
-		downloadId:  downloadId,
+		id:         uuid.New().String(),
+		downloadId: downloadId,
+
 		url:         url,
 		destination: destination,
-		progress:    NewProgressWriter(),
-		done:        make(chan struct{}),
+
+		progress: NewProgressWriter(),
+
+		done: make(chan struct{}),
 	}
 }
 
@@ -51,7 +58,7 @@ func (d *DownloadTask) Done() <-chan struct{} {
 	return d.done
 }
 
-func (d *DownloadTask) Execute(downloader *Downloader) {
+func (d *DownloadTask) Execute(ctx context.Context, downloader *Downloader) {
 	defer close(d.done)
 
 	file, err := d.openFile(downloader)
@@ -61,7 +68,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 
 	defer d.closeFile(file, downloader)
 
-	resp, err := d.doRequest(downloader)
+	resp, err := d.doRequest(ctx, downloader)
 	if err != nil {
 		return
 	}
@@ -73,7 +80,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 
 	d.startDownload(downloader, resp)
 
-	if err := d.downloadBody(file, resp, downloader); err != nil {
+	if err := d.downloadBody(ctx, file, resp, downloader); err != nil {
 		return
 	}
 
@@ -104,12 +111,13 @@ func (d *DownloadTask) closeFile(file *os.File, downloader *Downloader) {
 	}
 }
 
-// TODO: client := &http.Client{ Timeout: time.Second * 5, }; ?
-// TODO: NewRequestWithContext
+// TODO: set timeout on initial connection
 func (d *DownloadTask) doRequest(
+	ctx context.Context,
 	downloader *Downloader,
 ) (*http.Response, error) {
-	req, err := http.NewRequest("GET", d.url, nil)
+	// No further timeouts over context as it would include body download as well
+	req, err := http.NewRequestWithContext(ctx, "GET", d.url, nil)
 	if err != nil {
 		downloader.writeEventsChan() <- NewDownloadError(
 			d, fmt.Errorf("error building request: %v", err),
@@ -122,6 +130,11 @@ func (d *DownloadTask) doRequest(
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		if errors.Is(ctx.Err(), context.Canceled) {
+			downloader.writeEventsChan() <- NewDownloadCancel(d)
+			return nil, err
+		}
+
 		downloader.writeEventsChan() <- NewDownloadError(
 			d, fmt.Errorf("http client error: %v", err),
 		)
@@ -163,17 +176,22 @@ func (d *DownloadTask) startDownload(
 }
 
 func (d *DownloadTask) downloadBody(
+	ctx context.Context,
 	file *os.File,
 	resp *http.Response,
 	downloader *Downloader,
 ) error {
-	tickerDone := make(chan struct{})
-	defer close(tickerDone)
-	go d.tickProgress(downloader, tickerDone)
+	tickerCtx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
+	go d.tickProgress(tickerCtx, downloader)
 
 	teeReader := io.TeeReader(resp.Body, d.progress)
-
 	if _, err := io.Copy(file, teeReader); err != nil {
+		if errors.Is(ctx.Err(), context.Canceled) {
+			downloader.writeEventsChan() <- NewDownloadCancel(d)
+			return err
+		}
+
 		downloader.writeEventsChan() <- NewDownloadError(
 			d,
 			fmt.Errorf("error downloading content: %s", err),
@@ -185,8 +203,8 @@ func (d *DownloadTask) downloadBody(
 }
 
 func (d *DownloadTask) tickProgress(
+	ctx context.Context,
 	downloader *Downloader,
-	done <-chan struct{},
 ) {
 	ticker := time.NewTicker(downloader.statusUpdateInterval)
 	defer ticker.Stop()
@@ -196,7 +214,7 @@ func (d *DownloadTask) tickProgress(
 			downloader.writeEventsChan() <- NewDownloadUpdate(
 				d, d.progress.BytesRead(),
 			)
-		case <-done:
+		case <-ctx.Done():
 			return
 		}
 	}
