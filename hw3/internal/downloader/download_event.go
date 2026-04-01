@@ -18,62 +18,78 @@ const (
 )
 
 type DownloadEvent struct {
+	// taskId identifies source of event
+	taskId string
+
+	// downloadId identifies subject/target of event
 	downloadId string
-	eventType  DownloadEventType
-	data       any
+
+	eventType DownloadEventType
+
+	// data stores data related to given event type, see constructors
+	data any
 }
 
-func NewDownloadStart(id string, expectedSize int64) DownloadEvent {
+func NewDownloadStart(d *DownloadTask, expectedSize int64) DownloadEvent {
 	return DownloadEvent{
-		downloadId: id,
+		taskId:     d.id,
+		downloadId: d.downloadId,
 		eventType:  DownloadEventStart,
 		data:       expectedSize,
 	}
 }
 
-func NewDownloadUpdate(id string, bytesDownloaded int64) DownloadEvent {
+func NewDownloadUpdate(d *DownloadTask, bytesDownloaded int64) DownloadEvent {
 	return DownloadEvent{
-		downloadId: id,
+		taskId:     d.id,
+		downloadId: d.downloadId,
 		eventType:  DownloadEventUpdate,
 		data:       bytesDownloaded,
 	}
 }
 
-func NewDownloadError(id string, err error) DownloadEvent {
+func NewDownloadError(d *DownloadTask, err error) DownloadEvent {
 	return DownloadEvent{
-		downloadId: id,
+		taskId:     d.id,
+		downloadId: d.downloadId,
 		eventType:  DownloadEventError,
 		data:       err,
 	}
 }
 
-func NewDownloadComplete(id string, totalSize int64) DownloadEvent {
+func NewDownloadComplete(d *DownloadTask, totalSize int64) DownloadEvent {
 	return DownloadEvent{
-		downloadId: id,
+		taskId:     d.id,
+		downloadId: d.downloadId,
 		eventType:  DownloadEventComplete,
 		data:       totalSize,
 	}
 }
 
-func (b *DownloadEvent) DownloadId() string {
-	return b.downloadId
+func (d *DownloadEvent) TaskId() string {
+	return d.taskId
 }
 
-func (b *DownloadEvent) EventType() DownloadEventType {
-	return b.eventType
+func (d *DownloadEvent) DownloadId() string {
+	return d.downloadId
+}
+
+func (d *DownloadEvent) EventType() DownloadEventType {
+	return d.eventType
 }
 
 // Int64 returns data cast to Int64, panics in case called
 // on wrong type of event
-func (e *DownloadEvent) Int64() int64 {
-	return e.data.(int64)
+func (d *DownloadEvent) Int64() int64 {
+	return d.data.(int64)
 }
 
 // Error returns data cast to Error, panics in case called
 // on wrong type of event
-func (e *DownloadEvent) Error() error {
-	return e.data.(error)
+func (d *DownloadEvent) Error() error {
+	return d.data.(error)
 }
-func (b *DownloadEvent) Data() any {
-	return b.data
+
+func (d *DownloadEvent) Data() any {
+	return d.data
 }

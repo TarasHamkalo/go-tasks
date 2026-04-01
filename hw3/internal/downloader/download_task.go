@@ -66,7 +66,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 
 	if err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.downloadId,
+			d,
 			fmt.Errorf("error opening file: %v", err),
 		)
 		return
@@ -76,7 +76,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 		err := file.Close()
 		if err != nil {
 			downloader.EventsChan() <- NewDownloadError(
-				d.downloadId,
+				d,
 				fmt.Errorf("error closing file: %v", err),
 			)
 		}
@@ -85,7 +85,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 	req, err := http.NewRequest("GET", d.url, nil)
 	if err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.downloadId,
+			d,
 			fmt.Errorf("error building request: %v", err),
 		)
 		return
@@ -97,7 +97,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.downloadId,
+			d,
 			fmt.Errorf("http client error: %v", err),
 		)
 		return
@@ -107,7 +107,7 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 		err := resp.Body.Close()
 		if err != nil {
 			downloader.EventsChan() <- NewDownloadError(
-				d.downloadId,
+				d,
 				fmt.Errorf("error closing http body: %s\n", err),
 			)
 		}
@@ -115,13 +115,13 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 
 	if resp.StatusCode != http.StatusOK {
 		downloader.EventsChan() <- NewDownloadError(
-			d.downloadId,
+			d,
 			fmt.Errorf("bad status: %s", resp.Status),
 		)
 		return
 	}
 
-	downloader.EventsChan() <- NewDownloadStart(d.id, resp.ContentLength)
+	downloader.EventsChan() <- NewDownloadStart(d, resp.ContentLength)
 	d.progress.Reset()
 
 	tickerDone := make(chan struct{})
@@ -131,13 +131,13 @@ func (d *DownloadTask) Execute(downloader *Downloader) {
 	teeReader := io.TeeReader(resp.Body, d.progress)
 	if _, err := io.Copy(file, teeReader); err != nil {
 		downloader.EventsChan() <- NewDownloadError(
-			d.downloadId,
+			d,
 			fmt.Errorf("error downloading content: %s", err),
 		)
 		return
 	}
 
-	downloader.EventsChan() <- NewDownloadComplete(d.id, d.progress.BytesRead())
+	downloader.EventsChan() <- NewDownloadComplete(d, d.progress.BytesRead())
 }
 
 func (d *DownloadTask) tickProgress(
@@ -150,10 +150,7 @@ func (d *DownloadTask) tickProgress(
 	for {
 		select {
 		case <-ticker.C:
-			downloader.EventsChan() <- NewDownloadUpdate(
-				d.downloadId,
-				d.progress.BytesRead(),
-			)
+			downloader.EventsChan() <- NewDownloadUpdate(d, d.progress.BytesRead())
 		case <-done:
 			return
 		}
