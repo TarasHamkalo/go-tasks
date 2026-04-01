@@ -61,6 +61,8 @@ func (d *Downloader) Start(ctx context.Context) {
 }
 
 func (d *Downloader) startEventHandlerLoop(ctx context.Context) {
+	forceStopChan := make(chan struct{})
+
 	for {
 		select {
 		case event := <-d.eventsChan:
@@ -87,12 +89,20 @@ func (d *Downloader) startEventHandlerLoop(ctx context.Context) {
 			}
 
 			d.handleDownloadEvent(event, download)
+		case <-forceStopChan:
+			d.logger.Sync()
+			d.logger.Info("event loop stopped")
 
 		case <-ctx.Done():
 			// TODO: await tasks completion for few seconds
-			d.logger.Sync()
-			d.logger.Info("event loop stopped")
-			return
+			d.logger.Debug("event loop awaits for 1 second for tasks to cancel")
+			time.AfterFunc(
+				1*time.Second,
+				func() {
+					close(forceStopChan)
+				},
+			)
+
 		}
 	}
 }
