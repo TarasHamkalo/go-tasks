@@ -1,9 +1,14 @@
 package downloader
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Downloader struct {
 	userAgent string
+
+	statusUpdateInterval time.Duration
 
 	downloadTasks *TasksStore
 
@@ -19,6 +24,8 @@ type Downloader struct {
 func NewDownloader() *Downloader {
 	return &Downloader{
 		userAgent: "BOT FIT/CTU (student project)",
+
+		statusUpdateInterval: time.Millisecond * 200,
 
 		downloadTasks:  NewTasksStore(),
 		downloadsStore: NewDownloadStore(),
