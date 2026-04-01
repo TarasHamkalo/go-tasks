@@ -37,7 +37,7 @@ func (s *DownloadStore) Get(id string) (*DownloadRecord, error) {
 }
 
 // TODO: maybe cache :) ?
-func (s *DownloadStore) GetAllViews() []DownloadView {
+func (s *DownloadStore) GetAllViews() []*DownloadView {
 	s.lock.RLock()
 	records := make([]*DownloadRecord, 0, len(s.downloads))
 
@@ -48,7 +48,7 @@ func (s *DownloadStore) GetAllViews() []DownloadView {
 	s.lock.RUnlock()
 
 	// make copy outside map lock
-	result := make([]DownloadView, 0, len(records))
+	result := make([]*DownloadView, 0, len(records))
 	for _, d := range records {
 		result = append(result, d.DetachedView())
 	}

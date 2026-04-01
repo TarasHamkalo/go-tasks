@@ -177,7 +177,7 @@ func (d *Downloader) DownloadStatus(downloadId string) (*DownloadView, error) {
 	return download.DetachedView(), nil
 }
 
-func (d *Downloader) AllDownloadsStatus() []DownloadView {
+func (d *Downloader) AllDownloadsStatus() []*DownloadView {
 	return d.downloadsStore.GetAllViews()
 }
 
