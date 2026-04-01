@@ -7,9 +7,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func LogInit(debug bool, file *os.File) *zap.SugaredLogger {
+func LogInit(debug bool, file *os.File) *zap.Logger {
 	pe := zap.NewProductionEncoderConfig()
-	fileEncoder := zapcore.NewJSONEncoder(pe)
+	//fileEncoder := zapcore.NewJSONEncoder(pe)
+	encoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	level := zap.InfoLevel
@@ -18,10 +19,10 @@ func LogInit(debug bool, file *os.File) *zap.SugaredLogger {
 	}
 
 	core := zapcore.NewTee(
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(file), level),
+		zapcore.NewCore(encoder, zapcore.AddSync(file), level),
 	)
 
 	l := zap.New(core)
 
-	return l.Sugar()
+	return l
 }
