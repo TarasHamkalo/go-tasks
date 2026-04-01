@@ -133,7 +133,11 @@ func (d *DownloadRecord) Complete(totalSize int64) {
 	defer d.mu.Unlock()
 
 	d.status = StatusCompleted
+
+	// for completeness update both
+	d.bytesDownloaded = totalSize
 	d.totalSize = totalSize
+
 	d.taskId = ""
 	d.endTime = time.Now()
 }
