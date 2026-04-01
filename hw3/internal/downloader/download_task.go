@@ -12,7 +12,7 @@ import (
 
 // DownloadTask represents a temporary object of running download.
 // Based on that, it does not contain status but rather holds data
-// need to cancel download or track its completion.
+// needed to cancel download or track its completion.
 // For full metadata stored about donwload see DownloadRecord.
 type DownloadTask struct {
 	id string
