@@ -156,11 +156,11 @@ func (d *Downloader) startEventHandlerLoop() {
 	for {
 		select {
 		case event := <-d.eventsChan:
-			fmt.Println("Event Received: ", event)
 			d.logger.Debug("download event",
 				zap.String("type", string(event.EventType())),
 				zap.String("downloadId", event.DownloadId()),
 				zap.String("taskId", event.TaskId()),
+				zap.Any("data[any]", event.Data()),
 			)
 
 			download, err := d.downloadsStore.Get(event.DownloadId())
@@ -276,7 +276,7 @@ func (d *Downloader) SubmitDownload(
 	return download.Id(), nil
 }
 
-func (d *Downloader) DownloadStatus(downloadId string) (*DownloadView, error) {
+func (d *Downloader) GetDownload(downloadId string) (*DownloadView, error) {
 	download, err := d.downloadsStore.Get(downloadId)
 	if err != nil {
 		return nil, err
@@ -285,7 +285,7 @@ func (d *Downloader) DownloadStatus(downloadId string) (*DownloadView, error) {
 	return download.DetachedView(), nil
 }
 
-func (d *Downloader) AllDownloadsStatus() []*DownloadView {
+func (d *Downloader) GetAllDownloads() []*DownloadView {
 	return d.downloadsStore.GetAllViews()
 }
 
