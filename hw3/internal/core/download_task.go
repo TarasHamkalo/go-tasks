@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,6 +30,8 @@ type DownloadTask struct {
 
 	// will be closed after task finishes
 	done chan struct{}
+
+	errorExited atomic.Bool
 
 	progress *ProgressWriter
 }
@@ -64,24 +67,38 @@ func (d *DownloadTask) Execute(ctx context.Context, downloader *Downloader) {
 
 	file, err := d.openFile(downloader)
 	if err != nil {
+		d.errorExited.Store(true)
 		return
 	}
 
 	defer d.closeFile(file, downloader)
+	defer (func() {
+		if !d.errorExited.Load() {
+			return
+		}
+
+		if err := os.Remove(file.Name()); err != nil {
+			downloader.logger.Warn(
+				"error removing partially written file", zap.Error(err),
+			)
+		}
+	})()
 
 	resp, err := d.doRequest(ctx, downloader)
 	if err != nil {
+		d.errorExited.Store(true)
 		return
 	}
 	defer d.closeResponse(resp, downloader)
 
 	if err := d.validateResponse(resp, downloader); err != nil {
+		d.errorExited.Store(true)
 		return
 	}
 
 	d.startDownload(downloader, resp)
-
 	if err := d.downloadBody(ctx, file, resp, downloader); err != nil {
+		d.errorExited.Store(true)
 		return
 	}
 
@@ -110,7 +127,6 @@ func (d *DownloadTask) closeFile(file *os.File, downloader *Downloader) {
 	}
 }
 
-// TODO: set timeout on initial connection
 func (d *DownloadTask) doRequest(
 	ctx context.Context,
 	downloader *Downloader,
