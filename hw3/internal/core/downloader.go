@@ -317,15 +317,7 @@ func (d *Downloader) CompletionChan(
 		return nil, err
 	}
 
-	taskEntry, err := d.downloadTasks.Get(download.taskId)
-	if err != nil {
-		// task already finished and removed, just return closed chan
-		ch := make(chan struct{})
-		close(ch)
-		return ch, nil
-	}
-
-	return taskEntry.Task.Done(), nil
+	return download.Done(), nil
 }
 
 func (d *Downloader) UserAgent() string {

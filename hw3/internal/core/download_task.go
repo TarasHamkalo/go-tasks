@@ -29,8 +29,6 @@ type DownloadTask struct {
 	destination string
 
 	// will be closed after task finishes
-	done chan struct{}
-
 	errorExited atomic.Bool
 
 	progress *ProgressWriter
@@ -49,8 +47,6 @@ func NewDownloadTask(
 		destination: destination,
 
 		progress: NewProgressWriter(),
-
-		done: make(chan struct{}),
 	}
 }
 
@@ -58,13 +54,7 @@ func (d *DownloadTask) Id() string {
 	return d.id
 }
 
-func (d *DownloadTask) Done() <-chan struct{} {
-	return d.done
-}
-
 func (d *DownloadTask) Execute(ctx context.Context, downloader *Downloader) {
-	defer close(d.done)
-
 	file, err := d.openFile(downloader)
 	if err != nil {
 		d.errorExited.Store(true)

@@ -48,6 +48,8 @@ type DownloadRecord struct {
 	endTime time.Time
 
 	cause error
+
+	done chan struct{}
 }
 
 func NewDownload(
@@ -67,6 +69,8 @@ func NewDownload(
 		requestedTime: time.Now(),
 
 		expectedSize: -1,
+
+		done: make(chan struct{}),
 	}
 }
 
@@ -128,6 +132,8 @@ func (d *DownloadRecord) Cancel() {
 	d.status = StatusCanceled
 	d.taskId = ""
 	d.endTime = time.Now()
+
+	close(d.done)
 }
 
 // Fail can entered failed state never been started
@@ -142,6 +148,8 @@ func (d *DownloadRecord) Fail(cause error) {
 	d.cause = cause
 	d.taskId = ""
 	d.endTime = time.Now()
+
+	close(d.done)
 }
 
 func (d *DownloadRecord) Complete(totalSize int64) {
@@ -159,6 +167,8 @@ func (d *DownloadRecord) Complete(totalSize int64) {
 
 	d.taskId = ""
 	d.endTime = time.Now()
+
+	close(d.done)
 }
 
 func (d *DownloadRecord) Id() string {
@@ -177,6 +187,11 @@ func (d *DownloadRecord) TaskId() string {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.taskId
+}
+
+func (d *DownloadRecord) Done() <-chan struct{} {
+	// this one can be without lock as it never changes during lifecycle
+	return d.done
 }
 
 // must be called with d.mu held
