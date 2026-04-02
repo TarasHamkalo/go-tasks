@@ -1,0 +1,6 @@
+2026-04-02T20:50:51.049+0200	INFO	External event	{"downloadId": "d2f995d7-3c32-4ce9-bd5b-b2d247d53cd6", "type": "start"}
+2026-04-02T20:50:51.049+0200	INFO	External event	{"downloadId": "f001741a-a80d-4a81-a9ba-d4f01a6ac001", "type": "start"}
+2026-04-02T20:50:51.049+0200	INFO	External event	{"downloadId": "92ab9ea9-2e57-48b1-a572-cbf6934df0ec", "type": "start"}
+2026-04-02T20:50:53.452+0200	INFO	External event	{"downloadId": "92ab9ea9-2e57-48b1-a572-cbf6934df0ec", "type": "cancel"}
+2026-04-02T20:50:53.452+0200	INFO	External event	{"downloadId": "d2f995d7-3c32-4ce9-bd5b-b2d247d53cd6", "type": "cancel"}
+2026-04-02T20:50:53.452+0200	INFO	External event	{"downloadId": "f001741a-a80d-4a81-a9ba-d4f01a6ac001", "type": "cancel"}
