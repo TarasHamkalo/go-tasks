@@ -47,6 +47,7 @@ func mergeDone(chans ...<-chan struct{}) <-chan struct{} {
 // Events open to any subscriber are logged into "examples/01/logs/external-events.log".
 // They contain only crucial events (complete, start, fail) and don't contain
 // e.g. task ids
+// [when running, see top part of output]
 func main() {
 	exampleDir := "examples/01/"
 	downloaderLogFilePath := path.Join(exampleDir, "logs/downloader.log")
@@ -118,15 +119,17 @@ func main() {
 	fmt.Printf(
 		"All downloads completed:\n\tOutputs: %s\n\tLogs: %s\n",
 		outputsDir,
-		downloaderLogFilePath,
+		outputsDir+"/logs",
 	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	d.Shutdown(ctx)
 	eventsLoggerDone <- struct{}{}
-	statues := d.GetAllDownloads()
-	for _, view := range statues {
+
+	fmt.Printf("Below is dump of all downloads stored in Downloader:\n\n\n")
+	downloads := d.GetAllDownloads()
+	for _, view := range downloads {
 		fmt.Printf("%s\n\n", view.String())
 	}
 }
