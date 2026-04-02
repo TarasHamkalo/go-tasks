@@ -5,6 +5,8 @@ type EDownloadEventType string
 const (
 	EDownloadEventStart EDownloadEventType = "start"
 
+	EDownloadEventCancel EDownloadEventType = "cancel"
+
 	EDownloadEventError EDownloadEventType = "error"
 
 	EDownloadEventComplete EDownloadEventType = "complete"
@@ -37,7 +39,7 @@ func NewExternalDownloadCancel(
 ) ExternalDownloadEvent {
 	return ExternalDownloadEvent{
 		downloadId: downloadId,
-		eventType:  EDownloadEventError,
+		eventType:  EDownloadEventCancel,
 	}
 }
 
