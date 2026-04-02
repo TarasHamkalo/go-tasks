@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-func LogInit(debug bool, file *os.File) *zap.Logger {
+func LogInit(file *os.File, debug bool) *zap.Logger {
 	pe := zap.NewProductionEncoderConfig()
 	//fileEncoder := zapcore.NewJSONEncoder(pe)
 	encoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
