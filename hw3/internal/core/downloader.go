@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -24,7 +25,12 @@ type Downloader struct {
 	// should be accessed by lib consumer
 	subscribers []chan ExternalDownloadEvent
 	subMu       sync.RWMutex
-	logger      *zap.Logger
+
+	shutdownChan chan struct{}
+
+	shuttingDown atomic.Bool
+
+	logger *zap.Logger
 }
 
 func NewDefaultDownloader(logger *zap.Logger) *Downloader {
@@ -52,17 +58,101 @@ func NewDownloader(
 
 		subscribers: make([]chan ExternalDownloadEvent, 0),
 
+		shutdownChan: make(chan struct{}),
+
 		logger: logger,
 	}
 }
 
-func (d *Downloader) Start(ctx context.Context) {
-	go d.startEventHandlerLoop(ctx)
+func (d *Downloader) Start() {
+	go d.startEventHandlerLoop()
 }
 
-func (d *Downloader) startEventHandlerLoop(ctx context.Context) {
-	forceStopChan := make(chan struct{})
+//	func (d *Downloader) Shutdown(ctx context.Context) {
+//		d.logger.Info("Downloader shutting down")
+//		d.shuttingDown.Store(true)
+//		drained := d.downloadTasks.DrainOnly()
+//
+//		d.downloadTasks.CancelAll()
+//
+//		// using another chan for indicating start of graceful shutdown,
+//		// is not necessary for given design
+//		select {
+//		case <-drained:
+//			d.logger.Info("All tasks finished gracefully (canceled or completed)")
+//		case <-ctx.Done():
+//			d.logger.Warn("Graceful shutdown timed out, event loop exits")
+//		}
+//
+//		close(d.shutdownChan)
+//	}
 
+func (d *Downloader) Shutdown(ctx context.Context) {
+	d.logger.Info("Downloader shutting down")
+
+	// stop receiving new downloads
+	d.shuttingDown.Store(true)
+
+	// before event loop can quit, all tasks should exit
+	// (their events has to be processed)
+	// so compute total given time and split it into two halves
+	//	1. giving time for tasks to finish
+	//  2. cancel all unfinished and give time for event loop to drain events
+
+	total := time.Until(deadline(ctx))
+	if total <= 0 {
+		total = 0
+	}
+
+	graceTime := total / 2
+	drainTime := total - graceTime
+
+	d.logger.Debug("Downloader awaiting task completion for", zap.Duration("time", graceTime))
+
+	graceCtx, cancelGrace := context.WithTimeout(context.Background(), graceTime)
+	defer cancelGrace()
+
+	// to be sure, set tasks store into mode, at which no new tasks accepted
+	// drained chan is closed when no tasks left
+	drained := d.downloadTasks.DrainOnly()
+
+	// await tasks completion for total/2
+	select {
+	case <-drained:
+		d.logger.Info("Tasks finished gracefully")
+
+	case <-graceCtx.Done():
+		d.logger.Warn("Graceful phase timed out, cancelling tasks")
+		d.downloadTasks.CancelAll()
+	}
+	// in case tasks didn't finish, cancel all (grace ctx timed out)
+	// give time for event loop to process their cancel events
+
+	d.logger.Debug("Downloader awaiting events drain for", zap.Duration("time", drainTime))
+	drainCtx, cancelDrain := context.WithTimeout(context.Background(), drainTime)
+	defer cancelDrain()
+
+	select {
+	case <-drained:
+		d.logger.Info("All tasks removed after cancel")
+
+	case <-drainCtx.Done():
+		d.logger.Warn("Drain phase timed out")
+	}
+
+	// stop event loop
+	close(d.shutdownChan)
+}
+
+func deadline(ctx context.Context) time.Time {
+	dl, ok := ctx.Deadline()
+	if !ok {
+		return time.Now().Add(5 * time.Second)
+	}
+	return dl
+}
+
+func (d *Downloader) startEventHandlerLoop() {
 	for {
 		select {
 		case event := <-d.eventsChan:
@@ -89,19 +179,10 @@ func (d *Downloader) startEventHandlerLoop(ctx context.Context) {
 			}
 
 			d.handleDownloadEvent(event, download)
-		case <-forceStopChan:
+		case <-d.shutdownChan:
 			d.logger.Sync()
-			d.logger.Info("event loop stopped")
-
-		case <-ctx.Done():
-			// TODO: await tasks completion for few seconds
-			d.logger.Debug("event loop awaits for 1 second for tasks to cancel")
-			time.AfterFunc(
-				1*time.Second,
-				func() {
-					close(forceStopChan)
-				},
-			)
+			d.logger.Info("event loop shutdown")
+			return
 
 		}
 	}
@@ -171,20 +252,28 @@ func (d *Downloader) SubmitDownload(
 	ctx context.Context,
 	url string,
 	destination string,
-) string {
+) (string, error) {
+	if d.shuttingDown.Load() {
+		return "", fmt.Errorf("downloader is shutting down")
+	}
+
 	taskCtx, cancelFunc := context.WithCancel(ctx)
 
 	download := NewDownload(url, destination)
 	downloadTask := NewDownloadTask(download.Id(), url, destination)
-
 	download.SetTaskId(downloadTask.Id())
 
+	err := d.downloadTasks.Add(NewTaskEntry(downloadTask, cancelFunc))
+	if err != nil {
+		cancelFunc()
+		return "", err
+	}
+
 	d.downloadsStore.Add(download)
-	d.downloadTasks.Add(NewTaskEntry(downloadTask, cancelFunc))
 
 	go downloadTask.Execute(taskCtx, d)
 
-	return download.Id()
+	return download.Id(), nil
 }
 
 func (d *Downloader) DownloadStatus(downloadId string) (*DownloadView, error) {
