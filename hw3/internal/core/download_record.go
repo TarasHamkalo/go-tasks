@@ -121,6 +121,9 @@ func (d *DownloadRecord) SetBytesDownloaded(bytesDownloaded int64) {
 func (d *DownloadRecord) Cancel() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.isInFinalState() {
+		return
+	}
 
 	d.status = StatusCanceled
 	d.taskId = ""
@@ -131,6 +134,9 @@ func (d *DownloadRecord) Cancel() {
 func (d *DownloadRecord) Fail(cause error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.isInFinalState() {
+		return
+	}
 
 	d.status = StatusFailed
 	d.cause = cause
@@ -141,6 +147,9 @@ func (d *DownloadRecord) Fail(cause error) {
 func (d *DownloadRecord) Complete(totalSize int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if d.isInFinalState() {
+		return
+	}
 
 	d.status = StatusCompleted
 
@@ -168,4 +177,11 @@ func (d *DownloadRecord) TaskId() string {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	return d.taskId
+}
+
+// must be called with d.mu held
+func (d *DownloadRecord) isInFinalState() bool {
+	return d.status == StatusCompleted ||
+		d.status == StatusCanceled ||
+		d.status == StatusFailed
 }
