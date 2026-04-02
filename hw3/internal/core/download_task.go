@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // DownloadTask represents a temporary object of running download.
@@ -105,9 +106,7 @@ func (d *DownloadTask) openFile(downloader *Downloader) (*os.File, error) {
 
 func (d *DownloadTask) closeFile(file *os.File, downloader *Downloader) {
 	if err := file.Close(); err != nil {
-		downloader.writeEventsChan() <- NewDownloadError(
-			d, fmt.Errorf("error closing file: %v", err),
-		)
+		downloader.logger.Warn("error closing file", zap.Error(err))
 	}
 }
 
@@ -149,9 +148,7 @@ func (d *DownloadTask) closeResponse(
 	downloader *Downloader,
 ) {
 	if err := resp.Body.Close(); err != nil {
-		downloader.writeEventsChan() <- NewDownloadError(
-			d, fmt.Errorf("error closing http body: %v", err),
-		)
+		downloader.logger.Warn("error closing http body", zap.Error(err))
 	}
 }
 
