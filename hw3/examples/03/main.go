@@ -4,7 +4,7 @@ import (
 	"context"
 	"downloader/internal"
 	"downloader/internal/core"
-	"downloader/internal/shell"
+	"downloader/internal/shell/commands"
 	"fmt"
 	"log"
 	"os"
@@ -86,7 +86,7 @@ func main() {
 		logger.Sync()
 	})()
 
-	var headCmd = shell.NewDownloadCommand(d)
+	var headCmd = commands.NewDownloadCommand(d)
 
 	filepath := path.Join(outputsDir, uuid.New().String())
 	err = headCmd.Handle(fmt.Sprintf("download %s %s", resource, filepath))

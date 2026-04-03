@@ -1,4 +1,4 @@
-package shell
+package commands
 
 import (
 	"downloader/internal/core"
