@@ -7,9 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"text/template"
-	"time"
 
 	"github.com/c-bata/go-prompt"
 )
@@ -51,10 +49,10 @@ func NewStatusCommandWithTmpl(
 		template.
 			New(filepath.Base(tmplPath)).
 			Funcs(template.FuncMap{
-				"formatSpeed":    formatSpeed,
-				"formatBytes":    formatBytes,
-				"formatPath":     formatPath,
-				"formatExpected": formatExpected,
+				"formatSpeed":    FormatSpeed,
+				"formatBytes":    FormatBytes,
+				"formatPath":     FormatPath,
+				"formatExpected": FormatExpected,
 			}).
 			ParseFS(tmplFS, tmplPath),
 	)
@@ -103,6 +101,8 @@ func (cmd *StatusCommand) handle(s string) {
 		if err != nil {
 			fmt.Printf("Could not show downloads: %v\n", err)
 		}
+
+		return
 	}
 
 	download, err := cmd.downloader.Download(downloadId)
@@ -145,58 +145,4 @@ func (cmd *StatusCommand) getIdsSuggestions() []prompt.Suggest {
 	}
 
 	return suggestions
-}
-
-func formatSpeed(d core.DownloadView) string {
-	if d.StartTime.IsZero() || d.BytesDownloaded == 0 {
-		return "0 B/s"
-	}
-
-	duration := time.Since(d.StartTime).Seconds()
-	if duration <= 0 {
-		return "0 B/s"
-	}
-
-	speed := float64(d.BytesDownloaded) / duration
-	return formatBytes(int64(speed)) + "/s"
-}
-
-func formatBytes(b int64) string {
-	const unit = 1024
-	if b < unit {
-		return fmt.Sprintf("%d B", b)
-	}
-	div, exp := int64(unit), 0
-	for n := b / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.2f %cB",
-		float64(b)/float64(div), "KMGTPE"[exp])
-}
-
-func formatPath(p string, lastN int, maxLen int) string {
-	if p == "" {
-		return ""
-	}
-
-	p = filepath.ToSlash(p)
-	parts := strings.Split(p, "/")
-	if len(parts) > lastN {
-		parts = parts[len(parts)-lastN:]
-	}
-
-	result := strings.Join(parts, "/")
-	if len(result) > maxLen {
-		return "..." + result[len(result)-maxLen+3:]
-	}
-
-	return result
-}
-
-func formatExpected(b int64) string {
-	if b == -1 {
-		return "unknown"
-	}
-	return formatBytes(b)
 }

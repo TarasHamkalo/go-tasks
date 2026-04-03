@@ -21,4 +21,4 @@ require (
 	golang.org/x/sys v0.0.0-20200918174421-af09f7315aff // indirect
 )
 
-replace github.com/c-bata/go-prompt => github.com/TarasHamkalo/go-prompt v0.2.5-async-messages
+replace github.com/c-bata/go-prompt => github.com/TarasHamkalo/go-prompt v0.2.5-exit

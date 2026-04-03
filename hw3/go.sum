@@ -1,5 +1,5 @@
-github.com/TarasHamkalo/go-prompt v0.2.5-async-messages h1:TCUQ3Tk4Iubb2htwIjCvbbBKuL0cnTQ6gZLa5E48DUA=
-github.com/TarasHamkalo/go-prompt v0.2.5-async-messages/go.mod h1:vFnjEGDIIA/Lib7giyE4E9c50Lvl8j0S+7FVlAwDAVw=
+github.com/TarasHamkalo/go-prompt v0.2.5-exit h1:24jGgvRM42M0B44CnLOTPeaYX0C/NLniFOeIsXJ+GDA=
+github.com/TarasHamkalo/go-prompt v0.2.5-exit/go.mod h1:vFnjEGDIIA/Lib7giyE4E9c50Lvl8j0S+7FVlAwDAVw=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
