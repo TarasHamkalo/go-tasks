@@ -29,7 +29,7 @@ func NewDownloadCommand(downloader *core.Downloader) *DownloadCommand {
 		),
 	}
 
-	baseCmd := NewBaseCommand(
+	cmd.BaseCommand = NewBaseCommand(
 		"download",
 		"download <url> <destination>, max 150 chars per field",
 		// yep, pelican, just close your eyes this time :)
@@ -46,7 +46,6 @@ func NewDownloadCommand(downloader *core.Downloader) *DownloadCommand {
 		},
 	)
 
-	cmd.BaseCommand = baseCmd
 	return cmd
 }
 
