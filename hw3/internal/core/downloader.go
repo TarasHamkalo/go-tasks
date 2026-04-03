@@ -276,7 +276,7 @@ func (d *Downloader) SubmitDownload(
 	return download.Id(), nil
 }
 
-func (d *Downloader) GetDownload(downloadId string) (*DownloadView, error) {
+func (d *Downloader) Download(downloadId string) (*DownloadView, error) {
 	download, err := d.downloadsStore.Get(downloadId)
 	if err != nil {
 		return nil, err
@@ -285,8 +285,12 @@ func (d *Downloader) GetDownload(downloadId string) (*DownloadView, error) {
 	return download.DetachedView(), nil
 }
 
-func (d *Downloader) GetAllDownloads() []*DownloadView {
+func (d *Downloader) AllDownloads() []*DownloadView {
 	return d.downloadsStore.GetAllViews()
+}
+
+func (d *Downloader) AllDownloadIds() []string {
+	return d.downloadsStore.GetAllIds()
 }
 
 func (d *Downloader) CancelDownload(downloadId string) error {

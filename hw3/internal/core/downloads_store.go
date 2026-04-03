@@ -55,3 +55,15 @@ func (s *DownloadStore) GetAllViews() []*DownloadView {
 
 	return result
 }
+
+func (s *DownloadStore) GetAllIds() []string {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	result := make([]string, 0, len(s.downloads))
+	for _, d := range s.downloads {
+		result = append(result, d.Id())
+	}
+
+	return result
+}
