@@ -61,8 +61,8 @@ func (d *DownloadTask) Execute(ctx context.Context, downloader *Downloader) {
 		return
 	}
 
-	defer d.closeFile(file, downloader)
 	defer (func() {
+		d.closeFile(file, downloader)
 		if !d.errorExited.Load() {
 			return
 		}
