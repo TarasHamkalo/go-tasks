@@ -96,10 +96,9 @@ func (d *DownloadTask) Execute(ctx context.Context, downloader *Downloader) {
 }
 
 func (d *DownloadTask) openFile(downloader *Downloader) (*os.File, error) {
-	// TODO: |os.O_EXCL
 	file, err := os.OpenFile(
 		d.destination,
-		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+		os.O_CREATE|os.O_WRONLY|os.O_EXCL,
 		0644,
 	)
 	if err != nil {
