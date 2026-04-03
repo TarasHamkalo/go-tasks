@@ -128,7 +128,7 @@ func main() {
 	eventsLoggerDone <- struct{}{}
 
 	fmt.Printf("Below is dump of all downloads stored in Downloader:\n\n\n")
-	downloads := d.GetAllDownloads()
+	downloads := d.AllDownloads()
 	for _, view := range downloads {
 		fmt.Printf("%s\n\n", view.String())
 	}
