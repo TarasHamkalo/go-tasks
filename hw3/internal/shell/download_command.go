@@ -18,27 +18,43 @@ type DownloadCommand struct {
 
 	urlsHistory []prompt.Suggest
 
-	BaseCommand
+	*BaseCommand
 }
 
 func NewDownloadCommand(downloader *core.Downloader) *DownloadCommand {
-	return &DownloadCommand{
+	cmd := &DownloadCommand{
 		downloader: downloader,
 		pattern: regexp.MustCompile(
 			"^download\\s(?P<url>\\S{1,150})\\s(?P<destination>.{1,150})?$",
 		),
-		BaseCommand: *NewBaseCommand(
-			"download",
-			"download <url> <destination>, max 150 chars per field",
-		),
 	}
+
+	baseCmd := NewBaseCommand(
+		"download",
+		"download <url> <destination>, max 150 chars per field",
+		// yep, pelican, just close your eyes this time :)
+		&BaseCommandHandler{
+			handle: func(s string) {
+				cmd.handle(s)
+			},
+			matches: func(s string) bool {
+				return cmd.matches(s)
+			},
+			suggestArguments: func(parts []string) []prompt.Suggest {
+				return cmd.suggestArguments(parts)
+			},
+		},
+	)
+
+	cmd.BaseCommand = baseCmd
+	return cmd
 }
 
-func (cmd *DownloadCommand) Matches(s string) bool {
+func (cmd *DownloadCommand) matches(s string) bool {
 	return cmd.pattern.MatchString(s)
 }
 
-func (cmd *DownloadCommand) doHandle(s string) {
+func (cmd *DownloadCommand) handle(s string) {
 	matches := cmd.pattern.FindStringSubmatch(s)
 	result := make(map[string]string)
 	for i, name := range cmd.pattern.SubexpNames() {

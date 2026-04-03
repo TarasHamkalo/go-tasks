@@ -26,34 +26,36 @@ type BaseCommand struct {
 	description string
 
 	next Command
+
+	handler *BaseCommandHandler
+}
+
+type BaseCommandHandler struct {
+	handle           func(string)
+	matches          func(string) bool
+	suggestArguments func([]string) []prompt.Suggest
 }
 
 func NewBaseCommand(
 	name string,
 	description string,
+	handler *BaseCommandHandler,
 ) *BaseCommand {
 	return &BaseCommand{
 		name:        name,
 		description: description,
+		handler:     handler,
 		next:        nil,
 	}
 }
 
-func (cmd *BaseCommand) doHandle(s string) {
-	panic("implement me")
-}
-
-func (cmd *BaseCommand) suggestArguments(parts []string) []prompt.Suggest {
-	panic("implement me")
-}
-
 func (cmd *BaseCommand) Matches(s string) bool {
-	panic("implement me")
+	return cmd.handler.matches(s)
 }
 
 func (cmd *BaseCommand) Handle(s string) error {
 	if cmd.Matches(s) {
-		cmd.doHandle(s)
+		cmd.handler.handle(s)
 		return nil
 	}
 
@@ -74,7 +76,7 @@ func (cmd *BaseCommand) CompletePrompt(s string) []prompt.Suggest {
 	parts := strings.Split(s, " ")
 	if parts[0] == cmd.name {
 		// already filled command name, return arguments suggestion if any
-		return append(suggestions, cmd.suggestArguments(parts)...)
+		return append(suggestions, cmd.handler.suggestArguments(parts)...)
 	}
 
 	if strings.HasPrefix(cmd.name, parts[0]) {
