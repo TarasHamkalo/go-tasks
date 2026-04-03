@@ -72,15 +72,9 @@ func NewStatusCommandWithTmpl(
 		"status [downloadId], max 150 chars per field",
 		// yep, pelican, just close your eyes this time :)
 		&BaseCommandHandler{
-			handle: func(s string) {
-				cmd.handle(s)
-			},
-			matches: func(s string) bool {
-				return cmd.matches(s)
-			},
-			suggestArguments: func(parts []string) []prompt.Suggest {
-				return cmd.suggestArguments(parts)
-			},
+			handle:           cmd.handle,
+			matches:          cmd.matches,
+			suggestArguments: cmd.suggestArguments,
 		},
 	)
 
