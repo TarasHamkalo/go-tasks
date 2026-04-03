@@ -14,3 +14,21 @@
 {{end}}
 {{end}}
 
+{{define "download_detail"}}
+ID:           {{.Id}}
+URL:          {{.Url}}
+Destination:  {{.Destination}}
+Status:       {{.Status}}
+
+Speed:        {{formatSpeed .}}
+Downloaded:   {{formatBytes .BytesDownloaded}}
+Expected:     {{formatBytes .ExpectedSize}}
+
+Requested:    {{.RequestedTime}}
+Started:      {{.StartTime}}
+Finished:     {{.EndTime}}
+
+{{if .Cause}}
+Error:        {{.Cause}}
+{{end}}
+{{end}}

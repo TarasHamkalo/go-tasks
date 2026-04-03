@@ -14,15 +14,17 @@ import (
 	"github.com/c-bata/go-prompt"
 )
 
+const DefaultDownloadsTmplPath = "templates/downloads.tmpl"
+
 //go:embed templates/downloads.tmpl
-var DefaultDownloadsTmpl embed.FS
+var DefaultDownloadsTmplFs embed.FS
 
 type StatusCommand struct {
 	downloader *core.Downloader
 
 	pattern *regexp.Regexp
 
-	downloadsTableTmpl *template.Template
+	downloadsTmpl *template.Template
 
 	*BaseCommand
 }
@@ -30,25 +32,39 @@ type StatusCommand struct {
 func NewStatusCommand(
 	downloader *core.Downloader,
 ) *StatusCommand {
-	downloadsTable := template.Must(
+	return NewStatusCommandWithTmpl(
+		downloader,
+		DefaultDownloadsTmplFs,
+		DefaultDownloadsTmplPath,
+	)
+}
+
+// NewStatusCommandWithTmpl downloadTmpl should contain templates called
+// "download_table" for displaying all downloads at once and
+// "download_detail" for displaying single download.
+func NewStatusCommandWithTmpl(
+	downloader *core.Downloader,
+	tmplFS embed.FS,
+	tmplPath string,
+) *StatusCommand {
+	downloadsTmpl := template.Must(
 		template.
-			New("downloads.tmpl").
+			New(filepath.Base(tmplPath)).
 			Funcs(template.FuncMap{
 				"formatSpeed":    formatSpeed,
 				"formatBytes":    formatBytes,
 				"formatPath":     formatPath,
 				"formatExpected": formatExpected,
 			}).
-			ParseFS(DefaultDownloadsTmpl, "*/*.tmpl"),
+			ParseFS(tmplFS, tmplPath),
 	)
-
 	cmd := &StatusCommand{
 		pattern: regexp.MustCompile(
 			"^status\\s?(?P<downloadId>[\\w-]{1,150})?$",
 		),
 		downloader: downloader,
 
-		downloadsTableTmpl: downloadsTable,
+		downloadsTmpl: downloadsTmpl,
 	}
 
 	cmd.BaseCommand = NewBaseCommand(
@@ -86,7 +102,7 @@ func (cmd *StatusCommand) handle(s string) {
 
 	downloadId, ok := result["downloadId"]
 	if !ok {
-		err := cmd.downloadsTableTmpl.ExecuteTemplate(
+		err := cmd.downloadsTmpl.ExecuteTemplate(
 			os.Stdout, "downloads_table", cmd.downloader.AllDownloads(),
 		)
 
@@ -95,8 +111,17 @@ func (cmd *StatusCommand) handle(s string) {
 		}
 	}
 
-	// TODO: add template to single
-	fmt.Println(downloadId)
+	download, err := cmd.downloader.Download(downloadId)
+	if err != nil {
+		fmt.Printf("Could not show download: %v\n", err)
+	}
+
+	err = cmd.downloadsTmpl.ExecuteTemplate(
+		os.Stdout, "download_detail", download,
+	)
+	if err != nil {
+		fmt.Printf("Could not show download: %v\n", err)
+	}
 }
 
 func (cmd *StatusCommand) suggestArguments(parts []string) []prompt.Suggest {
