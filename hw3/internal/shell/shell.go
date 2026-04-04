@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/c-bata/go-prompt"
-	"go.uber.org/zap"
 )
 
 type Shell struct {
@@ -22,16 +21,17 @@ type Shell struct {
 
 	downloaderLogFile *os.File
 
-	shellLogFile *os.File
-
 	shutdown atomic.Bool
 
 	shutdownDoneCh chan struct{}
-
-	logger *zap.Logger
 }
 
 func NewShell() *Shell {
+	err := os.Mkdir("logs", 0755)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+
 	downloadLogFile, err := os.OpenFile(
 		"logs/downloader.log",
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
@@ -41,17 +41,7 @@ func NewShell() *Shell {
 		panic(err)
 	}
 
-	shellLogFile, err := os.OpenFile(
-		"logs/shell.log",
-		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
-		0644,
-	)
-	if err != nil {
-		panic(err)
-	}
-
 	downloaderLogger := internal.LogInit(downloadLogFile, true)
-	shellLogger := internal.LogInit(shellLogFile, true)
 
 	d := core.NewDefaultDownloader(downloaderLogger)
 	chain := commands.NewDownloadCommand(d)
@@ -63,13 +53,11 @@ func NewShell() *Shell {
 		commandsChain:     chain,
 		downloader:        d,
 		downloaderLogFile: downloadLogFile,
-		shellLogFile:      shellLogFile,
-		logger:            shellLogger,
 		shutdownDoneCh:    make(chan struct{}),
 	}
 }
 
-func (s *Shell) execute(input string) {
+func (s *Shell) handle(input string) {
 	if input == "" {
 		return
 	}
@@ -100,6 +88,7 @@ func (s *Shell) handleExit() {
 	s.downloader.Shutdown(ctx)
 
 	fmt.Println("Shutdown complete.")
+
 	close(s.shutdownDoneCh)
 }
 
@@ -117,12 +106,11 @@ func (s *Shell) completer(d prompt.Document) []prompt.Suggest {
 
 func (s *Shell) Run() {
 	defer s.downloaderLogFile.Close()
-	defer s.shellLogFile.Close()
 
 	promptAsyncMsgChan := make(chan string)
 	go s.startEventsProcessing(promptAsyncMsgChan)
 	p := prompt.New(
-		s.execute,
+		s.handle,
 		s.completer,
 		prompt.OptionPrefix(">>> "),
 		prompt.OptionTitle("downloader-shell"),
@@ -136,7 +124,7 @@ func (s *Shell) Run() {
 			s.handleExit()
 			break
 		}
-		s.execute(in)
+		s.handle(in)
 	}
 
 	fmt.Println("Main routine await shutdown.")
