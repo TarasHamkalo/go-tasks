@@ -96,7 +96,7 @@ func (cmd *StatusCommand) handle(s string) {
 	downloadId, ok := result["downloadId"]
 	if !ok {
 		err := cmd.downloadsTmpl.ExecuteTemplate(
-			os.Stdout, "downloads_table", cmd.downloader.AllDownloads(),
+			os.Stdout, "downloads_table", cmd.downloader.GetAllDownloads(),
 		)
 
 		if err != nil {
@@ -106,7 +106,7 @@ func (cmd *StatusCommand) handle(s string) {
 		return
 	}
 
-	download, err := cmd.downloader.Download(downloadId)
+	download, err := cmd.downloader.GetDownload(downloadId)
 	if err != nil {
 		fmt.Printf("Could not show download: %v\n", err)
 	}
@@ -137,7 +137,7 @@ func (cmd *StatusCommand) suggestArguments(parts []string) []prompt.Suggest {
 
 func (cmd *StatusCommand) getIdsSuggestions() []prompt.Suggest {
 	suggestions := make([]prompt.Suggest, 0, 10)
-	ids := cmd.downloader.AllDownloadIds()
+	ids := cmd.downloader.GetAllDownloadIds()
 	for _, id := range ids {
 		suggestions = append(suggestions, prompt.Suggest{
 			Text:        id,

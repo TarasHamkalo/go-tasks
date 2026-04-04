@@ -11,24 +11,56 @@ import (
 	"go.uber.org/zap"
 )
 
+// Downloader is main object managing downloads lifecycle.
+//
+// Each download is represented by two structs DownloadRecord and DownloadTask.
+//
+// DownloadRecord stores download metadata, it is never deleted from Downloader,
+// and can always be queried by its ID. DownloadTask is temporary object
+// handling download process, and notifying Downloader via events.
+//
+// Each download is handled in separate go routine associated with private context.
+// That context is stored inside of TasksStore and allows cancellation at any time.
+//
+// After submitting new download task, downloader acts a central unit applying
+// updates received via Downloader's eventsChan (from DownloadTask) to corresponding
+// DownloadRecord objects stored in DownloadsStore.
+// (see startEventHandlerLoop)
+//
+// NOTE: Before submitting requests, Start method should be called
+// to start event processing loop.
+//
+// NOTE: After shutdown new instance should be created.
 type Downloader struct {
+	// userAgent set when creating HTTP requests
 	userAgent string
 
+	// statusUpdateInterval how often to update DownloadRecord
+	// e.g. more bytes downloaded
 	statusUpdateInterval time.Duration
 
+	// downloadTasks stores all running tasks (removed after completion)
 	downloadTasks *TasksStore
 
+	// downloadsStore stores all ever created DownloadRecord
 	downloadsStore *DownloadsStore
 
-	// should be accessed only by given package
+	// eventsChan chan used to notify downloader about events occured inside of
+	// DownloadTask
+	// NOTE: should be accessed by writeEventsChan
 	eventsChan chan DownloadEvent
 
-	// should be accessed by lib consumer
+	// subscribers stores event channels to each subcribed consumer of download
+	// events
 	subscribers []chan ExternalDownloadEvent
-	subMu       sync.RWMutex
+	// subMu used manage subscribers
+	subMu sync.RWMutex
 
+	// shutdownChan is closed when shutdown timeout exited
+	// (indicating all downloader routines should exit, e.g. event loop)
 	shutdownChan chan struct{}
 
+	// shuttingDown indicates that shutdown process started
 	shuttingDown atomic.Bool
 
 	logger *zap.Logger
@@ -65,21 +97,28 @@ func NewDownloader(
 	}
 }
 
+// Start event processing loop
 func (d *Downloader) Start() {
 	go d.startEventHandlerLoop()
 }
 
+// Shutdown handles Downloader shutdown logic. Expects to receive
+// a context with timeout, otherwise 5 seconds duration is assumed.
+//
+// Shutdown is handled in two phases, each having timeout/2 time:
+//  1. don't accept new tasks, await existing to finish
+//  2. cancel all tasks and await until they quit (see TasksStore DrainOnly)
+//
+// After timeout or graceful tasks completion allow event loop routine to quit
+// and return.
+//
+// NOTE: In case tasks didn't quit by cancellation local system resources
+// (downloaded files) can be partially written
 func (d *Downloader) Shutdown(ctx context.Context) {
 	d.logger.Info("Downloader shutting down")
 
 	// stop receiving new downloads
 	d.shuttingDown.Store(true)
-
-	// before event loop can quit, all tasks should exit
-	// (their events has to be processed)
-	// so compute total given time and split it into two halves
-	//	1. giving time for tasks to finish
-	//  2. cancel all unfinished and give time for event loop to drain events
 
 	total := time.Until(deadline(ctx))
 	if total <= 0 {
@@ -112,7 +151,6 @@ func (d *Downloader) Shutdown(ctx context.Context) {
 	}
 	// in case tasks didn't finish, cancel all (grace ctx timed out)
 	// give time for event loop to process their cancel events
-
 	d.logger.Debug(
 		"Downloader awaiting events drain for",
 		zap.Duration("time", drainTime),
@@ -132,6 +170,8 @@ func (d *Downloader) Shutdown(ctx context.Context) {
 	close(d.shutdownChan)
 }
 
+// deadline is helper to compute deadline from context, if deadline not set
+// 5 seconds assumed.
 func deadline(ctx context.Context) time.Time {
 	dl, ok := ctx.Deadline()
 	if !ok {
@@ -140,6 +180,12 @@ func deadline(ctx context.Context) time.Time {
 	return dl
 }
 
+// startEventHandlerLoop handles all events received through eventsChan as:
+//  1. logs event,
+//  2. handle mutation of DownloadRecord,
+//  3. broadcast update to subscribers.
+//
+// Stop when shutdownChan closed.
 func (d *Downloader) startEventHandlerLoop() {
 	for {
 		select {
@@ -176,6 +222,8 @@ func (d *Downloader) startEventHandlerLoop() {
 	}
 }
 
+// handleDownloadEvent applies updates to DownloadRecord according
+// to event type.
 func (d *Downloader) handleDownloadEvent(
 	event DownloadEvent,
 	download *DownloadRecord,
@@ -191,6 +239,7 @@ func (d *Downloader) handleDownloadEvent(
 		download.SetBytesDownloaded(event.Int64())
 
 	case DownloadEventCancel:
+		// if task provided cancellation event, don't cancel it twice
 		d.handleTaskRemoval(event, false)
 		download.Cancel()
 
@@ -218,6 +267,7 @@ func (d *Downloader) handleDownloadEvent(
 	}
 }
 
+// handleTaskRemoval removes task and cancel context if needed
 func (d *Downloader) handleTaskRemoval(event DownloadEvent, withCancel bool) {
 	taskEntry, err := d.downloadTasks.Remove(event.TaskId())
 	if err != nil {
@@ -228,6 +278,7 @@ func (d *Downloader) handleTaskRemoval(event DownloadEvent, withCancel bool) {
 			zap.String("taskId", event.TaskId()),
 			zap.Error(err),
 		)
+		return
 	}
 
 	if withCancel {
@@ -235,7 +286,10 @@ func (d *Downloader) handleTaskRemoval(event DownloadEvent, withCancel bool) {
 	}
 }
 
-// SubmitDownload returns downloadID
+// SubmitDownload creates structs to represent download and corresponding task.
+// If stored successfully starts go routine handling given download.
+// DownloadTask receives child context (of given ctx) with cancellation functino
+// stored for later use.
 func (d *Downloader) SubmitDownload(
 	ctx context.Context,
 	url string,
@@ -274,7 +328,8 @@ func (d *Downloader) SubmitDownload(
 	return download.Id(), nil
 }
 
-func (d *Downloader) Download(downloadId string) (*DownloadView, error) {
+// GetDownload returns DownloadView which corresponds to given downloadId
+func (d *Downloader) GetDownload(downloadId string) (*DownloadView, error) {
 	download, err := d.downloadsStore.Get(downloadId)
 	if err != nil {
 		return nil, err
@@ -283,14 +338,16 @@ func (d *Downloader) Download(downloadId string) (*DownloadView, error) {
 	return download.DetachedView(), nil
 }
 
-func (d *Downloader) AllDownloads() []*DownloadView {
+func (d *Downloader) GetAllDownloads() []*DownloadView {
 	return d.downloadsStore.GetAllViews()
 }
 
-func (d *Downloader) AllDownloadIds() []string {
+func (d *Downloader) GetAllDownloadIds() []string {
 	return d.downloadsStore.GetAllIds()
 }
 
+// CancelDownload finds download with given id and cancels context
+// of associated download task.
 func (d *Downloader) CancelDownload(downloadId string) error {
 	download, err := d.downloadsStore.Get(downloadId)
 	if err != nil {
@@ -311,7 +368,9 @@ func (d *Downloader) CancelDownload(downloadId string) error {
 	return nil
 }
 
-func (d *Downloader) CompletionChan(
+// GetCompletionChan returns channel which gonna be closed download
+// associated with downloadId completes.
+func (d *Downloader) GetCompletionChan(
 	downloadId string,
 ) (<-chan struct{}, error) {
 	download, err := d.downloadsStore.Get(downloadId)
@@ -322,10 +381,7 @@ func (d *Downloader) CompletionChan(
 	return download.Done(), nil
 }
 
-func (d *Downloader) UserAgent() string {
-	return d.userAgent
-}
-
+// Subscribe returns private chanel to which events gonna be forwarded
 func (d *Downloader) Subscribe() <-chan ExternalDownloadEvent {
 	d.subMu.Lock()
 	defer d.subMu.Unlock()
@@ -335,10 +391,8 @@ func (d *Downloader) Subscribe() <-chan ExternalDownloadEvent {
 	return ch
 }
 
-func (d *Downloader) writeEventsChan() chan<- DownloadEvent {
-	return d.eventsChan
-}
-
+// broadcastPublic sends events to all registered subscribers.
+// NOTE: when channel is full, given subscriber is ignored
 func (d *Downloader) broadcastPublic(e ExternalDownloadEvent) {
 	d.subMu.RLock()
 	defer d.subMu.RUnlock()
@@ -349,4 +403,13 @@ func (d *Downloader) broadcastPublic(e ExternalDownloadEvent) {
 		default:
 		}
 	}
+}
+
+func (d *Downloader) UserAgent() string {
+	return d.userAgent
+}
+
+// writeEventsChan casts eventsChan to write only
+func (d *Downloader) writeEventsChan() chan<- DownloadEvent {
+	return d.eventsChan
 }

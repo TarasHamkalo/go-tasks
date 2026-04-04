@@ -108,7 +108,7 @@ func (cmd *CancelCommand) getIdsSuggestionsCached() []prompt.Suggest {
 
 func (cmd *CancelCommand) getIdsSuggestions() []prompt.Suggest {
 	suggestions := make([]prompt.Suggest, 0, 10)
-	downloads := cmd.downloader.AllDownloads()
+	downloads := cmd.downloader.GetAllDownloads()
 	for _, download := range downloads {
 		// pretty wasteful suggestion as copies of structs created
 		// just to get id

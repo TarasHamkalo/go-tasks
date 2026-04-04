@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 )
 
+// TaskEntry associates task with its context cancellation function.
 type TaskEntry struct {
 	Task   *DownloadTask
 	Cancel context.CancelFunc
@@ -16,19 +17,25 @@ func NewTaskEntry(task *DownloadTask, cancel context.CancelFunc) *TaskEntry {
 	return &TaskEntry{Task: task, Cancel: cancel}
 }
 
+// TasksStore is thread safe table like storage for DownloadTask.
+// Allows transition to "Drain only" mode, when no tasks are added and only
+// removal can be triggered (used for shutdown process in Downloader).
 type TasksStore struct {
 	entries map[string]*TaskEntry
 
+	// drainOnly indicates whether in drain only mode
 	drainOnly atomic.Bool
 
+	// drainedChan is closed after drain mode was entered and all tasks removed
 	drainedChan chan struct{}
-	drainOnce   sync.Once
+
+	// drainOnce wrapper to close drainedChan only once
+	drainOnce sync.Once
 
 	lock sync.RWMutex
 }
 
 func NewTasksStore() *TasksStore {
-
 	return &TasksStore{
 		entries: make(map[string]*TaskEntry, 10),
 
@@ -42,7 +49,7 @@ func NewTasksStore() *TasksStore {
 
 // DrainOnly sets tasks store in mode, during which tasks can only be
 // read or removed. DrainOnly returns chan which gonna be closed when
-// no tasks left
+// no tasks left.
 func (s *TasksStore) DrainOnly() <-chan struct{} {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -57,6 +64,7 @@ func (s *TasksStore) DrainOnly() <-chan struct{} {
 	return s.drainedChan
 }
 
+// CancelAll is helper method to cancel all tasks under write lock.
 func (s *TasksStore) CancelAll() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -66,6 +74,8 @@ func (s *TasksStore) CancelAll() {
 	}
 }
 
+// Remove under write locks removes task with given id, in case of drain mode,
+// closes drainedChan.
 func (s *TasksStore) Remove(taskId string) (*TaskEntry, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -85,6 +95,7 @@ func (s *TasksStore) Remove(taskId string) (*TaskEntry, error) {
 	return nil, fmt.Errorf("task %s not found", taskId)
 }
 
+// Get find task by id under read lock.
 func (s *TasksStore) Get(id string) (*TaskEntry, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -97,6 +108,7 @@ func (s *TasksStore) Get(id string) (*TaskEntry, error) {
 	return nil, fmt.Errorf("task %s not found", id)
 }
 
+// Add adds task entry under write lock in case drain mode is not active.
 func (s *TasksStore) Add(entry *TaskEntry) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
