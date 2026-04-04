@@ -15,11 +15,18 @@ import (
 )
 
 // DownloadTask represents a temporary object of running download.
-// It stores metadata needed to properly process IO operations and
-// trigger updates of DownloadRecord (downloads' metadata).
+//
+// It stores metadata needed to properly process I/O operations and
+// trigger updates of DownloadRecord.
+//
 // Given task does not modify DonwloadRecord entry directly, but initiates
 // events (handled in Downloader).
+//
 // For full metadata stored about donwload see DownloadRecord.
+//
+// NOTE: Initially this struct stored cancellation func for context provided
+// to Execute, later was located is TasksStore, where only Downloader
+// has access to it.
 type DownloadTask struct {
 
 	// id is task id (default UUID)
