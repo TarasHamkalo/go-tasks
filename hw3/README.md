@@ -8,7 +8,7 @@ podporující požadované příkazy jako `download`, `status`, `cancel`.
 Aplikace je navržena jako event-driven systém (zjednodušeně) s oddělením jádra a klientů (rozhraní, např. shellu).  
 To, jak probíhá komunikace, je uvedeno na obrázku níže.
 
-![Diagram komunikace](docs/comm-diag.png "Diagram komunikace")
+![Diagram komunikace](docs/comm-diag.jpg "Diagram komunikace")
 
 Teda hlavními komponenty jsou (vše se nachazejí v `pkg/downloader`)
 - `Downloader`  
