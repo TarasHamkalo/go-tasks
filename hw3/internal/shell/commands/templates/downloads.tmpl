@@ -1,13 +1,14 @@
 {{define "downloads_table"}}
-{{- printf "%-8s %-35s %-50.50s %-10.10s %12.12s %15.15s %15.15s\n" "ID" "URL" "DEST" "STATUS" "SPEED" "DOWNLOADED" "EXPECTED"}}
-{{- printf "%s\n" "-------------------------------------------------------------------------------------------------------------------------------------------------------"}}
+{{- printf "%-8s %-35s %-50.50s %-10.10s %12.12s %15.15s %15.15s %15.15s\n" "ID" "URL" "DEST" "STATUS" "SPEED" "PROGRESS (%)" "DOWNLOADED" "EXPECTED"}}
+{{- printf "%s\n" "----------------------------------------------------------------------------------------------------------------------------------------------------------------------"}}
 {{- range .}}
-{{- printf "%-8.8s %-35.35s %-50.50s %-10.10s %12.12s %15.15s %15.15s\n"
+{{- printf "%-8.8s %-35.35s %-50.50s %-10.10s %12.12s %15.15s %15.15s %15.15s\n"
     .Id
     .Url
     (formatPath .Destination 3 50)
     .Status
     (formatSpeed .)
+    (formatCompletion .)
     (formatBytes .BytesDownloaded)
     (formatExpected .ExpectedSize)
 -}}
@@ -21,6 +22,8 @@ Destination:  {{.Destination}}
 Status:       {{.Status}}
 
 Speed:        {{formatSpeed .}}
+
+Progress (%)  {{formatCompletion .}}
 Downloaded:   {{formatBytes .BytesDownloaded}}
 Expected:     {{formatExpected .ExpectedSize}}
 Total:        {{formatExpected .TotalSize}}

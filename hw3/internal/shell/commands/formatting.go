@@ -9,6 +9,10 @@ import (
 )
 
 func FormatSpeed(d core.DownloadView) string {
+	if d.Status != core.StatusInProgress {
+		return "0 B/s"
+	}
+
 	if d.StartTime.IsZero() || d.BytesDownloaded == 0 {
 		return "0 B/s"
 	}
@@ -32,8 +36,9 @@ func FormatBytes(b int64) string {
 		div *= unit
 		exp++
 	}
-	return fmt.Sprintf("%.2f %cB",
-		float64(b)/float64(div), "KMGTPE"[exp])
+	return fmt.Sprintf(
+		"%.2f %cB", float64(b)/float64(div), "KMGTPE"[exp],
+	)
 }
 
 func FormatPath(p string, lastN int, maxLen int) string {
@@ -60,4 +65,18 @@ func FormatExpected(b int64) string {
 		return "unknown"
 	}
 	return FormatBytes(b)
+}
+
+func FormatCompletion(d core.DownloadView) string {
+	if d.Status == core.StatusCompleted {
+		return "100.00 %"
+	}
+
+	if d.ExpectedSize == -1 {
+		return "unknown"
+	}
+
+	return fmt.Sprintf(
+		"%.2f%%", float64(d.BytesDownloaded)/float64(d.ExpectedSize),
+	)
 }

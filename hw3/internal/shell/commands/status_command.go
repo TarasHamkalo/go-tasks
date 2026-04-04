@@ -49,10 +49,11 @@ func NewStatusCommandWithTmpl(
 		template.
 			New(filepath.Base(tmplPath)).
 			Funcs(template.FuncMap{
-				"formatSpeed":    FormatSpeed,
-				"formatBytes":    FormatBytes,
-				"formatPath":     FormatPath,
-				"formatExpected": FormatExpected,
+				"formatSpeed":      FormatSpeed,
+				"formatBytes":      FormatBytes,
+				"formatPath":       FormatPath,
+				"formatCompletion": FormatCompletion,
+				"formatExpected":   FormatExpected,
 			}).
 			ParseFS(tmplFS, tmplPath),
 	)
