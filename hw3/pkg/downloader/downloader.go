@@ -248,7 +248,7 @@ func (d *Downloader) SubmitDownload(
 
 	taskCtx, cancel := context.WithCancel(ctx)
 
-	download := NewDownload(url, destination)
+	download := NewDownloadRecord(url, destination)
 	task := NewDownloadTask(download.Id(), url, destination)
 	download.SetTaskId(task.Id())
 

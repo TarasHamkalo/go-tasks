@@ -10,55 +10,76 @@ import (
 type DownloadStatus string
 
 const (
-	StatusFailed     DownloadStatus = "failed"
-	StatusRequested  DownloadStatus = "requested"
-	StatusCanceled   DownloadStatus = "canceled"
+	// StatusRequested initial status.
+	StatusRequested DownloadStatus = "requested"
+	// StatusInProgress when download body process started.
 	StatusInProgress DownloadStatus = "in_progress"
-	StatusCompleted  DownloadStatus = "completed"
+
+	// StatusFailed, StatusCanceled, StatusCompleted represents final states
+	// of download process
+	StatusFailed    DownloadStatus = "failed"
+	StatusCanceled  DownloadStatus = "canceled"
+	StatusCompleted DownloadStatus = "completed"
 )
 
+// DownloadRecord stores all metadata associated with HTTP download.
+// It is safe to access given record with multiple threads.
+// State transitions and short metadata queries are done under locks (RW)
+// and when most of metadata needed a deep copy of struct created (under lock).
 type DownloadRecord struct {
-	mu sync.RWMutex
-
+	// id download id (default UUID)
 	id string
 
-	// taskId stores id of task executing this download, would be better to hold
-	// as cross table, but currently left here
+	// taskId stores id of task executing this download
+	// [future] would be better to move this association to Downloader object.
 	taskId string
 
-	url         string
+	// url is http resource being downloaded
+	url string
+
+	// destination is path on local file system, where resource gonna be stored
+	// in case of success download
 	destination string
 
 	status DownloadStatus
 
+	// bytesDownloaded current amount of byted downloaded (often updated)
 	bytesDownloaded int64
 
-	// in case expected size is unknown, indicated by -1
+	// expectedSize is expected resource size (set on start of download).
+	// In case expected size is unknown, indicated by -1.
 	expectedSize int64
 
-	// contains valid value when in complete state only
+	// totalSize is amount of bytes downloaded when download is finished,
+	// successfully, so contains valid value when in complete state only.
 	totalSize int64
 
-	// contains time when object was created
+	// requestedTime contains time when object was created.
 	requestedTime time.Time
 
-	// contains time when started downloading
+	// startTime contains time when started downloading resource body.
 	startTime time.Time
 
+	// endTime contains time when transitioned to one of final states.
+	// (see DownloadStatus)
 	endTime time.Time
 
+	// cause is set when download has failed
 	cause error
 
+	// done used to track download completion (e.g. await it)
+	// is channel closed when download is complete (enter any final state)
+	// so multiple subscribers are fine.
 	done chan struct{}
+
+	mu sync.RWMutex
 }
 
-func NewDownload(
+func NewDownloadRecord(
 	url string,
 	destination string,
 ) *DownloadRecord {
 	return &DownloadRecord{
-		mu: sync.RWMutex{},
-
 		id: uuid.New().String(),
 
 		url:         url,
@@ -71,14 +92,22 @@ func NewDownload(
 		expectedSize: -1,
 
 		done: make(chan struct{}),
+
+		mu: sync.RWMutex{},
+
+		// other variables default value is fine
 	}
 }
 
-func (d *DownloadRecord) SetTaskId(taskId string) *DownloadRecord {
+func (d *DownloadRecord) SetTaskId(taskId string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	d.taskId = taskId
-	return d
 }
 
+// DetachedView create a deep copy of given download under read lock.
+// DetachedView hides task id from users.
 func (d *DownloadRecord) DetachedView() *DownloadView {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -98,6 +127,9 @@ func (d *DownloadRecord) DetachedView() *DownloadView {
 	}
 }
 
+// Start does transition to "in progress" state, when resource body is being downloaded
+// and client might know expected size of download (otherwise set to -1).
+// NOTE: record is write locked.
 func (d *DownloadRecord) Start(expectedSize int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -111,6 +143,8 @@ func (d *DownloadRecord) Start(expectedSize int64) {
 	d.startTime = time.Now()
 }
 
+// SetBytesDownloaded update amount of downloaded bytes.
+// NOTE: record is write locked.
 func (d *DownloadRecord) SetBytesDownloaded(bytesDownloaded int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -122,6 +156,9 @@ func (d *DownloadRecord) SetBytesDownloaded(bytesDownloaded int64) {
 	d.bytesDownloaded = bytesDownloaded
 }
 
+// Cancel does transition to canceled state,
+// removing association with DownloadTask.
+// NOTE: record is write locked.
 func (d *DownloadRecord) Cancel() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -136,7 +173,9 @@ func (d *DownloadRecord) Cancel() {
 	close(d.done)
 }
 
-// Fail can entered failed state never been started
+// Fail does transition to failed state, recording cause and
+// removing association with DownloadTask.
+// NOTE: record is write locked.
 func (d *DownloadRecord) Fail(cause error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -152,6 +191,9 @@ func (d *DownloadRecord) Fail(cause error) {
 	close(d.done)
 }
 
+// Complete does transition to complete state, recording final download size and
+// removing association with DownloadTask.
+// NOTE: record is write locked.
 func (d *DownloadRecord) Complete(totalSize int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
