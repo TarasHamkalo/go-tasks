@@ -1,22 +1,38 @@
 package downloader
 
-type EDownloadEventType string
+type ExternalEventType string
 
 const (
-	EDownloadEventStart EDownloadEventType = "start"
+	// ExternalEventStart indicates body download started.
+	ExternalEventStart ExternalEventType = "start"
 
-	EDownloadEventCancel EDownloadEventType = "cancel"
+	// ExternalEventCancel indicates cancellation of download succeeded.
+	ExternalEventCancel ExternalEventType = "cancel"
 
-	EDownloadEventError EDownloadEventType = "error"
+	// ExternalEventError indicates download error occurred.
+	ExternalEventError ExternalEventType = "error"
 
-	EDownloadEventComplete EDownloadEventType = "complete"
+	// ExternalEventComplete indicates download succeeded.
+	ExternalEventComplete ExternalEventType = "complete"
 )
 
+// ExternalDownloadEvent represents a user-facing notification about
+// a download lifecycle event (start, completion, cancellation, error).
+//
+// These events are emitted by Downloader after the corresponding
+// DownloadRecord state transition has been successfully applied,
+// so the data is consistent and ready to be queried by the client.
+//
+// The meaning of Bytes() and Error() depends on Type():
+//   - Start:    Bytes() = expected size (or -1 if unknown), Error() = nil
+//   - Cancel:   Bytes() = 0, Error() = nil
+//   - Complete: Bytes() = total downloaded size, Error() = nil
+//   - Error:    Bytes() = 0, Error() = underlying cause (may be nil)
 type ExternalDownloadEvent struct {
 	// downloadId identifies subject/target of event
 	downloadId string
 
-	eventType EDownloadEventType
+	eventType ExternalEventType
 
 	bytes int64
 
@@ -29,7 +45,7 @@ func NewExternalDownloadStart(
 ) ExternalDownloadEvent {
 	return ExternalDownloadEvent{
 		downloadId: downloadId,
-		eventType:  EDownloadEventStart,
+		eventType:  ExternalEventStart,
 		bytes:      expectedSize,
 	}
 }
@@ -39,7 +55,7 @@ func NewExternalDownloadCancel(
 ) ExternalDownloadEvent {
 	return ExternalDownloadEvent{
 		downloadId: downloadId,
-		eventType:  EDownloadEventCancel,
+		eventType:  ExternalEventCancel,
 	}
 }
 
@@ -49,7 +65,7 @@ func NewExternalDownloadComplete(
 ) ExternalDownloadEvent {
 	return ExternalDownloadEvent{
 		downloadId: downloadId,
-		eventType:  EDownloadEventComplete,
+		eventType:  ExternalEventComplete,
 		bytes:      totalSize,
 	}
 }
@@ -60,7 +76,7 @@ func NewExternalDownloadError(
 ) ExternalDownloadEvent {
 	return ExternalDownloadEvent{
 		downloadId: downloadId,
-		eventType:  EDownloadEventError,
+		eventType:  ExternalEventError,
 		err:        err,
 	}
 }
@@ -69,7 +85,7 @@ func (e ExternalDownloadEvent) DownloadId() string {
 	return e.downloadId
 }
 
-func (e ExternalDownloadEvent) Type() EDownloadEventType {
+func (e ExternalDownloadEvent) Type() ExternalEventType {
 	return e.eventType
 }
 
@@ -77,6 +93,6 @@ func (e ExternalDownloadEvent) Bytes() int64 {
 	return e.bytes
 }
 
-func (e ExternalDownloadEvent) Error() error {
+func (e ExternalDownloadEvent) Err() error {
 	return e.err
 }

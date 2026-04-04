@@ -146,30 +146,30 @@ func (s *Shell) startEventsProcessing(outputChan chan<- string) {
 
 			switch e.Type() {
 
-			case downloader.EDownloadEventStart:
+			case downloader.ExternalEventStart:
 				msg = fmt.Sprintf(
 					"[start]\t%s -> downloading (%s)",
 					id,
 					commands.FormatBytes(e.Bytes()),
 				)
 
-			case downloader.EDownloadEventCancel:
+			case downloader.ExternalEventCancel:
 				msg = fmt.Sprintf(
 					"[cancel]\t%s -> cancelled",
 					id,
 				)
 
-			case downloader.EDownloadEventComplete:
+			case downloader.ExternalEventComplete:
 				msg = fmt.Sprintf(
 					"[done]\t%s -> completed (%s)",
 					id,
 					commands.FormatBytes(e.Bytes()),
 				)
 
-			case downloader.EDownloadEventError:
+			case downloader.ExternalEventError:
 				errStr := "unknown error"
-				if e.Error() != nil {
-					errStr = e.Error().Error()
+				if e.Err() != nil {
+					errStr = e.Err().Error()
 				}
 
 				msg = fmt.Sprintf(
