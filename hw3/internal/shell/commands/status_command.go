@@ -17,16 +17,22 @@ const DefaultDownloadsTmplPath = "templates/downloads.tmpl"
 //go:embed templates/downloads.tmpl
 var DefaultDownloadsTmplFs embed.FS
 
+// StatusCommand provides implementation of "status"
+// and "status <downloadId>" commands.
 type StatusCommand struct {
 	downloader *downloader.Downloader
 
+	// pattern used to match input to status kcommand, see constructors
 	pattern *regexp.Regexp
 
+	// downloadsTmpl text template used to print status information
+	// both for all downloads status and concrete download details
 	downloadsTmpl *template.Template
 
 	*BaseCommand
 }
 
+// NewStatusCommand constructs default status command
 func NewStatusCommand(
 	downloader *downloader.Downloader,
 ) *StatusCommand {
@@ -37,9 +43,10 @@ func NewStatusCommand(
 	)
 }
 
-// NewStatusCommandWithTmpl downloadTmpl should contain templates called
-// "download_table" for displaying all downloads at once and
-// "download_detail" for displaying single download.
+// NewStatusCommandWithTmpl template specified by tmplPath inside of tmplFS
+// should contain folling templates:
+//  1. "download_table" for displaying all downloads at once,
+//  2. "download_detail" for displaying single download.
 func NewStatusCommandWithTmpl(
 	downloader *downloader.Downloader,
 	tmplFS embed.FS,
@@ -69,7 +76,6 @@ func NewStatusCommandWithTmpl(
 	cmd.BaseCommand = NewBaseCommand(
 		"status",
 		"status [downloadId], max 150 chars per field",
-		// yep, pelican, just close your eyes this time :)
 		&BaseCommandHandler{
 			handle:           cmd.handle,
 			matches:          cmd.matches,

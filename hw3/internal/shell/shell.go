@@ -14,6 +14,10 @@ import (
 	"github.com/c-bata/go-prompt"
 )
 
+// Shell represents downloader shell, containing command handlers chain and
+// being responsible for logs file, downloader instance creation/shutdown.
+//
+// NOTE: shell should not be used after Run exits (file creation/truncation)
 type Shell struct {
 	commandsChain commands.Command
 
@@ -21,11 +25,19 @@ type Shell struct {
 
 	downloaderLogFile *os.File
 
+	// shutdown indicates that shell should exit.
+	// Initially bound to routine waiting for OS signal to occur through,
+	// due to go-prompt events handling, all modifications to it are done
+	// in single routine (atomicity not used anymore).
 	shutdown atomic.Bool
 
+	// shutdownDoneCh main routine await closing of this channel after main
+	// loop exits. Left for similar reason as above atomic shutdown.
 	shutdownDoneCh chan struct{}
 }
 
+// NewShell constructs shell with default command set (download, status, cancel).
+// NOTE: on creation gonna create logs dir and truncate existing logs
 func NewShell() *Shell {
 	err := os.Mkdir("logs", 0755)
 	if err != nil && !os.IsExist(err) {
@@ -57,23 +69,26 @@ func NewShell() *Shell {
 	}
 }
 
+// handle trims input and passes down commandsChain
 func (s *Shell) handle(input string) {
-	trimmeed := strings.TrimSpace(input)
-	if trimmeed == "" {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
 		return
 	}
 
-	if trimmeed == "exit" {
+	if trimmed == "exit" {
 		s.handleExit()
 		return
 	}
 
-	err := s.commandsChain.Handle(trimmeed)
+	err := s.commandsChain.Handle(trimmed)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
 }
 
+// handleExit handles graceful shutdown of Downloader by providing context
+// with 5 seconds timeout
 func (s *Shell) handleExit() {
 	if s.shutdown.Load() {
 		return
@@ -93,6 +108,8 @@ func (s *Shell) handleExit() {
 	close(s.shutdownDoneCh)
 }
 
+// completer takes currently present input and passed down to commands chain,
+// gathering possible completions.
 func (s *Shell) completer(d prompt.Document) []prompt.Suggest {
 	text := d.TextBeforeCursor()
 	suggestions := s.commandsChain.CompletePrompt(text)
@@ -105,6 +122,7 @@ func (s *Shell) completer(d prompt.Document) []prompt.Suggest {
 	return suggestions
 }
 
+// Run starts input handling loop
 func (s *Shell) Run() {
 	defer s.downloaderLogFile.Close()
 
@@ -132,6 +150,11 @@ func (s *Shell) Run() {
 	<-s.shutdownDoneCh
 }
 
+// startEventsProcessing subscribes to downloader.Downloader events
+// and prints them to user.
+// Go-prompt initially didn't allow to print async messages while user
+// was providing input, I could not fix this issue with provided api, so
+// forked go-prompt :)
 func (s *Shell) startEventsProcessing(outputChan chan<- string) {
 	events := s.downloader.Subscribe()
 	for {

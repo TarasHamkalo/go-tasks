@@ -9,18 +9,24 @@ import (
 	"github.com/c-bata/go-prompt"
 )
 
+// DownloadCommand provides implementation of
+// "download <url> <destination>" command.
 type DownloadCommand struct {
 	downloader *downloader.Downloader
 
+	// pattern used to match input to download command, see constructors
 	pattern *regexp.Regexp
 
+	// destinationsHistory stores previously accepted destinations
 	destinationsHistory []prompt.Suggest
 
+	// urlsHistory stores previously accepted urls
 	urlsHistory []prompt.Suggest
 
 	*BaseCommand
 }
 
+// NewDownloadCommand constructs default download command
 func NewDownloadCommand(downloader *downloader.Downloader) *DownloadCommand {
 	cmd := &DownloadCommand{
 		downloader: downloader,
@@ -32,7 +38,6 @@ func NewDownloadCommand(downloader *downloader.Downloader) *DownloadCommand {
 	cmd.BaseCommand = NewBaseCommand(
 		"download",
 		"download <url> <destination>, max 150 chars per field",
-		// yep, pelican, just close your eyes this time :)
 		&BaseCommandHandler{
 			handle:           cmd.handle,
 			matches:          cmd.matches,
@@ -48,6 +53,7 @@ func (cmd *DownloadCommand) matches(s string) bool {
 }
 
 func (cmd *DownloadCommand) handle(s string) {
+	// parse named regex groups
 	matches := cmd.pattern.FindStringSubmatch(s)
 	result := make(map[string]string)
 	for i, name := range cmd.pattern.SubexpNames() {
@@ -94,8 +100,10 @@ func (cmd *DownloadCommand) suggestArguments(parts []string) []prompt.Suggest {
 	}
 
 	if len(parts) == 2 {
+		// url should be suggested
 		return prompt.FilterHasPrefix(cmd.urlsHistory, parts[1], true)
 	}
 
+	// only command specified, suggest all known urls
 	return cmd.urlsHistory
 }

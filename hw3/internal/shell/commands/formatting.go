@@ -26,6 +26,8 @@ func FormatSpeed(d downloader.DownloadView) string {
 	return FormatBytes(int64(speed)) + "/s"
 }
 
+// FormatBytes formats bytes as KB, MB and such but base 1024.
+// Computes max divisor and exponent.
 func FormatBytes(b int64) string {
 	const unit = 1024
 	if b < unit {
@@ -41,13 +43,15 @@ func FormatBytes(b int64) string {
 	)
 }
 
-func FormatPath(p string, lastN int, maxLen int) string {
-	if p == "" {
+// FormatPath accepts path, and returns lastN parts of it (from end)
+// trimming to maxLen.
+func FormatPath(path string, lastN int, maxLen int) string {
+	if path == "" {
 		return ""
 	}
 
-	p = filepath.ToSlash(p)
-	parts := strings.Split(p, "/")
+	path = filepath.ToSlash(path)
+	parts := strings.Split(path, "/")
 	if len(parts) > lastN {
 		parts = parts[len(parts)-lastN:]
 	}
