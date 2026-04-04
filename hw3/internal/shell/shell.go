@@ -58,16 +58,17 @@ func NewShell() *Shell {
 }
 
 func (s *Shell) handle(input string) {
-	if input == "" {
+	trimmeed := strings.TrimSpace(input)
+	if trimmeed == "" {
 		return
 	}
 
-	if input == "exit" {
+	if trimmeed == "exit" {
 		s.handleExit()
 		return
 	}
 
-	err := s.commandsChain.Handle(input)
+	err := s.commandsChain.Handle(trimmeed)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
