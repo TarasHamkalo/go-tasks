@@ -1,4 +1,4 @@
-package core
+package downloader
 
 type DownloadEventType string
 

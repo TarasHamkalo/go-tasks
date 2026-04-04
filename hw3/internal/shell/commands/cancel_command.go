@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"downloader/internal/core"
+	"downloader/pkg/downloader"
 	"fmt"
 	"regexp"
 	"time"
@@ -10,7 +10,7 @@ import (
 )
 
 type CancelCommand struct {
-	downloader *core.Downloader
+	downloader *downloader.Downloader
 
 	pattern *regexp.Regexp
 
@@ -20,7 +20,7 @@ type CancelCommand struct {
 	*BaseCommand
 }
 
-func NewCancelCommand(downloader *core.Downloader) *CancelCommand {
+func NewCancelCommand(downloader *downloader.Downloader) *CancelCommand {
 	return NewCancelCommandWithCacheLifetime(
 		downloader,
 		5*time.Second,
@@ -28,7 +28,7 @@ func NewCancelCommand(downloader *core.Downloader) *CancelCommand {
 }
 
 func NewCancelCommandWithCacheLifetime(
-	downloader *core.Downloader,
+	downloader *downloader.Downloader,
 	cacheLifeDuration time.Duration,
 ) *CancelCommand {
 	cmd := &CancelCommand{
@@ -112,8 +112,8 @@ func (cmd *CancelCommand) getIdsSuggestions() []prompt.Suggest {
 	for _, download := range downloads {
 		// pretty wasteful suggestion as copies of structs created
 		// just to get id
-		if download.Status == core.StatusRequested ||
-			download.Status == core.StatusInProgress {
+		if download.Status == downloader.StatusRequested ||
+			download.Status == downloader.StatusInProgress {
 			suggestions = append(suggestions, prompt.Suggest{
 				Text:        download.Id,
 				Description: "Download Id",

@@ -3,8 +3,8 @@ package shell
 import (
 	"context"
 	"downloader/internal"
-	"downloader/internal/core"
 	"downloader/internal/shell/commands"
+	"downloader/pkg/downloader"
 	"fmt"
 	"os"
 	"strings"
@@ -17,7 +17,7 @@ import (
 type Shell struct {
 	commandsChain commands.Command
 
-	downloader *core.Downloader
+	downloader *downloader.Downloader
 
 	downloaderLogFile *os.File
 
@@ -43,7 +43,7 @@ func NewShell() *Shell {
 
 	downloaderLogger := internal.LogInit(downloadLogFile, true)
 
-	d := core.NewDefaultDownloader(downloaderLogger)
+	d := downloader.NewDefaultDownloader(downloaderLogger)
 	chain := commands.NewDownloadCommand(d)
 	chain.
 		WithNext(commands.NewStatusCommand(d)).
@@ -146,27 +146,27 @@ func (s *Shell) startEventsProcessing(outputChan chan<- string) {
 
 			switch e.Type() {
 
-			case core.EDownloadEventStart:
+			case downloader.EDownloadEventStart:
 				msg = fmt.Sprintf(
 					"[start]\t%s -> downloading (%s)",
 					id,
 					commands.FormatBytes(e.Bytes()),
 				)
 
-			case core.EDownloadEventCancel:
+			case downloader.EDownloadEventCancel:
 				msg = fmt.Sprintf(
 					"[cancel]\t%s -> cancelled",
 					id,
 				)
 
-			case core.EDownloadEventComplete:
+			case downloader.EDownloadEventComplete:
 				msg = fmt.Sprintf(
 					"[done]\t%s -> completed (%s)",
 					id,
 					commands.FormatBytes(e.Bytes()),
 				)
 
-			case core.EDownloadEventError:
+			case downloader.EDownloadEventError:
 				errStr := "unknown error"
 				if e.Error() != nil {
 					errStr = e.Error().Error()

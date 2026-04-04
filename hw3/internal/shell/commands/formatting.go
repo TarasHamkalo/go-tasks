@@ -1,15 +1,15 @@
 package commands
 
 import (
-	"downloader/internal/core"
+	"downloader/pkg/downloader"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-func FormatSpeed(d core.DownloadView) string {
-	if d.Status != core.StatusInProgress {
+func FormatSpeed(d downloader.DownloadView) string {
+	if d.Status != downloader.StatusInProgress {
 		return "0 B/s"
 	}
 
@@ -67,8 +67,8 @@ func FormatExpected(b int64) string {
 	return FormatBytes(b)
 }
 
-func FormatCompletion(d core.DownloadView) string {
-	if d.Status == core.StatusCompleted {
+func FormatCompletion(d downloader.DownloadView) string {
+	if d.Status == downloader.StatusCompleted {
 		return "100.00 %"
 	}
 

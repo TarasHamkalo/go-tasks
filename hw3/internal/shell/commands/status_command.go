@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"downloader/internal/core"
+	"downloader/pkg/downloader"
 	"embed"
 	"fmt"
 	"os"
@@ -18,7 +18,7 @@ const DefaultDownloadsTmplPath = "templates/downloads.tmpl"
 var DefaultDownloadsTmplFs embed.FS
 
 type StatusCommand struct {
-	downloader *core.Downloader
+	downloader *downloader.Downloader
 
 	pattern *regexp.Regexp
 
@@ -28,7 +28,7 @@ type StatusCommand struct {
 }
 
 func NewStatusCommand(
-	downloader *core.Downloader,
+	downloader *downloader.Downloader,
 ) *StatusCommand {
 	return NewStatusCommandWithTmpl(
 		downloader,
@@ -41,7 +41,7 @@ func NewStatusCommand(
 // "download_table" for displaying all downloads at once and
 // "download_detail" for displaying single download.
 func NewStatusCommandWithTmpl(
-	downloader *core.Downloader,
+	downloader *downloader.Downloader,
 	tmplFS embed.FS,
 	tmplPath string,
 ) *StatusCommand {

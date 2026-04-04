@@ -2,7 +2,7 @@ package commands
 
 import (
 	"context"
-	"downloader/internal/core"
+	"downloader/pkg/downloader"
 	"fmt"
 	"regexp"
 
@@ -10,7 +10,7 @@ import (
 )
 
 type DownloadCommand struct {
-	downloader *core.Downloader
+	downloader *downloader.Downloader
 
 	pattern *regexp.Regexp
 
@@ -21,7 +21,7 @@ type DownloadCommand struct {
 	*BaseCommand
 }
 
-func NewDownloadCommand(downloader *core.Downloader) *DownloadCommand {
+func NewDownloadCommand(downloader *downloader.Downloader) *DownloadCommand {
 	cmd := &DownloadCommand{
 		downloader: downloader,
 		pattern: regexp.MustCompile(
