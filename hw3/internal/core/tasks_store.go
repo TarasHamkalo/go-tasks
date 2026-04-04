@@ -30,10 +30,13 @@ type TasksStore struct {
 func NewTasksStore() *TasksStore {
 
 	return &TasksStore{
-		entries:     make(map[string]*TaskEntry, 10),
-		drainOnly:   atomic.Bool{},
+		entries: make(map[string]*TaskEntry, 10),
+
+		drainOnly: atomic.Bool{},
+
 		drainedChan: make(chan struct{}),
-		lock:        sync.RWMutex{},
+
+		lock: sync.RWMutex{},
 	}
 }
 
@@ -70,7 +73,7 @@ func (s *TasksStore) Remove(taskId string) (*TaskEntry, error) {
 	entry, ok := s.entries[taskId]
 	if ok {
 		delete(s.entries, taskId)
-		if len(s.entries) == 0 {
+		if s.drainOnly.Load() && len(s.entries) == 0 {
 			s.drainOnce.Do(func() {
 				close(s.drainedChan)
 			})
@@ -95,13 +98,17 @@ func (s *TasksStore) Get(id string) (*TaskEntry, error) {
 }
 
 func (s *TasksStore) Add(entry *TaskEntry) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	if s.drainOnly.Load() {
 		return fmt.Errorf("tasks store in drain only mode, no new tasks accepted")
 	}
 
-	// TODO: here should check whether id is not taken
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	_, ok := s.entries[entry.Task.Id()]
+	if ok {
+		return fmt.Errorf("task with id %s already stored", entry.Task.Id())
+	}
 
 	s.entries[entry.Task.Id()] = entry
 	return nil
