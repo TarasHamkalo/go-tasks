@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+// DownloadView represents metadata exposed to end-user
+// E.g. when downloads queried from Downloader it is nice to make
+// separate copy of download record and maybe limit fields
+// (e.g. internal taskId)
+// For fields doc see DownloadRecord
 type DownloadView struct {
 	Id string
 
