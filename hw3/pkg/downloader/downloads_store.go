@@ -44,7 +44,12 @@ func (s *DownloadsStore) Get(id string) (*DownloadRecord, error) {
 	return nil, fmt.Errorf("download %s not found", id)
 }
 
-// TODO: maybe cache :) ?
+// GetAllViews returns a deep copy of all entries stored.
+// Use in case you want to provide user with status of all ever downloaded
+// resources.
+// NOTE: this response could be cached e.g. by splitting
+// downloads to those in final state (never gonna be changed) and if needed
+// then also use time based caches. For demo leaving it like this...
 func (s *DownloadsStore) GetAllViews() []*DownloadView {
 	s.lock.RLock()
 	records := make([]*DownloadRecord, 0, len(s.downloads))
@@ -64,6 +69,7 @@ func (s *DownloadsStore) GetAllViews() []*DownloadView {
 	return result
 }
 
+// GetAllIds under read lock makes copies of all download ids stored.
 func (s *DownloadsStore) GetAllIds() []string {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
