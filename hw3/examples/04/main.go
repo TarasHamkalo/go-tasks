@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"downloader/internal"
-	"downloader/internal/core"
 	"downloader/internal/shell/commands"
+	"downloader/pkg/downloader"
 	"fmt"
 	"log"
 	"os"
@@ -39,6 +39,7 @@ func mergeDone(chans ...<-chan struct{}) <-chan struct{} {
 	return out
 }
 
+// Shell commands verification
 // [when running, see top part of output]
 func main() {
 	exampleDir := "examples/04/"
@@ -62,7 +63,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	d := core.NewDefaultDownloader(internal.LogInit(downloadLogFile, true))
+	d := downloader.NewDefaultDownloader(internal.LogInit(downloadLogFile, true))
 	d.Start()
 
 	eventsLoggerDone := make(chan struct{})

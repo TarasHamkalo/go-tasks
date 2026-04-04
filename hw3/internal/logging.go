@@ -7,6 +7,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// LogInit is helper function to init logger to my preferences,
+// not really a part of pkg
 func LogInit(file *os.File, debug bool) *zap.Logger {
 	pe := zap.NewProductionEncoderConfig()
 	//fileEncoder := zapcore.NewJSONEncoder(pe)
