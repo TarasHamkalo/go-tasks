@@ -18,7 +18,7 @@ type Downloader struct {
 
 	downloadTasks *TasksStore
 
-	downloadsStore *DownloadStore
+	downloadsStore *DownloadsStore
 
 	// should be accessed only by given package
 	eventsChan chan DownloadEvent
@@ -53,7 +53,7 @@ func NewDownloader(
 		statusUpdateInterval: statusUpdateInterval,
 
 		downloadTasks:  NewTasksStore(),
-		downloadsStore: NewDownloadStore(),
+		downloadsStore: NewDownloadsStore(),
 
 		eventsChan: make(chan DownloadEvent, 10),
 

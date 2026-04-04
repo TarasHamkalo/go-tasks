@@ -5,19 +5,20 @@ import (
 	"sync"
 )
 
-type DownloadStore struct {
+// DownloadsStore is thread safe table like storage for DownloadRecord.
+type DownloadsStore struct {
 	downloads map[string]*DownloadRecord
 	lock      sync.RWMutex
 }
 
-func NewDownloadStore() *DownloadStore {
-	return &DownloadStore{
+func NewDownloadsStore() *DownloadsStore {
+	return &DownloadsStore{
 		downloads: make(map[string]*DownloadRecord, 10),
 		lock:      sync.RWMutex{},
 	}
 }
 
-func (s *DownloadStore) Add(d *DownloadRecord) error {
+func (s *DownloadsStore) Add(d *DownloadRecord) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -31,7 +32,7 @@ func (s *DownloadStore) Add(d *DownloadRecord) error {
 	return nil
 }
 
-func (s *DownloadStore) Get(id string) (*DownloadRecord, error) {
+func (s *DownloadsStore) Get(id string) (*DownloadRecord, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -44,7 +45,7 @@ func (s *DownloadStore) Get(id string) (*DownloadRecord, error) {
 }
 
 // TODO: maybe cache :) ?
-func (s *DownloadStore) GetAllViews() []*DownloadView {
+func (s *DownloadsStore) GetAllViews() []*DownloadView {
 	s.lock.RLock()
 	records := make([]*DownloadRecord, 0, len(s.downloads))
 
@@ -63,7 +64,7 @@ func (s *DownloadStore) GetAllViews() []*DownloadView {
 	return result
 }
 
-func (s *DownloadStore) GetAllIds() []string {
+func (s *DownloadsStore) GetAllIds() []string {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
