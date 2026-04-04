@@ -68,25 +68,6 @@ func (d *Downloader) Start() {
 	go d.startEventHandlerLoop()
 }
 
-//	func (d *Downloader) Shutdown(ctx context.Context) {
-//		d.logger.Info("Downloader shutting down")
-//		d.shuttingDown.Store(true)
-//		drained := d.downloadTasks.DrainOnly()
-//
-//		d.downloadTasks.CancelAll()
-//
-//		// using another chan for indicating start of graceful shutdown,
-//		// is not necessary for given design
-//		select {
-//		case <-drained:
-//			d.logger.Info("All tasks finished gracefully (canceled or completed)")
-//		case <-ctx.Done():
-//			d.logger.Warn("Graceful shutdown timed out, event loop exits")
-//		}
-//
-//		close(d.shutdownChan)
-//	}
-
 func (d *Downloader) Shutdown(ctx context.Context) {
 	d.logger.Info("Downloader shutting down")
 
@@ -107,7 +88,10 @@ func (d *Downloader) Shutdown(ctx context.Context) {
 	graceTime := total / 2
 	drainTime := total - graceTime
 
-	d.logger.Debug("Downloader awaiting task completion for", zap.Duration("time", graceTime))
+	d.logger.Debug(
+		"Downloader awaiting task completion for",
+		zap.Duration("time", graceTime),
+	)
 
 	graceCtx, cancelGrace := context.WithTimeout(context.Background(), graceTime)
 	defer cancelGrace()
@@ -128,10 +112,13 @@ func (d *Downloader) Shutdown(ctx context.Context) {
 	// in case tasks didn't finish, cancel all (grace ctx timed out)
 	// give time for event loop to process their cancel events
 
-	d.logger.Debug("Downloader awaiting events drain for", zap.Duration("time", drainTime))
+	d.logger.Debug(
+		"Downloader awaiting events drain for",
+		zap.Duration("time", drainTime),
+	)
+
 	drainCtx, cancelDrain := context.WithTimeout(context.Background(), drainTime)
 	defer cancelDrain()
-
 	select {
 	case <-drained:
 		d.logger.Info("All tasks removed after cancel")
@@ -253,26 +240,36 @@ func (d *Downloader) SubmitDownload(
 	url string,
 	destination string,
 ) (string, error) {
+
 	if d.shuttingDown.Load() {
 		return "", fmt.Errorf("downloader is shutting down")
 	}
 
-	taskCtx, cancelFunc := context.WithCancel(ctx)
+	taskCtx, cancel := context.WithCancel(ctx)
 
 	download := NewDownload(url, destination)
-	downloadTask := NewDownloadTask(download.Id(), url, destination)
-	download.SetTaskId(downloadTask.Id())
+	task := NewDownloadTask(download.Id(), url, destination)
+	download.SetTaskId(task.Id())
 
-	err := d.downloadTasks.Add(NewTaskEntry(downloadTask, cancelFunc))
-	if err != nil {
-		cancelFunc()
+	entry := NewTaskEntry(task, cancel)
+	if err := d.downloadTasks.Add(entry); err != nil {
+		cancel()
 		return "", err
 	}
 
-	d.downloadsStore.Add(download)
+	if err := d.downloadsStore.Add(download); err != nil {
+		// rollback
+		_, _ = d.downloadTasks.Remove(task.Id())
+		cancel()
+		return "", err
+	}
 
-	go downloadTask.Execute(taskCtx, d)
+	d.logger.Debug("Task added",
+		zap.String("taskId", task.Id()),
+		zap.String("downloadId", download.Id()),
+	)
 
+	go task.Execute(taskCtx, d)
 	return download.Id(), nil
 }
 

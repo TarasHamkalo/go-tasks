@@ -17,11 +17,18 @@ func NewDownloadStore() *DownloadStore {
 	}
 }
 
-func (s *DownloadStore) Add(d *DownloadRecord) {
+func (s *DownloadStore) Add(d *DownloadRecord) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.downloads[d.id] = d
+	_, ok := s.downloads[d.Id()]
+	if ok {
+		return fmt.Errorf("download with id %s already stored", d.Id())
+	}
+
+	s.downloads[d.Id()] = d
+
+	return nil
 }
 
 func (s *DownloadStore) Get(id string) (*DownloadRecord, error) {
