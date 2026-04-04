@@ -1,3 +1,4 @@
+// Package downloader provides functionality to manage async download tasks.
 package downloader
 
 import (
@@ -144,7 +145,7 @@ func (d *Downloader) startEventHandlerLoop() {
 		select {
 		case event := <-d.eventsChan:
 			d.logger.Debug("download event",
-				zap.String("type", string(event.EventType())),
+				zap.String("type", string(event.Type())),
 				zap.String("downloadId", event.DownloadId()),
 				zap.String("taskId", event.TaskId()),
 				zap.Any("data[any]", event.Data()),
@@ -153,7 +154,7 @@ func (d *Downloader) startEventHandlerLoop() {
 			download, err := d.downloadsStore.Get(event.DownloadId())
 			if err != nil {
 				d.logger.Error("can not handle event",
-					zap.String("type", string(event.EventType())),
+					zap.String("type", string(event.Type())),
 					zap.String("downloadId", event.DownloadId()),
 					zap.String("taskId", event.TaskId()),
 					zap.Error(err),
@@ -179,7 +180,7 @@ func (d *Downloader) handleDownloadEvent(
 	event DownloadEvent,
 	download *DownloadRecord,
 ) {
-	switch event.EventType() {
+	switch event.Type() {
 	case DownloadEventStart:
 		download.Start(event.Int64())
 		d.broadcastPublic(
@@ -222,7 +223,7 @@ func (d *Downloader) handleTaskRemoval(event DownloadEvent, withCancel bool) {
 	if err != nil {
 		d.logger.Warn(
 			"could not remove task",
-			zap.String("type", string(event.EventType())),
+			zap.String("type", string(event.Type())),
 			zap.String("downloadId", event.DownloadId()),
 			zap.String("taskId", event.TaskId()),
 			zap.Error(err),
