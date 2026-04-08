@@ -1,0 +1,53 @@
+2026-04-02T20:34:51.056+0200	DEBUG	download event	{"type": "start", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 104857600}
+2026-04-02T20:34:51.056+0200	DEBUG	download event	{"type": "start", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 104857600}
+2026-04-02T20:34:51.056+0200	DEBUG	download event	{"type": "start", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 104857600}
+2026-04-02T20:34:51.256+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 4243136}
+2026-04-02T20:34:51.256+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 4144832}
+2026-04-02T20:34:51.256+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 4177600}
+2026-04-02T20:34:51.456+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 11452096}
+2026-04-02T20:34:51.456+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 11108032}
+2026-04-02T20:34:51.456+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 11501248}
+2026-04-02T20:34:51.656+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 18218688}
+2026-04-02T20:34:51.656+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 17841856}
+2026-04-02T20:34:51.656+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 18431680}
+2026-04-02T20:34:51.856+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 25345728}
+2026-04-02T20:34:51.856+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 24706752}
+2026-04-02T20:34:51.856+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 25575104}
+2026-04-02T20:34:52.056+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 32456384}
+2026-04-02T20:34:52.056+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 31686336}
+2026-04-02T20:34:52.056+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 32964288}
+2026-04-02T20:34:52.256+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 39878336}
+2026-04-02T20:34:52.256+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 38928064}
+2026-04-02T20:34:52.256+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 40484544}
+2026-04-02T20:34:52.456+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 47414976}
+2026-04-02T20:34:52.456+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 46300864}
+2026-04-02T20:34:52.456+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 48185024}
+2026-04-02T20:34:52.656+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 55033536}
+2026-04-02T20:34:52.656+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 56065728}
+2026-04-02T20:34:52.656+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 53788352}
+2026-04-02T20:34:52.856+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 62783168}
+2026-04-02T20:34:52.856+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 61341376}
+2026-04-02T20:34:52.856+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 63897280}
+2026-04-02T20:34:53.056+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 70434496}
+2026-04-02T20:34:53.056+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 68959936}
+2026-04-02T20:34:53.056+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 71777984}
+2026-04-02T20:34:53.256+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 78200512}
+2026-04-02T20:34:53.256+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 76414656}
+2026-04-02T20:34:53.256+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 79740608}
+2026-04-02T20:34:53.456+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 85917376}
+2026-04-02T20:34:53.456+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 87555776}
+2026-04-02T20:34:53.456+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 84033216}
+2026-04-02T20:34:53.656+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 93667008}
+2026-04-02T20:34:53.656+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 95436480}
+2026-04-02T20:34:53.656+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 91602624}
+2026-04-02T20:34:53.856+0200	DEBUG	download event	{"type": "update", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 101416640}
+2026-04-02T20:34:53.856+0200	DEBUG	download event	{"type": "update", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 103268032}
+2026-04-02T20:34:53.856+0200	DEBUG	download event	{"type": "update", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 99172032}
+2026-04-02T20:34:53.896+0200	DEBUG	download event	{"type": "complete", "downloadId": "1836ce58-181a-4d41-a35f-3567cc2eb2f8", "taskId": "ac670c2a-4e31-4c1a-94aa-3996865d2c61", "data[any]": 104857600}
+2026-04-02T20:34:53.940+0200	DEBUG	download event	{"type": "complete", "downloadId": "8135f8b1-a845-46c4-8ff9-f81d7b5c276e", "taskId": "da8e23cd-1aec-4a82-815f-864226566732", "data[any]": 104857600}
+2026-04-02T20:34:53.988+0200	DEBUG	download event	{"type": "complete", "downloadId": "df21d7e3-f3b6-41a3-9260-546ebc253efc", "taskId": "c21af206-aa8a-43a5-bb03-c68cc1763550", "data[any]": 104857600}
+2026-04-02T20:34:53.988+0200	INFO	Downloader shutting down
+2026-04-02T20:34:53.988+0200	DEBUG	Downloader awaiting task completion for	{"time": "2.499990342s"}
+2026-04-02T20:34:53.988+0200	INFO	Tasks finished gracefully
+2026-04-02T20:34:53.988+0200	DEBUG	Downloader awaiting events drain for	{"time": "2.499990342s"}
+2026-04-02T20:34:53.988+0200	INFO	All tasks removed after cancel
