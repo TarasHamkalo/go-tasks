@@ -45,7 +45,8 @@ func NewInsecureMockerFrontend(mocker *mocker.HttpMocker, logger *zap.Logger) *M
 
 func (m *MockerFrontend) tracing(next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
-		ctx := context.WithValue(r.Context(), traceIdKey, uuid.New().String())
+		id := uuid.New().String()[:8] // demo, trim for readability
+		ctx := context.WithValue(r.Context(), traceIdKey, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 
@@ -59,7 +60,6 @@ func (m *MockerFrontend) logging(next http.Handler) http.Handler {
 			zap.String("trace", r.Context().Value(traceIdKey).(string)),
 			zap.String("addr", r.RemoteAddr),
 			zap.String("method", r.Method),
-			zap.String("path", r.URL.EscapedPath()), // # TODO remove
 			zap.String("url", r.URL.String()),
 		)
 		next.ServeHTTP(w, r)
@@ -74,6 +74,7 @@ func (m *MockerFrontend) ListenAndServe() {
 			m.logger.Debug("http server closed with error", zap.Error(err))
 		}
 	})()
+	m.logger.Info("http server listening", zap.String("addr", m.srv.Addr))
 }
 
 func (m *MockerFrontend) Shutdown(ctx context.Context) error {
@@ -120,6 +121,15 @@ func (m *MockerFrontend) handle(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(statusCode)
 	} else {
+		m.logger.Info(
+			"serve request",
+			zap.String("trace", r.Context().Value(traceIdKey).(string)),
+			zap.Int("statusCode", responseSpec.StatusCode()),
+			// TODO: remove, should not be used normally, but for testing with small bodies, it is nice
+			zap.ByteString("body", responseSpec.Body()),
+			zap.Error(err),
+		)
+
 		w.WriteHeader(responseSpec.StatusCode())
 		_, err := w.Write(responseSpec.Body())
 		if err != nil {
