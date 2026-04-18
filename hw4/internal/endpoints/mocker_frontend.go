@@ -12,6 +12,10 @@ import (
 	"go.uber.org/zap"
 )
 
+type contextKey string
+
+const traceIdKey contextKey = "traceId"
+
 type MockerFrontend struct {
 	srv    *http.Server
 	mocker *mocker.HttpMocker
@@ -19,24 +23,30 @@ type MockerFrontend struct {
 }
 
 func NewInsecureMockerFrontend(mocker *mocker.HttpMocker, logger *zap.Logger) *MockerFrontend {
-	return &MockerFrontend{
-		srv: &http.Server{
-			Addr:           ":8080",
-			Handler:        nil,
-			ReadTimeout:    5 * time.Second,
-			WriteTimeout:   10 * time.Second,
-			IdleTimeout:    60 * time.Second,
-			MaxHeaderBytes: 1 << 20, // max. 1 MB
-		},
+	m := &MockerFrontend{
 		mocker: mocker,
 		logger: logger,
 	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", m.tracing(m.logging(http.HandlerFunc(m.handle))))
+
+	m.srv = &http.Server{
+		Addr:           ":8080",
+		Handler:        mux,
+		ReadTimeout:    5 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // max. 1 MB
+	}
+
+	return m
 }
 
 func (m *MockerFrontend) tracing(next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
-		r.WithContext(context.WithValue(r.Context(), "traceId", uuid.New().String()))
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), traceIdKey, uuid.New().String())
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 
 	return http.HandlerFunc(f)
@@ -46,7 +56,7 @@ func (m *MockerFrontend) logging(next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		m.logger.Info(
 			"received request",
-			zap.String("trace", r.Context().Value("traceId").(string)),
+			zap.String("trace", r.Context().Value(traceIdKey).(string)),
 			zap.String("addr", r.RemoteAddr),
 			zap.String("method", r.Method),
 			zap.String("path", r.URL.EscapedPath()), // # TODO remove
@@ -76,31 +86,48 @@ func (m *MockerFrontend) handle(w http.ResponseWriter, r *http.Request) {
 		m.logger.Error("failed to read request body", zap.Error(err))
 		return
 	}
+	m.logger.Debug(
+		"request body received",
+		zap.String("trace", r.Context().Value(traceIdKey).(string)),
+	)
 
 	requestSpec := mocker.NewRequestSpec(
 		r.URL.EscapedPath(), r.Method, r.URL.Query(), bodyBytes,
 	)
 
 	responseSpec, err := m.mocker.Serve(requestSpec)
-
 	if err != nil {
+		statusCode := http.StatusInternalServerError
 		switch err {
 		case mocker.ErrNoConfigurationExists:
-			w.WriteHeader(http.StatusNotImplemented)
+			statusCode = http.StatusNotImplemented
 		case mocker.ErrMethodNotSupported:
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			statusCode = http.StatusMethodNotAllowed
 		case
 			mocker.ErrSpecificationDiffers,
 			mocker.ErrMethodNotRegistered,
 			mocker.ErrPathNotRegistered:
-			w.WriteHeader(http.StatusNotFound)
+			statusCode = http.StatusNotFound
 		default:
-			w.WriteHeader(http.StatusInternalServerError)
 		}
 
-		return
-	}
+		m.logger.Error(
+			"failed to serve request",
+			zap.String("trace", r.Context().Value(traceIdKey).(string)),
+			zap.Int("statusCode", statusCode),
+			zap.Error(err),
+		)
 
-	w.Write(responseSpec.Body())
-	w.WriteHeader(responseSpec.StatusCode())
+		w.WriteHeader(statusCode)
+	} else {
+		w.WriteHeader(responseSpec.StatusCode())
+		_, err := w.Write(responseSpec.Body())
+		if err != nil {
+			m.logger.Error("failed to write response", zap.Error(err))
+		}
+	}
+}
+
+func (m *MockerFrontend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	m.srv.Handler.ServeHTTP(w, r)
 }
