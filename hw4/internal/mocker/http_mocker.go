@@ -45,6 +45,9 @@ func (m *HttpMocker) SetRoute(requestSpec *RequestSpec, responseSpec *ResponseSp
 
 	entry, ok := methodsMap[requestSpec.Method()]
 	if ok {
+		entry.Lock()
+		defer entry.Unlock()
+
 		entry.SetResponseSpec(responseSpec)
 	} else {
 		methodsMap[requestSpec.Method()] = NewConfigEntry(requestSpec, responseSpec)
@@ -58,6 +61,7 @@ func (m *HttpMocker) Serve(requestSpec *RequestSpec) (*ResponseSpec, error) {
 
 	m.configEntriesMutex.RLock()
 	defer m.configEntriesMutex.RUnlock()
+
 	if len(m.configEntries) == 0 {
 		return nil, ErrNoConfigurationExists
 	}
@@ -71,6 +75,9 @@ func (m *HttpMocker) Serve(requestSpec *RequestSpec) (*ResponseSpec, error) {
 	if !ok {
 		return nil, ErrMethodNotRegistered
 	}
+
+	configEntry.RLock()
+	defer configEntry.RUnlock()
 
 	if configEntry.RequestSpec().Equals(requestSpec) {
 		// should append only from configuration entry so that no new allocations done
