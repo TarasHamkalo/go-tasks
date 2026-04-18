@@ -69,3 +69,41 @@ func (r *RequestSpec) Method() string {
 func (r *RequestSpec) Path() string {
 	return r.path
 }
+
+type RequestSpecBuilder struct {
+	path           string
+	rawQueryParams map[string][]string
+	method         string
+	body           []byte
+}
+
+func NewRequestSpecBuilder(path string, method string) *RequestSpecBuilder {
+	return &RequestSpecBuilder{
+		path:           path,
+		method:         method,
+		body:           make([]byte, 0),
+		rawQueryParams: map[string][]string{},
+	}
+}
+
+func (b *RequestSpecBuilder) WithQueryParams(
+	rawQueryParams map[string][]string,
+) *RequestSpecBuilder {
+	b.rawQueryParams = rawQueryParams
+	return b
+}
+
+func (b *RequestSpecBuilder) WithBody(body []byte) *RequestSpecBuilder {
+	b.body = body
+	return b
+}
+
+// TODO: consider allocating copies
+func (b *RequestSpecBuilder) Build() *RequestSpec {
+	return NewRequestSpec(
+		b.path,
+		b.method,
+		b.rawQueryParams,
+		b.body,
+	)
+}
