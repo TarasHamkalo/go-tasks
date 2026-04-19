@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+option go_package = "./;endpoints";
+
+service ManagementService {
+  rpc SetReply(SetReplyRequest) returns (SetReplyResponse);
+  rpc DumpDatabase(DumpDatabaseRequest) returns (DumpDatabaseResponse);
+  rpc ClearDatabase(ClearDatabaseRequest) returns (ClearDatabaseResponse);
+  rpc ListRequests(ListRequestsRequest) returns (ListRequestsResponse);
+}
+
+message SetReplyRequest {
+  string path = 1;
+  string method = 2;
+  optional bytes request_body = 3;
+
+  int32 status_code = 4;
+  optional bytes response_body = 5;
+}
+
+message SetReplyResponse {}
+
+message DumpDatabaseRequest {}
+message DumpDatabaseResponse {
+  repeated ConfigEntry config = 1;
+}
+
+message ConfigEntry {
+  RequestSpec req = 1;
+  ResponseSpec res = 2;
+}
+
+message RequestSpec {
+  string path = 1;
+  string method = 2;
+  map<string, QueryValues> query = 3;
+  bytes body = 4;
+}
+
+message QueryValues {
+  repeated string values = 1;
+}
+
+message ResponseSpec {
+  int32 status_code = 1;
+  bytes body = 2;
+}
+
+message ClearDatabaseRequest {}
+message ClearDatabaseResponse {}
+
+message ListRequestsRequest {}
+
+message ListRequestsResponse {
+  repeated RequestSpec requests = 1;
+}
