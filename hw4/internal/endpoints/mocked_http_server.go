@@ -126,13 +126,18 @@ func (m *MockedHttpServer) handle(w http.ResponseWriter, r *http.Request) {
 		m.logger.Error("failed to read request body", zap.Error(err))
 		return
 	}
+
 	m.logger.Debug(
 		"request body received",
 		zap.String("trace", r.Context().Value(traceIdKey).(string)),
 	)
 
+	// TODO: can be enforced by checking presence of Content-Length,
+	//  though clients can send it even when body not specified, for demo leaving like this
+	hasBody := len(bodyBytes) > 0
+
 	requestSpec := mocker.NewRequestSpec(
-		r.URL.EscapedPath(), r.Method, r.URL.Query(), bodyBytes,
+		r.URL.EscapedPath(), r.Method, r.URL.Query(), hasBody, bodyBytes,
 	)
 
 	responseSpec, err := m.mocker.Serve(requestSpec)

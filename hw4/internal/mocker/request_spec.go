@@ -9,18 +9,22 @@ import (
 type RequestSpec struct {
 	path string
 	// contains pairs "key:value:freq" as keys for later comparison
-	queryParams map[string]any
+	queryParams map[string]struct{}
 	method      string
-	body        []byte
+
+	hasBody bool
+	body    []byte
 }
 
 func NewRequestSpec(
 	path string,
 	method string,
 	rawQueryParams map[string][]string,
+	hasBody bool,
 	body []byte,
 ) *RequestSpec {
-	queryParams := map[string]any{}
+	queryParams := map[string]struct{}{}
+
 	for key, values := range rawQueryParams {
 		valueFrequencies := make(map[string]int, len(values))
 		for _, value := range values {
@@ -33,14 +37,16 @@ func NewRequestSpec(
 		}
 		for value, freq := range valueFrequencies {
 			s := fmt.Sprintf("%s:%s:%d", key, value, freq)
-			queryParams[s] = 1
+			queryParams[s] = struct{}{}
 		}
 	}
 
+	normalized := strings.ToUpper(strings.TrimSpace(method))
 	return &RequestSpec{
 		path:        path,
 		queryParams: queryParams,
-		method:      strings.ToUpper(method),
+		method:      normalized,
+		hasBody:     hasBody,
 		body:        body,
 	}
 }
@@ -54,13 +60,21 @@ func (r *RequestSpec) Equals(other *RequestSpec) bool {
 		return false
 	}
 
+	if other.hasBody != r.hasBody {
+		return false
+	}
+
 	for param := range r.queryParams {
 		if _, present := other.queryParams[param]; !present {
 			return false
 		}
 	}
 
-	return bytes.Equal(r.body, other.body)
+	if r.hasBody && !bytes.Equal(r.body, other.body) {
+		return false
+	}
+
+	return true
 }
 
 func (r *RequestSpec) Method() string {
@@ -75,6 +89,7 @@ type RequestSpecBuilder struct {
 	path           string
 	rawQueryParams map[string][]string
 	method         string
+	hasBody        bool
 	body           []byte
 }
 
@@ -82,6 +97,7 @@ func NewRequestSpecBuilder(path string, method string) *RequestSpecBuilder {
 	return &RequestSpecBuilder{
 		path:           path,
 		method:         method,
+		hasBody:        false,
 		body:           make([]byte, 0),
 		rawQueryParams: map[string][]string{},
 	}
@@ -95,6 +111,7 @@ func (b *RequestSpecBuilder) WithQueryParams(
 }
 
 func (b *RequestSpecBuilder) WithBody(body []byte) *RequestSpecBuilder {
+	b.hasBody = true
 	b.body = body
 	return b
 }
@@ -105,6 +122,7 @@ func (b *RequestSpecBuilder) Build() *RequestSpec {
 		b.path,
 		b.method,
 		b.rawQueryParams,
+		b.hasBody,
 		b.body,
 	)
 }

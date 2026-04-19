@@ -52,7 +52,7 @@ func main() {
 }
 
 func setTestRoutes(m *mocker.HttpMocker) {
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/users", "GET").Build(),
 		mocker.NewResponseSpec(
 			200,
@@ -60,21 +60,21 @@ func setTestRoutes(m *mocker.HttpMocker) {
 		),
 	)
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test", "POST").
 			WithBody([]byte("aaa")).
 			Build(),
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test/empty", "POST").
 			WithBody([]byte("")).
 			Build(),
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test/nil", "POST").Build(),
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)

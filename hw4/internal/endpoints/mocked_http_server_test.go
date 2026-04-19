@@ -14,7 +14,7 @@ func TestGetUsersOK(t *testing.T) {
 	logger := zap.NewNop()
 
 	m := mocker.NewHttpMocker()
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/users", "GET").Build(),
 		mocker.NewResponseSpec(
 			200,
@@ -68,7 +68,7 @@ func TestNoSupportedMethodReturns405(t *testing.T) {
 func TestPathNotFoundReturns404(t *testing.T) {
 	m := mocker.NewHttpMocker()
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/users", "GET").Build(),
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
@@ -88,7 +88,7 @@ func TestPathNotFoundReturns404(t *testing.T) {
 func TestMethodDiffersReturns404(t *testing.T) {
 	m := mocker.NewHttpMocker()
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/users", "GET").Build(),
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
@@ -107,7 +107,7 @@ func TestMethodDiffersReturns404(t *testing.T) {
 func TestPostBodyMatchOK(t *testing.T) {
 	m := mocker.NewHttpMocker()
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test", "POST").
 			WithBody([]byte("aaa")).
 			Build(),
@@ -133,7 +133,7 @@ func TestPostBodyMatchOK(t *testing.T) {
 func TestPostBodyMismatchReturns404(t *testing.T) {
 	m := mocker.NewHttpMocker()
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test", "POST").
 			WithBody([]byte("aaa")).
 			Build(),
@@ -159,7 +159,7 @@ func TestPostBodyMismatchReturns404(t *testing.T) {
 func TestQueryOrderIgnored(t *testing.T) {
 	m := mocker.NewHttpMocker()
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test", "GET").
 			WithQueryParams(map[string][]string{
 				"name": {"A", "B"},
@@ -187,7 +187,7 @@ func TestQueryOrderIgnored(t *testing.T) {
 func TestQueryMultipleIdenticalKvPairsAccepted(t *testing.T) {
 	m := mocker.NewHttpMocker()
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test", "GET").
 			WithQueryParams(map[string][]string{
 				"name": {"A", "A"},
@@ -215,7 +215,7 @@ func TestQueryMultipleIdenticalKvPairsAccepted(t *testing.T) {
 func TestQueryMismatchReturns404(t *testing.T) {
 	m := mocker.NewHttpMocker()
 
-	m.SetRoute(
+	m.SetReply(
 		mocker.NewRequestSpecBuilder("/test", "GET").
 			WithQueryParams(map[string][]string{
 				"name": {"A", "B"},

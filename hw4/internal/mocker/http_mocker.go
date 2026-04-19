@@ -33,7 +33,14 @@ func NewHttpMocker() *HttpMocker {
 	}
 }
 
-func (m *HttpMocker) SetRoute(requestSpec *RequestSpec, responseSpec *ResponseSpec) {
+func (m *HttpMocker) SetReply(
+	requestSpec *RequestSpec,
+	responseSpec *ResponseSpec,
+) error {
+	if !IsMethodSupported(requestSpec.Method()) {
+		return ErrMethodNotSupported
+	}
+
 	m.configEntriesMutex.Lock()
 	defer m.configEntriesMutex.Unlock()
 
@@ -52,6 +59,8 @@ func (m *HttpMocker) SetRoute(requestSpec *RequestSpec, responseSpec *ResponseSp
 	} else {
 		methodsMap[requestSpec.Method()] = NewConfigEntry(requestSpec, responseSpec)
 	}
+
+	return nil
 }
 
 func (m *HttpMocker) Serve(requestSpec *RequestSpec) (*ResponseSpec, error) {
