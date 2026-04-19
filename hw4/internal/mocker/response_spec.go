@@ -15,6 +15,10 @@ func NewResponseSpec(statusCode int, hasBody bool, body []byte) *ResponseSpec {
 	return &ResponseSpec{statusCode: statusCode, hasBody: hasBody, body: bodyCopy}
 }
 
+func (r *ResponseSpec) HasBody() bool {
+	return r.hasBody
+}
+
 func (r *ResponseSpec) StatusCode() int {
 	return r.statusCode
 }
