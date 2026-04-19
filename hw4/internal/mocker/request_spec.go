@@ -3,6 +3,7 @@ package mocker
 import (
 	"bytes"
 	"fmt"
+	"strings"
 )
 
 type RequestSpec struct {
@@ -39,7 +40,7 @@ func NewRequestSpec(
 	return &RequestSpec{
 		path:        path,
 		queryParams: queryParams,
-		method:      method,
+		method:      strings.ToUpper(method),
 		body:        body,
 	}
 }
