@@ -34,7 +34,7 @@ message RequestSpec {
   string path = 1;
   string method = 2;
   map<string, QueryValues> query = 3;
-  bytes body = 4;
+  optional bytes body = 4;
 }
 
 message QueryValues {
@@ -43,7 +43,7 @@ message QueryValues {
 
 message ResponseSpec {
   int32 status_code = 1;
-  bytes body = 2;
+  optional bytes body = 2;
 }
 
 message ClearDatabaseRequest {}

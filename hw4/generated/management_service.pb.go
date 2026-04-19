@@ -270,7 +270,7 @@ type RequestSpec struct {
 	Path          string                  `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	Method        string                  `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
 	Query         map[string]*QueryValues `protobuf:"bytes,3,rep,name=query,proto3" json:"query,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Body          []byte                  `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
+	Body          []byte                  `protobuf:"bytes,4,opt,name=body,proto3,oneof" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -380,7 +380,7 @@ func (x *QueryValues) GetValues() []string {
 type ResponseSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	StatusCode    int32                  `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
-	Body          []byte                 `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
+	Body          []byte                 `protobuf:"bytes,2,opt,name=body,proto3,oneof" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -601,22 +601,24 @@ const file_management_service_proto_rawDesc = "" +
 	"\x06config\x18\x01 \x03(\v2\f.ConfigEntryR\x06config\"N\n" +
 	"\vConfigEntry\x12\x1e\n" +
 	"\x03req\x18\x01 \x01(\v2\f.RequestSpecR\x03req\x12\x1f\n" +
-	"\x03res\x18\x02 \x01(\v2\r.ResponseSpecR\x03res\"\xc4\x01\n" +
+	"\x03res\x18\x02 \x01(\v2\r.ResponseSpecR\x03res\"\xd2\x01\n" +
 	"\vRequestSpec\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12-\n" +
-	"\x05query\x18\x03 \x03(\v2\x17.RequestSpec.QueryEntryR\x05query\x12\x12\n" +
-	"\x04body\x18\x04 \x01(\fR\x04body\x1aF\n" +
+	"\x05query\x18\x03 \x03(\v2\x17.RequestSpec.QueryEntryR\x05query\x12\x17\n" +
+	"\x04body\x18\x04 \x01(\fH\x00R\x04body\x88\x01\x01\x1aF\n" +
 	"\n" +
 	"QueryEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\"\n" +
-	"\x05value\x18\x02 \x01(\v2\f.QueryValuesR\x05value:\x028\x01\"%\n" +
+	"\x05value\x18\x02 \x01(\v2\f.QueryValuesR\x05value:\x028\x01B\a\n" +
+	"\x05_body\"%\n" +
 	"\vQueryValues\x12\x16\n" +
-	"\x06values\x18\x01 \x03(\tR\x06values\"C\n" +
+	"\x06values\x18\x01 \x03(\tR\x06values\"Q\n" +
 	"\fResponseSpec\x12\x1f\n" +
 	"\vstatus_code\x18\x01 \x01(\x05R\n" +
-	"statusCode\x12\x12\n" +
-	"\x04body\x18\x02 \x01(\fR\x04body\"\x16\n" +
+	"statusCode\x12\x17\n" +
+	"\x04body\x18\x02 \x01(\fH\x00R\x04body\x88\x01\x01B\a\n" +
+	"\x05_body\"\x16\n" +
 	"\x14ClearDatabaseRequest\"\x17\n" +
 	"\x15ClearDatabaseResponse\"\x15\n" +
 	"\x13ListRequestsRequest\"@\n" +
@@ -684,6 +686,8 @@ func file_management_service_proto_init() {
 		return
 	}
 	file_management_service_proto_msgTypes[0].OneofWrappers = []any{}
+	file_management_service_proto_msgTypes[5].OneofWrappers = []any{}
+	file_management_service_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
