@@ -14,6 +14,8 @@ type RequestSpec struct {
 
 	hasBody bool
 	body    []byte
+
+	rawQueryParams map[string][]string
 }
 
 func NewRequestSpec(
@@ -24,8 +26,9 @@ func NewRequestSpec(
 	body []byte,
 ) *RequestSpec {
 	queryParams := map[string]struct{}{}
-
+	rawQueryParamsCopy := map[string][]string{}
 	for key, values := range rawQueryParams {
+		rawQueryParamsCopy[key] = append([]string{}, values...)
 		valueFrequencies := make(map[string]int, len(values))
 		for _, value := range values {
 			freq, ok := valueFrequencies[value]
@@ -43,11 +46,12 @@ func NewRequestSpec(
 
 	normalized := strings.ToUpper(strings.TrimSpace(method))
 	return &RequestSpec{
-		path:        path,
-		queryParams: queryParams,
-		method:      normalized,
-		hasBody:     hasBody,
-		body:        body,
+		path:           path,
+		queryParams:    queryParams,
+		method:         normalized,
+		hasBody:        hasBody,
+		body:           body,
+		rawQueryParams: rawQueryParamsCopy,
 	}
 }
 
@@ -77,6 +81,17 @@ func (r *RequestSpec) Equals(other *RequestSpec) bool {
 	return true
 }
 
+func (r *RequestSpec) QueryParams() map[string][]string {
+	return r.rawQueryParams
+}
+
+func (r *RequestSpec) HasBody() bool {
+	return r.hasBody
+}
+
+func (r *RequestSpec) Body() []byte {
+	return append([]byte{}, r.body...)
+}
 func (r *RequestSpec) Method() string {
 	return r.method
 }

@@ -23,6 +23,7 @@ type HttpMocker struct {
 	configEntriesMutex sync.RWMutex
 
 	// stores history of served requests
+	// TODO: locking
 	servedRequests []*RequestSpec
 }
 
@@ -95,6 +96,37 @@ func (m *HttpMocker) Serve(requestSpec *RequestSpec) (*ResponseSpec, error) {
 	}
 
 	return nil, ErrSpecificationDiffers
+}
+
+func (m *HttpMocker) DumpConfiguration() []*ConfigEntry {
+	// note: pointers to Response/Request specifications are copied
+	// at the same time those objects are immutable, so internal state not exposed to mutation
+	// by this call
+	entries := make([]*ConfigEntry, len(m.configEntries))
+	for _, methodMap := range m.configEntries {
+		for _, entry := range methodMap {
+			entry.RLock()
+			entries = append(entries, NewConfigEntry(
+				entry.requestSpec,
+				entry.responseSpec,
+			))
+			entry.RUnlock()
+		}
+	}
+	return entries
+}
+
+func (m *HttpMocker) ClearConfiguration() {
+	m.configEntriesMutex.Lock()
+	defer m.configEntriesMutex.Unlock()
+
+	m.configEntries = make(map[string]map[string]*ConfigEntry, 10)
+}
+
+func (m *HttpMocker) ListRequests() ([]*RequestSpec, error) {
+	m.configEntriesMutex.RLock()
+	defer m.configEntriesMutex.RUnlock()
+	return m.servedRequests, nil
 }
 
 func IsMethodSupported(method string) bool {

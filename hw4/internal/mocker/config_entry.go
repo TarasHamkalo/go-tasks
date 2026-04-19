@@ -24,8 +24,5 @@ func (c *ConfigEntry) RequestSpec() *RequestSpec {
 }
 
 func (c *ConfigEntry) ResponseSpec() *ResponseSpec {
-	return NewResponseSpec(
-		c.responseSpec.StatusCode(),
-		append(make([]byte, 0, len(c.responseSpec.body)), c.responseSpec.body...),
-	)
+	return c.responseSpec
 }

@@ -53,13 +53,50 @@ func (m *ManagementService) SetReply(ctx context.Context, r *pb.SetReplyRequest)
 	return &pb.SetReplyResponse{}, nil
 }
 
-//
-//func (UnimplementedManagementServiceServer) DumpDatabase(context.Context, *DumpDatabaseRequest) (*DumpDatabaseResponse, error) {
-//	return nil, status.Error(codes.Unimplemented, "method DumpDatabase not implemented")
-//}
-//func (UnimplementedManagementServiceServer) ClearDatabase(context.Context, *ClearDatabaseRequest) (*ClearDatabaseResponse, error) {
-//	return nil, status.Error(codes.Unimplemented, "method ClearDatabase not implemented")
-//}
+func (m *ManagementService) DumpDatabase(
+	ctx context.Context,
+	r *pb.DumpDatabaseRequest,
+) (*pb.DumpDatabaseResponse, error) {
+	runningConfig := m.mocker.DumpConfiguration()
+	configView := make([]*pb.ConfigEntry, len(runningConfig))
+	for _, config := range runningConfig {
+		queryParams := config.RequestSpec().QueryParams()
+		queryMap := make(map[string]*pb.QueryValues, len(queryParams))
+		for key, values := range queryParams {
+			queryMap[key] = &pb.QueryValues{
+				Values: values,
+			}
+		}
+
+		req := pb.RequestSpec{
+			Path:   config.RequestSpec().Path(),
+			Method: config.RequestSpec().Method(),
+			Query:  queryMap,
+			Body:   config.RequestSpec().Body(),
+		}
+
+		res := pb.ResponseSpec{
+			StatusCode: int32(config.ResponseSpec().StatusCode()),
+			Body:       config.ResponseSpec().Body(),
+		}
+
+		configView = append(configView, &pb.ConfigEntry{
+			Req: &req,
+			Res: &res,
+		})
+	}
+
+	return &pb.DumpDatabaseResponse{Config: configView}, nil
+}
+
+func (m *ManagementService) ClearDatabase(
+	ctx context.Context,
+	r *pb.ClearDatabaseRequest,
+) (*pb.ClearDatabaseResponse, error) {
+	m.mocker.ClearConfiguration()
+	return &pb.ClearDatabaseResponse{}, nil
+}
+
 //func (UnimplementedManagementServiceServer) ListRequests(context.Context, *ListRequestsRequest) (*ListRequestsResponse, error) {
 //	return nil, status.Error(codes.Unimplemented, "method ListRequests not implemented")
 //}
