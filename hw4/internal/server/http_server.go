@@ -68,7 +68,11 @@ func (h *HttpServer) ListenAndServe(addr string) {
 	h.logger.Info("http server listening", zap.String("addr", h.httpSrv.Addr))
 }
 
-func (h *HttpServer) ListenAndServeTLS(addr string, certFile string, keyFile string) {
+func (h *HttpServer) ListenAndServeTLS(
+	addr string,
+	certFile string,
+	keyFile string,
+) {
 	h.httpsSrv.Addr = addr
 	go func() {
 		err := h.httpsSrv.ListenAndServeTLS(certFile, keyFile)
