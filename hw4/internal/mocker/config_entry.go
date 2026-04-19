@@ -1,22 +1,16 @@
 package mocker
 
-import "sync"
-
 type ConfigEntry struct {
-	// immutable from creation of config entry
-	requestSpec *RequestSpec
-
-	// swappable as whole
+	requestSpec  *RequestSpec
 	responseSpec *ResponseSpec
-
-	sync.RWMutex
 }
 
 func NewConfigEntry(requestSpec *RequestSpec, responseSpec *ResponseSpec) *ConfigEntry {
 	return &ConfigEntry{requestSpec: requestSpec, responseSpec: responseSpec}
 }
-func (c *ConfigEntry) SetResponseSpec(spec *ResponseSpec) {
-	c.responseSpec = spec
+
+func (c *ConfigEntry) Matches(requestSpec *RequestSpec) bool {
+	return c.requestSpec.Equals(requestSpec)
 }
 
 func (c *ConfigEntry) RequestSpec() *RequestSpec {

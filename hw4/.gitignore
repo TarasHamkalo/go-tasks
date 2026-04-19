@@ -131,3 +131,6 @@ go.work.sum
 
 /trash/
 /logs/
+/.trash/**
+/.trash/v2/
+/.trash/

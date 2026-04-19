@@ -2,20 +2,19 @@ package mocker
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 )
 
 type RequestSpec struct {
 	path string
-	// contains pairs "key:value:freq" as keys for later comparison
-	queryParams map[string]struct{}
-	method      string
+	// key to value:frequency pairs
+	// initially used set of "key:value:freq" elements, but hard to parse back
+	query map[string]map[string]int
+
+	method string
 
 	hasBody bool
 	body    []byte
-
-	rawQueryParams map[string][]string
 }
 
 func NewRequestSpec(
@@ -25,33 +24,29 @@ func NewRequestSpec(
 	hasBody bool,
 	body []byte,
 ) *RequestSpec {
-	queryParams := map[string]struct{}{}
-	rawQueryParamsCopy := map[string][]string{}
-	for key, values := range rawQueryParams {
-		rawQueryParamsCopy[key] = append([]string{}, values...)
-		valueFrequencies := make(map[string]int, len(values))
-		for _, value := range values {
-			freq, ok := valueFrequencies[value]
-			if !ok {
-				freq = 0
-			}
+	query := make(map[string]map[string]int, len(rawQueryParams))
 
-			valueFrequencies[value] = freq + 1
+	for key, values := range rawQueryParams {
+		freq := make(map[string]int, len(values))
+		for _, v := range values {
+			freq[v]++
 		}
-		for value, freq := range valueFrequencies {
-			s := fmt.Sprintf("%s:%s:%d", key, value, freq)
-			queryParams[s] = struct{}{}
-		}
+		query[key] = freq
 	}
 
 	normalized := strings.ToUpper(strings.TrimSpace(method))
+
+	var bodyCopy []byte
+	if hasBody {
+		bodyCopy = append([]byte{}, body...)
+	}
+
 	return &RequestSpec{
-		path:           path,
-		queryParams:    queryParams,
-		method:         normalized,
-		hasBody:        hasBody,
-		body:           body,
-		rawQueryParams: rawQueryParamsCopy,
+		path:    path,
+		method:  normalized,
+		query:   query,
+		hasBody: hasBody,
+		body:    bodyCopy,
 	}
 }
 
@@ -60,17 +55,24 @@ func (r *RequestSpec) Equals(other *RequestSpec) bool {
 		return false
 	}
 
-	if len(other.queryParams) != len(r.queryParams) {
+	if len(r.query) != len(other.query) {
 		return false
 	}
 
-	if other.hasBody != r.hasBody {
+	if r.hasBody != other.hasBody {
 		return false
 	}
 
-	for param := range r.queryParams {
-		if _, present := other.queryParams[param]; !present {
+	for key, rValues := range r.query {
+		otherValues, ok := other.query[key]
+		if !ok || len(rValues) != len(otherValues) {
 			return false
+		}
+
+		for val, rCount := range rValues {
+			if otherValues[val] != rCount {
+				return false
+			}
 		}
 	}
 
@@ -82,7 +84,18 @@ func (r *RequestSpec) Equals(other *RequestSpec) bool {
 }
 
 func (r *RequestSpec) QueryParams() map[string][]string {
-	return r.rawQueryParams
+	out := make(map[string][]string, len(r.query))
+	for key, freqMap := range r.query {
+		values := make([]string, 0)
+		for val, count := range freqMap {
+			for i := 0; i < count; i++ {
+				values = append(values, val)
+			}
+		}
+		out[key] = values
+	}
+
+	return out
 }
 
 func (r *RequestSpec) HasBody() bool {
@@ -92,6 +105,7 @@ func (r *RequestSpec) HasBody() bool {
 func (r *RequestSpec) Body() []byte {
 	return append([]byte{}, r.body...)
 }
+
 func (r *RequestSpec) Method() string {
 	return r.method
 }
@@ -131,7 +145,6 @@ func (b *RequestSpecBuilder) WithBody(body []byte) *RequestSpecBuilder {
 	return b
 }
 
-// TODO: consider allocating copies
 func (b *RequestSpecBuilder) Build() *RequestSpec {
 	return NewRequestSpec(
 		b.path,

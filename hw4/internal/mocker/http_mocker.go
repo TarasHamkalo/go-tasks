@@ -22,9 +22,9 @@ type HttpMocker struct {
 	configEntries      map[string]map[string]*ConfigEntry
 	configEntriesMutex sync.RWMutex
 
-	// stores history of served requests
-	// TODO: locking
-	servedRequests []*RequestSpec
+	// stores history of requests (all, not necessarily matched)
+	requestsHistory      []*RequestSpec
+	requestsHistoryMutex sync.RWMutex
 }
 
 func NewHttpMocker() *HttpMocker {
@@ -50,28 +50,21 @@ func (m *HttpMocker) SetReply(
 		methodsMap = make(map[string]*ConfigEntry, 1)
 		m.configEntries[requestSpec.Path()] = methodsMap
 	}
-
-	entry, ok := methodsMap[requestSpec.Method()]
-	if ok {
-		entry.Lock()
-		defer entry.Unlock()
-
-		entry.SetResponseSpec(responseSpec)
-	} else {
-		methodsMap[requestSpec.Method()] = NewConfigEntry(requestSpec, responseSpec)
-	}
-
+	methodsMap[requestSpec.Method()] = NewConfigEntry(requestSpec, responseSpec)
 	return nil
 }
 
 func (m *HttpMocker) Serve(requestSpec *RequestSpec) (*ResponseSpec, error) {
+	m.requestsHistoryMutex.Lock()
+	m.requestsHistory = append(m.requestsHistory, requestSpec)
+	m.requestsHistoryMutex.Unlock()
+
 	if !IsMethodSupported(requestSpec.Method()) {
 		return nil, ErrMethodNotSupported
 	}
 
 	m.configEntriesMutex.RLock()
 	defer m.configEntriesMutex.RUnlock()
-
 	if len(m.configEntries) == 0 {
 		return nil, ErrNoConfigurationExists
 	}
@@ -86,12 +79,7 @@ func (m *HttpMocker) Serve(requestSpec *RequestSpec) (*ResponseSpec, error) {
 		return nil, ErrMethodNotRegistered
 	}
 
-	configEntry.RLock()
-	defer configEntry.RUnlock()
-
-	if configEntry.RequestSpec().Equals(requestSpec) {
-		// should append only from configuration entry so that no new allocations done
-		m.servedRequests = append(m.servedRequests, configEntry.requestSpec)
+	if configEntry.Matches(requestSpec) {
 		return configEntry.ResponseSpec(), nil
 	}
 
@@ -99,20 +87,17 @@ func (m *HttpMocker) Serve(requestSpec *RequestSpec) (*ResponseSpec, error) {
 }
 
 func (m *HttpMocker) DumpConfiguration() []*ConfigEntry {
-	// note: pointers to Response/Request specifications are copied
-	// at the same time those objects are immutable, so internal state not exposed to mutation
-	// by this call
-	entries := make([]*ConfigEntry, len(m.configEntries))
+	// note: config entries are immutable (as request/response specs are)
+	m.configEntriesMutex.RLock()
+	defer m.configEntriesMutex.RUnlock()
+
+	entries := make([]*ConfigEntry, 0, len(m.configEntries))
 	for _, methodMap := range m.configEntries {
 		for _, entry := range methodMap {
-			entry.RLock()
-			entries = append(entries, NewConfigEntry(
-				entry.requestSpec,
-				entry.responseSpec,
-			))
-			entry.RUnlock()
+			entries = append(entries, entry)
 		}
 	}
+
 	return entries
 }
 
@@ -120,13 +105,13 @@ func (m *HttpMocker) ClearConfiguration() {
 	m.configEntriesMutex.Lock()
 	defer m.configEntriesMutex.Unlock()
 
-	m.configEntries = make(map[string]map[string]*ConfigEntry, 10)
+	m.configEntries = make(map[string]map[string]*ConfigEntry, 0)
 }
 
 func (m *HttpMocker) ListRequests() ([]*RequestSpec, error) {
-	m.configEntriesMutex.RLock()
-	defer m.configEntriesMutex.RUnlock()
-	return m.servedRequests, nil
+	m.requestsHistoryMutex.RLock()
+	defer m.requestsHistoryMutex.RUnlock()
+	return append([]*RequestSpec{}, m.requestsHistory...), nil
 }
 
 func IsMethodSupported(method string) bool {

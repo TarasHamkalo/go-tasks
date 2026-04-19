@@ -2,11 +2,17 @@ package mocker
 
 type ResponseSpec struct {
 	statusCode int
-	body       []byte
+
+	hasBody bool
+	body    []byte
 }
 
-func NewResponseSpec(statusCode int, body []byte) *ResponseSpec {
-	return &ResponseSpec{statusCode: statusCode, body: body}
+func NewResponseSpec(statusCode int, hasBody bool, body []byte) *ResponseSpec {
+	var bodyCopy []byte
+	if body != nil {
+		bodyCopy = append([]byte{}, body...)
+	}
+	return &ResponseSpec{statusCode: statusCode, hasBody: hasBody, body: bodyCopy}
 }
 
 func (r *ResponseSpec) StatusCode() int {
