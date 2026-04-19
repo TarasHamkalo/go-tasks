@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
-	"errors"
 	"http-mocker/internal"
 	"http-mocker/internal/endpoints"
 	"http-mocker/internal/mocker"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -34,12 +32,14 @@ func main() {
 	m := mocker.NewHttpMocker()
 	setTestRoutes(m)
 
-	httpSrv := endpoints.NewInsecureMockerFrontend(
+	mockedSrv := endpoints.NewMockedHttpServer(
 		m,
 		appLogger.With(zap.String("module", "insecure-frontend")),
 	)
 
-	httpSrv.ListenAndServe()
+	//certPath, keyPath := "certs/server.crt", "certs/server.key"
+	mockedSrv.ListenAndServe()
+	//mockedSrv.ListenAndServeTLS(certPath, keyPath)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -48,9 +48,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	if err := httpSrv.Shutdown(ctx); !errors.Is(err, http.ErrServerClosed) {
-		appLogger.Error("Failed to shutdown http server", zap.Error(err))
-	}
+	mockedSrv.Shutdown(ctx)
 }
 
 func setTestRoutes(m *mocker.HttpMocker) {

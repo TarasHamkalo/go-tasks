@@ -22,13 +22,11 @@ func TestGetUsersOK(t *testing.T) {
 		),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, logger)
-
+	frontend := NewMockedHttpServer(m, logger)
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
-
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
@@ -41,12 +39,12 @@ func TestGetUsersOK(t *testing.T) {
 
 func TestNoConfigReturns501(t *testing.T) {
 	m := mocker.NewHttpMocker()
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(http.MethodGet, "/users", nil)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotImplemented {
 		t.Fatalf("expected 501, got %d", rec.Code)
@@ -55,12 +53,12 @@ func TestNoConfigReturns501(t *testing.T) {
 
 func TestNoSupportedMethodReturns405(t *testing.T) {
 	m := mocker.NewHttpMocker()
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(http.MethodDelete, "/users", nil)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("expected 405, got %d", rec.Code)
@@ -75,12 +73,12 @@ func TestPathNotFoundReturns404(t *testing.T) {
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(http.MethodGet, "/invalid", nil)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
@@ -95,12 +93,12 @@ func TestMethodDiffersReturns404(t *testing.T) {
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(http.MethodPost, "/users", nil)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
 	}
@@ -116,7 +114,7 @@ func TestPostBodyMatchOK(t *testing.T) {
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -125,7 +123,7 @@ func TestPostBodyMatchOK(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -142,7 +140,7 @@ func TestPostBodyMismatchReturns404(t *testing.T) {
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -151,7 +149,7 @@ func TestPostBodyMismatchReturns404(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)
@@ -170,7 +168,7 @@ func TestQueryOrderIgnored(t *testing.T) {
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(
 		http.MethodGet,
@@ -179,7 +177,7 @@ func TestQueryOrderIgnored(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -198,7 +196,7 @@ func TestQueryMultipleIdenticalKvPairsAccepted(t *testing.T) {
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(
 		http.MethodGet,
@@ -207,7 +205,7 @@ func TestQueryMultipleIdenticalKvPairsAccepted(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
@@ -226,7 +224,7 @@ func TestQueryMismatchReturns404(t *testing.T) {
 		mocker.NewResponseSpec(200, []byte("ok")),
 	)
 
-	frontend := NewInsecureMockerFrontend(m, zap.NewNop())
+	frontend := NewMockedHttpServer(m, zap.NewNop())
 
 	req := httptest.NewRequest(
 		http.MethodGet,
@@ -235,7 +233,7 @@ func TestQueryMismatchReturns404(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	frontend.ServeHTTP(rec, req)
+	frontend.httpSrv.Handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rec.Code)

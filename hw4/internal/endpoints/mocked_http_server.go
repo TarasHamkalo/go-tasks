@@ -6,6 +6,7 @@ import (
 	"http-mocker/internal/mocker"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,22 +17,31 @@ type contextKey string
 
 const traceIdKey contextKey = "traceId"
 
-type MockerFrontend struct {
-	srv    *http.Server
-	mocker *mocker.HttpMocker
-	logger *zap.Logger
+type MockedHttpServer struct {
+	httpSrv  *http.Server
+	httpsSrv *http.Server
+	mocker   *mocker.HttpMocker
+	logger   *zap.Logger
 }
 
-func NewInsecureMockerFrontend(mocker *mocker.HttpMocker, logger *zap.Logger) *MockerFrontend {
-	m := &MockerFrontend{
+func NewMockedHttpServer(mocker *mocker.HttpMocker, logger *zap.Logger) *MockedHttpServer {
+	m := &MockedHttpServer{
 		mocker: mocker,
 		logger: logger,
 	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/", m.tracing(m.logging(http.HandlerFunc(m.handle))))
+	m.httpsSrv = &http.Server{
+		Addr:           ":8443",
+		Handler:        mux,
+		ReadTimeout:    5 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // max. 1 MB
+	}
 
-	m.srv = &http.Server{
+	m.httpSrv = &http.Server{
 		Addr:           ":8080",
 		Handler:        mux,
 		ReadTimeout:    5 * time.Second,
@@ -43,7 +53,7 @@ func NewInsecureMockerFrontend(mocker *mocker.HttpMocker, logger *zap.Logger) *M
 	return m
 }
 
-func (m *MockerFrontend) tracing(next http.Handler) http.Handler {
+func (m *MockedHttpServer) tracing(next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		id := uuid.New().String()[:8] // demo, trim for readability
 		ctx := context.WithValue(r.Context(), traceIdKey, id)
@@ -53,7 +63,7 @@ func (m *MockerFrontend) tracing(next http.Handler) http.Handler {
 	return http.HandlerFunc(f)
 }
 
-func (m *MockerFrontend) logging(next http.Handler) http.Handler {
+func (m *MockedHttpServer) logging(next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		m.logger.Info(
 			"received request",
@@ -68,20 +78,49 @@ func (m *MockerFrontend) logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(f)
 }
 
-func (m *MockerFrontend) ListenAndServe() {
+func (m *MockedHttpServer) ListenAndServe() {
 	go (func() {
-		if err := m.srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		if err := m.httpSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			m.logger.Debug("http server closed with error", zap.Error(err))
 		}
 	})()
-	m.logger.Info("http server listening", zap.String("addr", m.srv.Addr))
+	m.logger.Info("http server listening", zap.String("addr", m.httpSrv.Addr))
 }
 
-func (m *MockerFrontend) Shutdown(ctx context.Context) error {
-	return m.srv.Shutdown(ctx)
+func (m *MockedHttpServer) ListenAndServeTLS(certFile string, keyFile string) {
+	go func() {
+		err := m.httpsSrv.ListenAndServeTLS(certFile, keyFile)
+		if err != nil && err != http.ErrServerClosed {
+			m.logger.Error("https server error", zap.Error(err))
+		}
+	}()
+	m.logger.Info("https server listening", zap.String("addr", m.httpsSrv.Addr))
 }
 
-func (m *MockerFrontend) handle(w http.ResponseWriter, r *http.Request) {
+func (m *MockedHttpServer) Shutdown(ctx context.Context) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	shutdown := func(srv *http.Server, isTLS bool) {
+		defer wg.Done()
+		if err := srv.Shutdown(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			m.logger.Error("server shutdown error",
+				zap.Bool("tls", isTLS),
+				zap.Error(err),
+			)
+		} else {
+			m.logger.Info("server shutdown success",
+				zap.Bool("tls", isTLS),
+			)
+		}
+	}
+
+	go shutdown(m.httpSrv, false)
+	go shutdown(m.httpsSrv, true)
+
+	wg.Wait()
+}
+
+func (m *MockedHttpServer) handle(w http.ResponseWriter, r *http.Request) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		m.logger.Error("failed to read request body", zap.Error(err))
@@ -136,8 +175,4 @@ func (m *MockerFrontend) handle(w http.ResponseWriter, r *http.Request) {
 			m.logger.Error("failed to write response", zap.Error(err))
 		}
 	}
-}
-
-func (m *MockerFrontend) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	m.srv.Handler.ServeHTTP(w, r)
 }
