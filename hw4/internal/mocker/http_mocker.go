@@ -108,10 +108,10 @@ func (m *HttpMocker) ClearConfiguration() {
 	m.configEntries = make(map[string]map[string]*ConfigEntry, 0)
 }
 
-func (m *HttpMocker) ListRequests() ([]*RequestSpec, error) {
+func (m *HttpMocker) ListRequests() []*RequestSpec {
 	m.requestsHistoryMutex.RLock()
 	defer m.requestsHistoryMutex.RUnlock()
-	return append([]*RequestSpec{}, m.requestsHistory...), nil
+	return append([]*RequestSpec{}, m.requestsHistory...)
 }
 
 func IsMethodSupported(method string) bool {
