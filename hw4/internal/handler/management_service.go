@@ -13,18 +13,25 @@ import (
 )
 
 //go:generate protoc -I=../../protos --go_out=../../generated --go-grpc_out=../../generated ../../protos/management_service.proto
+
+// ManagementService implements the GRPC API for configuring the HttpMocker.
 type ManagementService struct {
+
+	// mocker is the core engine instance being configured
 	mocker *mocker.HttpMocker
 
 	pb.UnimplementedManagementServiceServer
 }
 
+// NewManagementService constructs a new instance of ManagementService
 func NewManagementService(mocker *mocker.HttpMocker) *ManagementService {
 	return &ManagementService{
 		mocker: mocker,
 	}
 }
 
+// SetReply parse GRPC request ot mocker's RequestSpec/ResponseSpec
+// and updates the underlying mocker instance.
 func (m *ManagementService) SetReply(
 	_ context.Context,
 	r *pb.SetReplyRequest,
@@ -37,12 +44,15 @@ func (m *ManagementService) SetReply(
 	responseSpec := m.toResponseSpec(r)
 	err = m.mocker.SetReply(requestSpec, responseSpec)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "could not set reply: %v", err)
+		return nil, status.Errorf(
+			codes.InvalidArgument, "could not set reply: %v", err,
+		)
 	}
 
 	return &pb.SetReplyResponse{}, nil
 }
 
+// toRequestSpec converts a pb.SetReplyRequest to an internal mocker.RequestSpec.
 func (m *ManagementService) toRequestSpec(
 	r *pb.SetReplyRequest,
 ) (*mocker.RequestSpec, error) {
@@ -63,7 +73,10 @@ func (m *ManagementService) toRequestSpec(
 	return requestSpec, nil
 }
 
-func (m *ManagementService) toResponseSpec(r *pb.SetReplyRequest) *mocker.ResponseSpec {
+// toResponseSpec converts a pb.SetReplyRequest to an internal mocker.ResponseSpec.
+func (m *ManagementService) toResponseSpec(
+	r *pb.SetReplyRequest,
+) *mocker.ResponseSpec {
 	var bodyBytes []byte
 	hasBody := r.ResponseBody != nil
 	if hasBody {
@@ -83,6 +96,8 @@ func (m *ManagementService) toResponseSpec(r *pb.SetReplyRequest) *mocker.Respon
 	)
 }
 
+// DumpDatabase retrieves running configuration from
+// underlying mocker instance, and builds response.
 func (m *ManagementService) DumpDatabase(
 	_ context.Context,
 	_ *pb.DumpDatabaseRequest,
@@ -99,7 +114,10 @@ func (m *ManagementService) DumpDatabase(
 	return &pb.DumpDatabaseResponse{Config: configView}, nil
 }
 
-func (m *ManagementService) toRequestSpecMessage(spec *mocker.RequestSpec) *pb.RequestSpec {
+// toRequestSpecMessage maps mocker's RequestSpec object into GRPC message
+func (m *ManagementService) toRequestSpecMessage(
+	spec *mocker.RequestSpec,
+) *pb.RequestSpec {
 	queryParams := spec.QueryParams()
 	queryView := make(map[string]*pb.QueryValues, len(queryParams))
 	for key, values := range queryParams {
@@ -120,7 +138,10 @@ func (m *ManagementService) toRequestSpecMessage(spec *mocker.RequestSpec) *pb.R
 	return mapped
 }
 
-func (m *ManagementService) toResponseSpecMessage(spec *mocker.ResponseSpec) *pb.ResponseSpec {
+// toResponseSpecMessage maps mocker's RequestSpec object into GRPC message
+func (m *ManagementService) toResponseSpecMessage(
+	spec *mocker.ResponseSpec,
+) *pb.ResponseSpec {
 	headers := spec.Headers()
 	pbHeaders := make(map[string]*pb.HeaderValues, len(headers))
 	for key, values := range headers {
@@ -139,6 +160,7 @@ func (m *ManagementService) toResponseSpecMessage(spec *mocker.ResponseSpec) *pb
 	return mapped
 }
 
+// ClearDatabase triggers the mocker to remove all configured rules.
 func (m *ManagementService) ClearDatabase(
 	_ context.Context,
 	_ *pb.ClearDatabaseRequest,
@@ -147,6 +169,8 @@ func (m *ManagementService) ClearDatabase(
 	return &pb.ClearDatabaseResponse{}, nil
 }
 
+// ListRequests retrieves the history of received HTTP requests from
+// the mocker and transforms them into a gRPC response.
 func (m *ManagementService) ListRequests(
 	_ context.Context,
 	_ *pb.ListRequestsRequest,
