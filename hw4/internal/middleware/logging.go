@@ -9,6 +9,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+// HttpLogging create HTTP logging middleware with provided logger
+// and next handler. Logs all incoming requests.
 func HttpLogging(logger *zap.Logger, next http.Handler) http.Handler {
 	f := func(w http.ResponseWriter, r *http.Request) {
 		logger.Info(
@@ -24,6 +26,8 @@ func HttpLogging(logger *zap.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(f)
 }
 
+// GrpcLogging create GRPC logging middleware with provided logger.
+// Logs "around" incoming requests, it is before and after handling.
 func GrpcLogging(logger *zap.Logger) grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,

@@ -10,17 +10,19 @@ import (
 	"go.uber.org/zap"
 )
 
+// HttpServer wrapper around http.Server to unify startup and shutdown logic.
+// Allows to run both HTTP and HTTPS servers at the same time.
 type HttpServer struct {
-	handler  http.Handler
 	httpSrv  *http.Server
 	httpsSrv *http.Server
 	logger   *zap.Logger
 }
 
+// NewHttpServer constructs new instance of HttpServer with handler
+// registered as root path handler for both HTTP and HTTPS servers.
 func NewHttpServer(handler http.Handler, logger *zap.Logger) *HttpServer {
 	h := &HttpServer{
-		handler: handler,
-		logger:  logger,
+		logger: logger,
 	}
 
 	mux := http.NewServeMux()
@@ -47,6 +49,7 @@ func NewHttpServer(handler http.Handler, logger *zap.Logger) *HttpServer {
 	return h
 }
 
+// Run starts both HTTP and HTTPS servers in their own goroutines.
 func (h *HttpServer) Run(
 	addr string,
 	addrTls string,
@@ -57,10 +60,13 @@ func (h *HttpServer) Run(
 	h.ListenAndServeTLS(addrTls, certFile, keyFile)
 }
 
+// ListenAndServe starts HTTP server, listening to addr.
+// NOTE: server is started in separate routine.
 func (h *HttpServer) ListenAndServe(addr string) {
 	h.httpSrv.Addr = addr
 	go (func() {
-		if err := h.httpSrv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		err := h.httpSrv.ListenAndServe()
+		if !errors.Is(err, http.ErrServerClosed) {
 			h.logger.Debug("http server closed with error", zap.Error(err))
 		}
 	})()
@@ -68,6 +74,8 @@ func (h *HttpServer) ListenAndServe(addr string) {
 	h.logger.Info("http server listening", zap.String("addr", h.httpSrv.Addr))
 }
 
+// ListenAndServeTLS starts HTTPS server, listening to addr.
+// NOTE: server is started in separate routine.
 func (h *HttpServer) ListenAndServeTLS(
 	addr string,
 	certFile string,
@@ -84,12 +92,15 @@ func (h *HttpServer) ListenAndServeTLS(
 	h.logger.Info("https server listening", zap.String("addr", h.httpsSrv.Addr))
 }
 
+// Shutdown handles graceful shutdown of both HTTP and HTTPS servers.
+// Starts two go routines waiting for servers to shut down under given ctx.
 func (h *HttpServer) Shutdown(ctx context.Context) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	shutdown := func(srv *http.Server, isTLS bool) {
 		defer wg.Done()
-		if err := srv.Shutdown(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		err := srv.Shutdown(ctx)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			h.logger.Error("server shutdown error",
 				zap.Bool("tls", isTLS),
 				zap.Error(err),

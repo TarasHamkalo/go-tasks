@@ -13,11 +13,14 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+// GrpcServer wrapper around grpc.Server to unify startup and shutdown logic.
 type GrpcServer struct {
 	srv    *grpc.Server
 	logger *zap.Logger
 }
 
+// NewGrpcServer constructs new GrpcServer object with grpc.Server initialized
+// with given set of interceptors and tls config.
 func NewGrpcServer(
 	tlsCfg *tls.Config,
 	logger *zap.Logger,
@@ -34,10 +37,14 @@ func NewGrpcServer(
 	}
 }
 
+// WithServer helper to decouple service registration from grpc.Server
 func (s *GrpcServer) WithServer(handler func(srv *grpc.Server)) {
 	handler(s.srv)
 }
 
+// Serve attempts to listen to given port on localhost and start grpc.Server.
+// IMPORTANT: server is started in new routine.
+// NOTE: registers reflection for registered services.
 func (s *GrpcServer) Serve(port int) error {
 	reflection.Register(s.srv)
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
@@ -55,6 +62,9 @@ func (s *GrpcServer) Serve(port int) error {
 	return nil
 }
 
+// Shutdown attempts to gracefully shutdown grpc.Server instance.
+// Start go routine calling grpc.Server graceful shutdown
+// and wait till either ctx timeouts or server is stopped.
 func (s *GrpcServer) Shutdown(ctx context.Context) {
 	serverStopped := make(chan struct{})
 	go (func() {
