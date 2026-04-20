@@ -10,15 +10,26 @@ import (
 	"http-mocker/pkg/mocker"
 )
 
+// MockHttpHandler implements the http.Handler interface to serve requests
+// based on the configuration within HttpMocker.
 type MockHttpHandler struct {
+
+	// mocker is the core engine defining the behavior for incoming requests
 	mocker *mocker.HttpMocker
+
 	logger *zap.Logger
 }
 
-func NewMockHttpHandler(mocker *mocker.HttpMocker, logger *zap.Logger) *MockHttpHandler {
+// NewMockHttpHandler constructs a new instance of MockHttpHandler.
+func NewMockHttpHandler(
+	mocker *mocker.HttpMocker,
+	logger *zap.Logger,
+) *MockHttpHandler {
 	return &MockHttpHandler{mocker: mocker, logger: logger}
 }
 
+// ServeHTTP handles incoming HTTP requests by matching them against configured rules.
+// It parses the request, retrieves a ResponseSpec, and writes the resulting HTTP response
 func (m *MockHttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestSpec, err := m.parseRequest(r)
 	if err != nil {
@@ -76,7 +87,10 @@ func (m *MockHttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (m *MockHttpHandler) parseRequest(r *http.Request) (*mocker.RequestSpec, error) {
+// parseRequest parses incoming HTTP requests to mocker.RequestSpec
+func (m *MockHttpHandler) parseRequest(
+	r *http.Request,
+) (*mocker.RequestSpec, error) {
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
@@ -97,6 +111,7 @@ func (m *MockHttpHandler) parseRequest(r *http.Request) (*mocker.RequestSpec, er
 	return requestSpec, nil
 }
 
+// mapToStatusCode maps error returned by mocker.HttpMocker to HTTP status code
 func (m *MockHttpHandler) mapToStatusCode(err error) int {
 	switch err {
 	case mocker.ErrNoConfigurationExists:
