@@ -22,14 +22,15 @@ const (
 )
 
 type SetReplyRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Method        string                 `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
-	RequestBody   []byte                 `protobuf:"bytes,3,opt,name=request_body,json=requestBody,proto3,oneof" json:"request_body,omitempty"`
-	StatusCode    int32                  `protobuf:"varint,4,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
-	ResponseBody  []byte                 `protobuf:"bytes,5,opt,name=response_body,json=responseBody,proto3,oneof" json:"response_body,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState   `protogen:"open.v1"`
+	Path            string                   `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Method          string                   `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
+	RequestBody     []byte                   `protobuf:"bytes,3,opt,name=request_body,json=requestBody,proto3,oneof" json:"request_body,omitempty"`
+	StatusCode      int32                    `protobuf:"varint,4,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
+	ResponseBody    []byte                   `protobuf:"bytes,5,opt,name=response_body,json=responseBody,proto3,oneof" json:"response_body,omitempty"`
+	ResponseHeaders map[string]*HeaderValues `protobuf:"bytes,6,rep,name=response_headers,json=responseHeaders,proto3" json:"response_headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *SetReplyRequest) Reset() {
@@ -97,6 +98,57 @@ func (x *SetReplyRequest) GetResponseBody() []byte {
 	return nil
 }
 
+func (x *SetReplyRequest) GetResponseHeaders() map[string]*HeaderValues {
+	if x != nil {
+		return x.ResponseHeaders
+	}
+	return nil
+}
+
+type HeaderValues struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Values        []string               `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeaderValues) Reset() {
+	*x = HeaderValues{}
+	mi := &file_management_service_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeaderValues) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeaderValues) ProtoMessage() {}
+
+func (x *HeaderValues) ProtoReflect() protoreflect.Message {
+	mi := &file_management_service_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeaderValues.ProtoReflect.Descriptor instead.
+func (*HeaderValues) Descriptor() ([]byte, []int) {
+	return file_management_service_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *HeaderValues) GetValues() []string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
 type SetReplyResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -105,7 +157,7 @@ type SetReplyResponse struct {
 
 func (x *SetReplyResponse) Reset() {
 	*x = SetReplyResponse{}
-	mi := &file_management_service_proto_msgTypes[1]
+	mi := &file_management_service_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -117,7 +169,7 @@ func (x *SetReplyResponse) String() string {
 func (*SetReplyResponse) ProtoMessage() {}
 
 func (x *SetReplyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[1]
+	mi := &file_management_service_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -130,7 +182,7 @@ func (x *SetReplyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetReplyResponse.ProtoReflect.Descriptor instead.
 func (*SetReplyResponse) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{1}
+	return file_management_service_proto_rawDescGZIP(), []int{2}
 }
 
 type DumpDatabaseRequest struct {
@@ -141,7 +193,7 @@ type DumpDatabaseRequest struct {
 
 func (x *DumpDatabaseRequest) Reset() {
 	*x = DumpDatabaseRequest{}
-	mi := &file_management_service_proto_msgTypes[2]
+	mi := &file_management_service_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -153,7 +205,7 @@ func (x *DumpDatabaseRequest) String() string {
 func (*DumpDatabaseRequest) ProtoMessage() {}
 
 func (x *DumpDatabaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[2]
+	mi := &file_management_service_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -166,7 +218,7 @@ func (x *DumpDatabaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DumpDatabaseRequest.ProtoReflect.Descriptor instead.
 func (*DumpDatabaseRequest) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{2}
+	return file_management_service_proto_rawDescGZIP(), []int{3}
 }
 
 type DumpDatabaseResponse struct {
@@ -178,7 +230,7 @@ type DumpDatabaseResponse struct {
 
 func (x *DumpDatabaseResponse) Reset() {
 	*x = DumpDatabaseResponse{}
-	mi := &file_management_service_proto_msgTypes[3]
+	mi := &file_management_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -190,7 +242,7 @@ func (x *DumpDatabaseResponse) String() string {
 func (*DumpDatabaseResponse) ProtoMessage() {}
 
 func (x *DumpDatabaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[3]
+	mi := &file_management_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -203,7 +255,7 @@ func (x *DumpDatabaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DumpDatabaseResponse.ProtoReflect.Descriptor instead.
 func (*DumpDatabaseResponse) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{3}
+	return file_management_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DumpDatabaseResponse) GetConfig() []*ConfigEntry {
@@ -223,7 +275,7 @@ type ConfigEntry struct {
 
 func (x *ConfigEntry) Reset() {
 	*x = ConfigEntry{}
-	mi := &file_management_service_proto_msgTypes[4]
+	mi := &file_management_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +287,7 @@ func (x *ConfigEntry) String() string {
 func (*ConfigEntry) ProtoMessage() {}
 
 func (x *ConfigEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[4]
+	mi := &file_management_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +300,7 @@ func (x *ConfigEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigEntry.ProtoReflect.Descriptor instead.
 func (*ConfigEntry) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{4}
+	return file_management_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ConfigEntry) GetReq() *RequestSpec {
@@ -277,7 +329,7 @@ type RequestSpec struct {
 
 func (x *RequestSpec) Reset() {
 	*x = RequestSpec{}
-	mi := &file_management_service_proto_msgTypes[5]
+	mi := &file_management_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -289,7 +341,7 @@ func (x *RequestSpec) String() string {
 func (*RequestSpec) ProtoMessage() {}
 
 func (x *RequestSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[5]
+	mi := &file_management_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -302,7 +354,7 @@ func (x *RequestSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestSpec.ProtoReflect.Descriptor instead.
 func (*RequestSpec) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{5}
+	return file_management_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RequestSpec) GetPath() string {
@@ -342,7 +394,7 @@ type QueryValues struct {
 
 func (x *QueryValues) Reset() {
 	*x = QueryValues{}
-	mi := &file_management_service_proto_msgTypes[6]
+	mi := &file_management_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -354,7 +406,7 @@ func (x *QueryValues) String() string {
 func (*QueryValues) ProtoMessage() {}
 
 func (x *QueryValues) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[6]
+	mi := &file_management_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -367,7 +419,7 @@ func (x *QueryValues) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryValues.ProtoReflect.Descriptor instead.
 func (*QueryValues) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{6}
+	return file_management_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *QueryValues) GetValues() []string {
@@ -378,16 +430,17 @@ func (x *QueryValues) GetValues() []string {
 }
 
 type ResponseSpec struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	StatusCode    int32                  `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
-	Body          []byte                 `protobuf:"bytes,2,opt,name=body,proto3,oneof" json:"body,omitempty"`
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	StatusCode    int32                    `protobuf:"varint,1,opt,name=status_code,json=statusCode,proto3" json:"status_code,omitempty"`
+	Headers       map[string]*HeaderValues `protobuf:"bytes,2,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Body          []byte                   `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ResponseSpec) Reset() {
 	*x = ResponseSpec{}
-	mi := &file_management_service_proto_msgTypes[7]
+	mi := &file_management_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +452,7 @@ func (x *ResponseSpec) String() string {
 func (*ResponseSpec) ProtoMessage() {}
 
 func (x *ResponseSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[7]
+	mi := &file_management_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -412,7 +465,7 @@ func (x *ResponseSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResponseSpec.ProtoReflect.Descriptor instead.
 func (*ResponseSpec) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{7}
+	return file_management_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ResponseSpec) GetStatusCode() int32 {
@@ -420,6 +473,13 @@ func (x *ResponseSpec) GetStatusCode() int32 {
 		return x.StatusCode
 	}
 	return 0
+}
+
+func (x *ResponseSpec) GetHeaders() map[string]*HeaderValues {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
 }
 
 func (x *ResponseSpec) GetBody() []byte {
@@ -437,7 +497,7 @@ type ClearDatabaseRequest struct {
 
 func (x *ClearDatabaseRequest) Reset() {
 	*x = ClearDatabaseRequest{}
-	mi := &file_management_service_proto_msgTypes[8]
+	mi := &file_management_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -449,7 +509,7 @@ func (x *ClearDatabaseRequest) String() string {
 func (*ClearDatabaseRequest) ProtoMessage() {}
 
 func (x *ClearDatabaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[8]
+	mi := &file_management_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -462,7 +522,7 @@ func (x *ClearDatabaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearDatabaseRequest.ProtoReflect.Descriptor instead.
 func (*ClearDatabaseRequest) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{8}
+	return file_management_service_proto_rawDescGZIP(), []int{9}
 }
 
 type ClearDatabaseResponse struct {
@@ -473,7 +533,7 @@ type ClearDatabaseResponse struct {
 
 func (x *ClearDatabaseResponse) Reset() {
 	*x = ClearDatabaseResponse{}
-	mi := &file_management_service_proto_msgTypes[9]
+	mi := &file_management_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -485,7 +545,7 @@ func (x *ClearDatabaseResponse) String() string {
 func (*ClearDatabaseResponse) ProtoMessage() {}
 
 func (x *ClearDatabaseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[9]
+	mi := &file_management_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -498,7 +558,7 @@ func (x *ClearDatabaseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearDatabaseResponse.ProtoReflect.Descriptor instead.
 func (*ClearDatabaseResponse) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{9}
+	return file_management_service_proto_rawDescGZIP(), []int{10}
 }
 
 type ListRequestsRequest struct {
@@ -509,7 +569,7 @@ type ListRequestsRequest struct {
 
 func (x *ListRequestsRequest) Reset() {
 	*x = ListRequestsRequest{}
-	mi := &file_management_service_proto_msgTypes[10]
+	mi := &file_management_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -521,7 +581,7 @@ func (x *ListRequestsRequest) String() string {
 func (*ListRequestsRequest) ProtoMessage() {}
 
 func (x *ListRequestsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[10]
+	mi := &file_management_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -534,7 +594,7 @@ func (x *ListRequestsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRequestsRequest.ProtoReflect.Descriptor instead.
 func (*ListRequestsRequest) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{10}
+	return file_management_service_proto_rawDescGZIP(), []int{11}
 }
 
 type ListRequestsResponse struct {
@@ -546,7 +606,7 @@ type ListRequestsResponse struct {
 
 func (x *ListRequestsResponse) Reset() {
 	*x = ListRequestsResponse{}
-	mi := &file_management_service_proto_msgTypes[11]
+	mi := &file_management_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -558,7 +618,7 @@ func (x *ListRequestsResponse) String() string {
 func (*ListRequestsResponse) ProtoMessage() {}
 
 func (x *ListRequestsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_management_service_proto_msgTypes[11]
+	mi := &file_management_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -571,7 +631,7 @@ func (x *ListRequestsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRequestsResponse.ProtoReflect.Descriptor instead.
 func (*ListRequestsResponse) Descriptor() ([]byte, []int) {
-	return file_management_service_proto_rawDescGZIP(), []int{11}
+	return file_management_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListRequestsResponse) GetRequests() []*RequestSpec {
@@ -585,16 +645,22 @@ var File_management_service_proto protoreflect.FileDescriptor
 
 const file_management_service_proto_rawDesc = "" +
 	"\n" +
-	"\x18management_service.proto\"\xd3\x01\n" +
+	"\x18management_service.proto\"\xf8\x02\n" +
 	"\x0fSetReplyRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06method\x18\x02 \x01(\tR\x06method\x12&\n" +
 	"\frequest_body\x18\x03 \x01(\fH\x00R\vrequestBody\x88\x01\x01\x12\x1f\n" +
 	"\vstatus_code\x18\x04 \x01(\x05R\n" +
 	"statusCode\x12(\n" +
-	"\rresponse_body\x18\x05 \x01(\fH\x01R\fresponseBody\x88\x01\x01B\x0f\n" +
+	"\rresponse_body\x18\x05 \x01(\fH\x01R\fresponseBody\x88\x01\x01\x12P\n" +
+	"\x10response_headers\x18\x06 \x03(\v2%.SetReplyRequest.ResponseHeadersEntryR\x0fresponseHeaders\x1aQ\n" +
+	"\x14ResponseHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12#\n" +
+	"\x05value\x18\x02 \x01(\v2\r.HeaderValuesR\x05value:\x028\x01B\x0f\n" +
 	"\r_request_bodyB\x10\n" +
-	"\x0e_response_body\"\x12\n" +
+	"\x0e_response_body\"&\n" +
+	"\fHeaderValues\x12\x16\n" +
+	"\x06values\x18\x01 \x03(\tR\x06values\"\x12\n" +
 	"\x10SetReplyResponse\"\x15\n" +
 	"\x13DumpDatabaseRequest\"<\n" +
 	"\x14DumpDatabaseResponse\x12$\n" +
@@ -613,11 +679,15 @@ const file_management_service_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\f.QueryValuesR\x05value:\x028\x01B\a\n" +
 	"\x05_body\"%\n" +
 	"\vQueryValues\x12\x16\n" +
-	"\x06values\x18\x01 \x03(\tR\x06values\"Q\n" +
+	"\x06values\x18\x01 \x03(\tR\x06values\"\xd2\x01\n" +
 	"\fResponseSpec\x12\x1f\n" +
 	"\vstatus_code\x18\x01 \x01(\x05R\n" +
-	"statusCode\x12\x17\n" +
-	"\x04body\x18\x02 \x01(\fH\x00R\x04body\x88\x01\x01B\a\n" +
+	"statusCode\x124\n" +
+	"\aheaders\x18\x02 \x03(\v2\x1a.ResponseSpec.HeadersEntryR\aheaders\x12\x17\n" +
+	"\x04body\x18\x03 \x01(\fH\x00R\x04body\x88\x01\x01\x1aI\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12#\n" +
+	"\x05value\x18\x02 \x01(\v2\r.HeaderValuesR\x05value:\x028\x01B\a\n" +
 	"\x05_body\"\x16\n" +
 	"\x14ClearDatabaseRequest\"\x17\n" +
 	"\x15ClearDatabaseResponse\"\x15\n" +
@@ -642,42 +712,49 @@ func file_management_service_proto_rawDescGZIP() []byte {
 	return file_management_service_proto_rawDescData
 }
 
-var file_management_service_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_management_service_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_management_service_proto_goTypes = []any{
 	(*SetReplyRequest)(nil),       // 0: SetReplyRequest
-	(*SetReplyResponse)(nil),      // 1: SetReplyResponse
-	(*DumpDatabaseRequest)(nil),   // 2: DumpDatabaseRequest
-	(*DumpDatabaseResponse)(nil),  // 3: DumpDatabaseResponse
-	(*ConfigEntry)(nil),           // 4: ConfigEntry
-	(*RequestSpec)(nil),           // 5: RequestSpec
-	(*QueryValues)(nil),           // 6: QueryValues
-	(*ResponseSpec)(nil),          // 7: ResponseSpec
-	(*ClearDatabaseRequest)(nil),  // 8: ClearDatabaseRequest
-	(*ClearDatabaseResponse)(nil), // 9: ClearDatabaseResponse
-	(*ListRequestsRequest)(nil),   // 10: ListRequestsRequest
-	(*ListRequestsResponse)(nil),  // 11: ListRequestsResponse
-	nil,                           // 12: RequestSpec.QueryEntry
+	(*HeaderValues)(nil),          // 1: HeaderValues
+	(*SetReplyResponse)(nil),      // 2: SetReplyResponse
+	(*DumpDatabaseRequest)(nil),   // 3: DumpDatabaseRequest
+	(*DumpDatabaseResponse)(nil),  // 4: DumpDatabaseResponse
+	(*ConfigEntry)(nil),           // 5: ConfigEntry
+	(*RequestSpec)(nil),           // 6: RequestSpec
+	(*QueryValues)(nil),           // 7: QueryValues
+	(*ResponseSpec)(nil),          // 8: ResponseSpec
+	(*ClearDatabaseRequest)(nil),  // 9: ClearDatabaseRequest
+	(*ClearDatabaseResponse)(nil), // 10: ClearDatabaseResponse
+	(*ListRequestsRequest)(nil),   // 11: ListRequestsRequest
+	(*ListRequestsResponse)(nil),  // 12: ListRequestsResponse
+	nil,                           // 13: SetReplyRequest.ResponseHeadersEntry
+	nil,                           // 14: RequestSpec.QueryEntry
+	nil,                           // 15: ResponseSpec.HeadersEntry
 }
 var file_management_service_proto_depIdxs = []int32{
-	4,  // 0: DumpDatabaseResponse.config:type_name -> ConfigEntry
-	5,  // 1: ConfigEntry.req:type_name -> RequestSpec
-	7,  // 2: ConfigEntry.res:type_name -> ResponseSpec
-	12, // 3: RequestSpec.query:type_name -> RequestSpec.QueryEntry
-	5,  // 4: ListRequestsResponse.requests:type_name -> RequestSpec
-	6,  // 5: RequestSpec.QueryEntry.value:type_name -> QueryValues
-	0,  // 6: ManagementService.SetReply:input_type -> SetReplyRequest
-	2,  // 7: ManagementService.DumpDatabase:input_type -> DumpDatabaseRequest
-	8,  // 8: ManagementService.ClearDatabase:input_type -> ClearDatabaseRequest
-	10, // 9: ManagementService.ListRequests:input_type -> ListRequestsRequest
-	1,  // 10: ManagementService.SetReply:output_type -> SetReplyResponse
-	3,  // 11: ManagementService.DumpDatabase:output_type -> DumpDatabaseResponse
-	9,  // 12: ManagementService.ClearDatabase:output_type -> ClearDatabaseResponse
-	11, // 13: ManagementService.ListRequests:output_type -> ListRequestsResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	13, // 0: SetReplyRequest.response_headers:type_name -> SetReplyRequest.ResponseHeadersEntry
+	5,  // 1: DumpDatabaseResponse.config:type_name -> ConfigEntry
+	6,  // 2: ConfigEntry.req:type_name -> RequestSpec
+	8,  // 3: ConfigEntry.res:type_name -> ResponseSpec
+	14, // 4: RequestSpec.query:type_name -> RequestSpec.QueryEntry
+	15, // 5: ResponseSpec.headers:type_name -> ResponseSpec.HeadersEntry
+	6,  // 6: ListRequestsResponse.requests:type_name -> RequestSpec
+	1,  // 7: SetReplyRequest.ResponseHeadersEntry.value:type_name -> HeaderValues
+	7,  // 8: RequestSpec.QueryEntry.value:type_name -> QueryValues
+	1,  // 9: ResponseSpec.HeadersEntry.value:type_name -> HeaderValues
+	0,  // 10: ManagementService.SetReply:input_type -> SetReplyRequest
+	3,  // 11: ManagementService.DumpDatabase:input_type -> DumpDatabaseRequest
+	9,  // 12: ManagementService.ClearDatabase:input_type -> ClearDatabaseRequest
+	11, // 13: ManagementService.ListRequests:input_type -> ListRequestsRequest
+	2,  // 14: ManagementService.SetReply:output_type -> SetReplyResponse
+	4,  // 15: ManagementService.DumpDatabase:output_type -> DumpDatabaseResponse
+	10, // 16: ManagementService.ClearDatabase:output_type -> ClearDatabaseResponse
+	12, // 17: ManagementService.ListRequests:output_type -> ListRequestsResponse
+	14, // [14:18] is the sub-list for method output_type
+	10, // [10:14] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_management_service_proto_init() }
@@ -686,15 +763,15 @@ func file_management_service_proto_init() {
 		return
 	}
 	file_management_service_proto_msgTypes[0].OneofWrappers = []any{}
-	file_management_service_proto_msgTypes[5].OneofWrappers = []any{}
-	file_management_service_proto_msgTypes[7].OneofWrappers = []any{}
+	file_management_service_proto_msgTypes[6].OneofWrappers = []any{}
+	file_management_service_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_management_service_proto_rawDesc), len(file_management_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

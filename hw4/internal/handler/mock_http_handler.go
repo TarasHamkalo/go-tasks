@@ -53,6 +53,15 @@ func (m *MockHttpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		zap.ByteString("body", responseBody),
 	)
 
+	headers := responseSpec.Headers()
+	for key, values := range headers {
+		// should not contain any, but to be sure
+		w.Header().Del(key)
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
 	w.WriteHeader(responseSpec.StatusCode())
 	if responseSpec.HasBody() {
 		_, err = w.Write(responseBody)

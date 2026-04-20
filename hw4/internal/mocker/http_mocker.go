@@ -7,8 +7,10 @@ import (
 )
 
 var supportedMethods = map[string]bool{
-	"GET":  true,
-	"POST": true,
+	"GET":    true,
+	"POST":   true,
+	"PUT":    true,
+	"DELETE": true,
 }
 
 var ErrNoConfigurationExists = errors.New("mocker: no configuration exists")

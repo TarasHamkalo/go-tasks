@@ -89,7 +89,6 @@ clear_db
 
 REQ_BODY='{"name":"user-name"}'
 B64_REQ=$(echo -n "$REQ_BODY" | base64)
-
 log_grpc "SetReply POST /users/user-1 (with body=$REQ_BODY, in request base64 encoded)"
 grpcurl -insecure -d "{
   \"method\": \"POST\",
@@ -228,11 +227,45 @@ grpcurl -insecure -d "{
 
 dump_db
 
-echo "-- HTTP call DELETE /users (→ 405) --"
-log_http "DELETE" "/users"
-curl -i -X DELETE $HTTP_ADDR/users
+echo "-- HTTP call HEAD /users (→ 405) --"
+log_http "HEAD" "/users"
+curl -i -X HEAD $HTTP_ADDR/users
 echo
 
+########################################
+# Example 8: Response headers
+########################################
+echo "=============================="
+echo "Example 8: Response headers"
+echo "=============================="
+clear_db
+
+REQ_BODY='{"name":"user-name"}'
+B64_REQ=$(echo -n "$REQ_BODY" | base64)
+
+
+RESP_BODY='{"ok": true}'
+B64_RESP=$(echo -n "$RESP_BODY" | base64)
+
+log_grpc "SetReply POST /users/user-1 (with body=$REQ_BODY, and content type header)"
+grpcurl -insecure -d "{
+  \"method\": \"POST\",
+  \"path\": \"/users/user-1\",
+  \"request_body\": \"$B64_REQ\",
+  \"response_body\": \"$B64_RESP\",
+  \"status_code\": 200,
+  \"response_headers\": {
+    \"Content-Type\": { \"values\": [\"application/json\"] },
+    \"Cookie\": { \"values\": [\"a\", \"b\"] }
+  }
+}" $GRPC_ADDR $SERVICE/SetReply
+
+dump_db
+
+echo "-- HTTP call /users/users-1 (200, headers preserved) --"
+log_http "POST" "/users/users-1"
+curl -i -X POST $HTTP_ADDR/users/user-1 -d $REQ_BODY
+echo
 ########################################
 # List requests, dump db
 ########################################

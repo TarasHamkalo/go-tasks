@@ -12,8 +12,6 @@ import (
 	"http-mocker/internal/mocker"
 )
 
-// TODO: stream dump and history
-//
 //go:generate protoc -I=../../protos --go_out=../../generated --go-grpc_out=../../generated ../../protos/management_service.proto
 type ManagementService struct {
 	mocker *mocker.HttpMocker
@@ -72,7 +70,17 @@ func (m *ManagementService) toResponseSpec(r *pb.SetReplyRequest) *mocker.Respon
 		bodyBytes = r.ResponseBody
 	}
 
-	return mocker.NewResponseSpec(int(r.StatusCode), hasBody, bodyBytes)
+	headers := make(map[string][]string, len(r.ResponseHeaders))
+	for key, pbValues := range r.ResponseHeaders {
+		headers[key] = pbValues.Values
+	}
+
+	return mocker.NewResponseSpec(
+		int(r.StatusCode),
+		headers,
+		hasBody,
+		bodyBytes,
+	)
 }
 
 func (m *ManagementService) DumpDatabase(
@@ -113,15 +121,21 @@ func (m *ManagementService) toRequestSpecMessage(spec *mocker.RequestSpec) *pb.R
 }
 
 func (m *ManagementService) toResponseSpecMessage(spec *mocker.ResponseSpec) *pb.ResponseSpec {
+	headers := spec.Headers()
+	pbHeaders := make(map[string]*pb.HeaderValues, len(headers))
+	for key, values := range headers {
+		pbHeaders[key] = &pb.HeaderValues{Values: values}
+	}
+
 	mapped := &pb.ResponseSpec{
 		StatusCode: int32(spec.StatusCode()),
+		Headers:    pbHeaders,
 		Body:       nil,
 	}
 
 	if spec.HasBody() {
 		mapped.Body = spec.Body()
 	}
-
 	return mapped
 }
 

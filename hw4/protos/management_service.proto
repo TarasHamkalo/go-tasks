@@ -16,6 +16,11 @@ message SetReplyRequest {
 
   int32 status_code = 4;
   optional bytes response_body = 5;
+  map<string, HeaderValues> response_headers = 6;
+}
+
+message HeaderValues {
+  repeated string values = 1;
 }
 
 message SetReplyResponse {}
@@ -43,7 +48,8 @@ message QueryValues {
 
 message ResponseSpec {
   int32 status_code = 1;
-  optional bytes body = 2;
+  map<string, HeaderValues> headers = 2;
+  optional bytes body = 3;
 }
 
 message ClearDatabaseRequest {}
