@@ -16,8 +16,21 @@ log_http() {
   fi
 }
 
-echo "== Clear database =="
+#echo "== Clear database =="
+#grpcurl -insecure -d '{}' $GRPC_ADDR $SERVICE/ClearDatabase
+########################################
+# Example 1: No config → 501
+########################################
+echo "== Example 1: No config returns 501 =="
+
+echo "== Clear database (no routes configured) =="
 grpcurl -insecure -d '{}' $GRPC_ADDR $SERVICE/ClearDatabase
+echo -e "\n"
+
+echo "-- HTTP call (no config, expect 501) --"
+log_http "GET" "/users"
+curl -i $HTTP_ADDR/users
+echo -e "\n"
 
 ########################################
 # Example 1: GET /users
@@ -147,6 +160,75 @@ echo -e "\n"
 echo "-- HTTP call (body mismatch, 404) --"
 log_http "POST" "/test" "bbb"
 curl -i -X POST $HTTP_ADDR/test -d "bbb"
+echo -e "\n"
+
+
+########################################
+# Example 5: Query with identical key-value pairs
+########################################
+echo "== Example 5: Query identical key-value pairs =="
+
+echo "== Clear database =="
+grpcurl -insecure -d '{}' $GRPC_ADDR $SERVICE/ClearDatabase
+
+RESP_BODY='ok'
+B64_RESP=$(echo -n "$RESP_BODY" | base64)
+
+grpcurl -insecure \
+  -d "{
+    \"method\": \"GET\",
+    \"path\": \"/test?name=A&name=A\",
+    \"status_code\": 200,
+    \"response_body\": \"$B64_RESP\"
+  }" \
+  $GRPC_ADDR \
+  $SERVICE/SetReply
+
+echo "-- Dump database --"
+grpcurl -insecure $GRPC_ADDR $SERVICE/DumpDatabase
+echo -e "\n"
+
+echo "-- HTTP call (exact duplicate query params, 200) --"
+QUERY="/test?name=A&name=A"
+log_http "GET" "$QUERY"
+curl -i "$HTTP_ADDR$QUERY"
+echo -e "\n"
+
+echo "-- HTTP call (different count, 404) --"
+QUERY="/test?name=A"
+log_http "GET" "$QUERY"
+curl -i "$HTTP_ADDR$QUERY"
+echo -e "\n"
+
+########################################
+# Example 6: Unsupported method → 405
+########################################
+echo "== Example 6: Unsupported method returns 405 =="
+
+echo "== Clear database =="
+grpcurl -insecure -d '{}' $GRPC_ADDR $SERVICE/ClearDatabase
+
+# configure only GET /users
+BODY='["user-1"]'
+B64_BODY=$(echo -n "$BODY" | base64)
+
+grpcurl -insecure \
+  -d "{
+    \"method\": \"GET\",
+    \"path\": \"/users\",
+    \"status_code\": 200,
+    \"response_body\": \"$B64_BODY\"
+  }" \
+  $GRPC_ADDR \
+  $SERVICE/SetReply
+
+echo "-- Dump database --"
+grpcurl -insecure $GRPC_ADDR $SERVICE/DumpDatabase
+echo -e "\n"
+
+echo "-- HTTP call DELETE /users (method not allowed → 405) --"
+log_http "DELETE" "/users"
+curl -i -X DELETE $HTTP_ADDR/users
 echo -e "\n"
 
 
