@@ -7,27 +7,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// LogInit is helper function to init logger to my preferences,
+// LogInitWithConsole is helper function to init logger to my preferences,
 // not really a part of pkg
-func LogInit(file *os.File, debug bool) *zap.Logger {
-	pe := zap.NewProductionEncoderConfig()
-	//fileEncoder := zapcore.NewJSONEncoder(pe)
-	encoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
-	pe.EncodeTime = zapcore.ISO8601TimeEncoder
-
-	level := zap.InfoLevel
-	if debug {
-		level = zap.DebugLevel
-	}
-
-	core := zapcore.NewTee(
-		zapcore.NewCore(encoder, zapcore.AddSync(file), level),
-	)
-
-	l := zap.New(core)
-	return l
-}
-
 func LogInitWithConsole(file *os.File, debug bool) *zap.Logger {
 	pe := zap.NewProductionEncoderConfig()
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder
