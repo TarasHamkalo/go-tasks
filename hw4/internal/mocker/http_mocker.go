@@ -11,6 +11,7 @@ var supportedMethods = map[string]bool{
 	"POST":   true,
 	"PUT":    true,
 	"DELETE": true,
+	"PATCH":  true,
 }
 
 var ErrNoConfigurationExists = errors.New("mocker: no configuration exists")
