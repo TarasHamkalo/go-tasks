@@ -79,7 +79,11 @@ func createLogFile() *os.File {
 	)
 
 	if err != nil {
-		log.Fatalf("Failed to create app server log, file=%s, err=%v", AppLogFilePath, err)
+		log.Fatalf(
+			"Failed to create app server log, file=%s, err=%v",
+			AppLogFilePath,
+			err,
+		)
 	}
 
 	return appLogFile
