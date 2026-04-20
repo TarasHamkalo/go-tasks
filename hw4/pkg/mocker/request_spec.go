@@ -5,18 +5,32 @@ import (
 	"strings"
 )
 
+// RequestSpec represents HTTP request accepted by HttpMocker.
+// Immutable after creation, copy on read for query/body.
 type RequestSpec struct {
+	// path is normalized URL path (without parameters)
 	path string
-	// key to value:frequency pairs
-	// initially used set of "key:value:freq" elements, but hard to parse back
+
+	// query stores URL query parameters
+	// in form of association name -> (value, frequency)
+	// NOTE: initially used set of "key:value:freq" elements, but hard to parse back
 	query map[string]map[string]int
 
+	// method represents HTTP method,
+	// validation of method type is left to creator of this object
+	// e.g. HttpMocker during SetRoute
 	method string
 
+	// hasBody indicates whether request hasBody,
+	// used to always store non-nil value of body field
 	hasBody bool
-	body    []byte
+
+	// body represents request body, always non-nil
+	body []byte
 }
 
+// NewRequestSpec constructs new RequestSpec object,
+// all mutable fields are cloned
 func NewRequestSpec(
 	path string,
 	method string,
@@ -50,6 +64,8 @@ func NewRequestSpec(
 	}
 }
 
+// Equals verifies whether provided request is logically equivalent,
+// ignoring query parameter order.
 func (r *RequestSpec) Equals(other *RequestSpec) bool {
 	if r.method != other.method || r.path != other.path {
 		return false
@@ -83,6 +99,8 @@ func (r *RequestSpec) Equals(other *RequestSpec) bool {
 	return true
 }
 
+// QueryParams returns query parameters in form used by URL.Query.
+// Each time new copy is created.
 func (r *RequestSpec) QueryParams() map[string][]string {
 	out := make(map[string][]string, len(r.query))
 	for key, freqMap := range r.query {
@@ -102,6 +120,7 @@ func (r *RequestSpec) HasBody() bool {
 	return r.hasBody
 }
 
+// Body returns new copy of request body.
 func (r *RequestSpec) Body() []byte {
 	return append([]byte{}, r.body...)
 }
@@ -112,45 +131,4 @@ func (r *RequestSpec) Method() string {
 
 func (r *RequestSpec) Path() string {
 	return r.path
-}
-
-type RequestSpecBuilder struct {
-	path           string
-	rawQueryParams map[string][]string
-	method         string
-	hasBody        bool
-	body           []byte
-}
-
-func NewRequestSpecBuilder(path string, method string) *RequestSpecBuilder {
-	return &RequestSpecBuilder{
-		path:           path,
-		method:         method,
-		hasBody:        false,
-		body:           make([]byte, 0),
-		rawQueryParams: map[string][]string{},
-	}
-}
-
-func (b *RequestSpecBuilder) WithQueryParams(
-	rawQueryParams map[string][]string,
-) *RequestSpecBuilder {
-	b.rawQueryParams = rawQueryParams
-	return b
-}
-
-func (b *RequestSpecBuilder) WithBody(body []byte) *RequestSpecBuilder {
-	b.hasBody = true
-	b.body = body
-	return b
-}
-
-func (b *RequestSpecBuilder) Build() *RequestSpec {
-	return NewRequestSpec(
-		b.path,
-		b.method,
-		b.rawQueryParams,
-		b.hasBody,
-		b.body,
-	)
 }
