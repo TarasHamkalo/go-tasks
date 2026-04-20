@@ -1,0 +1,97 @@
+{"level":"info","ts":"2026-04-20T18:27:17.576+0200","msg":"server started","module":"grpc-server","port":8081}
+{"level":"info","ts":"2026-04-20T18:27:17.576+0200","msg":"http server listening","module":"http-server","addr":":8080"}
+{"level":"info","ts":"2026-04-20T18:27:17.577+0200","msg":"https server listening","module":"http-server","addr":":8443"}
+{"level":"info","ts":"2026-04-20T18:27:24.230+0200","msg":"received request","module":"grpc-server","trace":"e7830705","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.231+0200","msg":"request handled","module":"grpc-server","trace":"e7830705"}
+{"level":"info","ts":"2026-04-20T18:27:24.237+0200","msg":"received request","module":"http-server","trace":"b90d8eb9","addr":"[::1]:56290","method":"GET","url":"/users"}
+{"level":"debug","ts":"2026-04-20T18:27:24.237+0200","msg":"request body received","module":"http-server","trace":"b90d8eb9"}
+{"level":"error","ts":"2026-04-20T18:27:24.237+0200","msg":"failed to serve request","module":"http-server","trace":"b90d8eb9","statusCode":501,"error":"mocker: no configuration exists"}
+{"level":"info","ts":"2026-04-20T18:27:24.257+0200","msg":"received request","module":"grpc-server","trace":"5f5496b6","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.257+0200","msg":"request handled","module":"grpc-server","trace":"5f5496b6"}
+{"level":"info","ts":"2026-04-20T18:27:24.278+0200","msg":"received request","module":"grpc-server","trace":"8efe9625","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.278+0200","msg":"request handled","module":"grpc-server","trace":"8efe9625"}
+{"level":"info","ts":"2026-04-20T18:27:24.297+0200","msg":"received request","module":"grpc-server","trace":"ab5c0793","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.297+0200","msg":"request handled","module":"grpc-server","trace":"ab5c0793"}
+{"level":"info","ts":"2026-04-20T18:27:24.304+0200","msg":"received request","module":"http-server","trace":"62dce54f","addr":"[::1]:56300","method":"GET","url":"/users"}
+{"level":"debug","ts":"2026-04-20T18:27:24.304+0200","msg":"request body received","module":"http-server","trace":"62dce54f"}
+{"level":"info","ts":"2026-04-20T18:27:24.304+0200","msg":"serve request","module":"http-server","trace":"62dce54f","statusCode":200,"body":"[\"user-1\",\"user-2\"]"}
+{"level":"info","ts":"2026-04-20T18:27:24.310+0200","msg":"received request","module":"http-server","trace":"193d1ef7","addr":"[::1]:56308","method":"GET","url":"/invalid"}
+{"level":"debug","ts":"2026-04-20T18:27:24.310+0200","msg":"request body received","module":"http-server","trace":"193d1ef7"}
+{"level":"error","ts":"2026-04-20T18:27:24.310+0200","msg":"failed to serve request","module":"http-server","trace":"193d1ef7","statusCode":404,"error":"mocker: path not registered"}
+{"level":"info","ts":"2026-04-20T18:27:24.327+0200","msg":"received request","module":"grpc-server","trace":"d0985447","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.327+0200","msg":"request handled","module":"grpc-server","trace":"d0985447"}
+{"level":"info","ts":"2026-04-20T18:27:24.346+0200","msg":"received request","module":"grpc-server","trace":"d8e5a246","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.346+0200","msg":"request handled","module":"grpc-server","trace":"d8e5a246"}
+{"level":"info","ts":"2026-04-20T18:27:24.366+0200","msg":"received request","module":"grpc-server","trace":"04dcef6e","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.366+0200","msg":"request handled","module":"grpc-server","trace":"04dcef6e"}
+{"level":"info","ts":"2026-04-20T18:27:24.372+0200","msg":"received request","module":"http-server","trace":"9214fca5","addr":"[::1]:56322","method":"POST","url":"/users/user-1"}
+{"level":"debug","ts":"2026-04-20T18:27:24.372+0200","msg":"request body received","module":"http-server","trace":"9214fca5"}
+{"level":"info","ts":"2026-04-20T18:27:24.372+0200","msg":"serve request","module":"http-server","trace":"9214fca5","statusCode":200,"body":""}
+{"level":"info","ts":"2026-04-20T18:27:24.378+0200","msg":"received request","module":"http-server","trace":"0908ea4c","addr":"[::1]:56332","method":"POST","url":"/users/user-1"}
+{"level":"debug","ts":"2026-04-20T18:27:24.378+0200","msg":"request body received","module":"http-server","trace":"0908ea4c"}
+{"level":"error","ts":"2026-04-20T18:27:24.378+0200","msg":"failed to serve request","module":"http-server","trace":"0908ea4c","statusCode":404,"error":"mocker: request specification differs"}
+{"level":"info","ts":"2026-04-20T18:27:24.397+0200","msg":"received request","module":"grpc-server","trace":"7b2c86fb","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.397+0200","msg":"request handled","module":"grpc-server","trace":"7b2c86fb"}
+{"level":"info","ts":"2026-04-20T18:27:24.418+0200","msg":"received request","module":"grpc-server","trace":"fce7cd14","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.418+0200","msg":"request handled","module":"grpc-server","trace":"fce7cd14"}
+{"level":"info","ts":"2026-04-20T18:27:24.438+0200","msg":"received request","module":"grpc-server","trace":"24ec7a12","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.438+0200","msg":"request handled","module":"grpc-server","trace":"24ec7a12"}
+{"level":"info","ts":"2026-04-20T18:27:24.444+0200","msg":"received request","module":"http-server","trace":"ad9cd943","addr":"[::1]:56338","method":"GET","url":"/test?name=Surname&name=Nickname&name=Name"}
+{"level":"debug","ts":"2026-04-20T18:27:24.444+0200","msg":"request body received","module":"http-server","trace":"ad9cd943"}
+{"level":"info","ts":"2026-04-20T18:27:24.444+0200","msg":"serve request","module":"http-server","trace":"ad9cd943","statusCode":200,"body":"{\"ok\": true}"}
+{"level":"info","ts":"2026-04-20T18:27:24.461+0200","msg":"received request","module":"grpc-server","trace":"461bf3bb","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.462+0200","msg":"request handled","module":"grpc-server","trace":"461bf3bb"}
+{"level":"info","ts":"2026-04-20T18:27:24.481+0200","msg":"received request","module":"grpc-server","trace":"d3068ab1","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.481+0200","msg":"request handled","module":"grpc-server","trace":"d3068ab1"}
+{"level":"info","ts":"2026-04-20T18:27:24.499+0200","msg":"received request","module":"grpc-server","trace":"c8bb0c43","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.499+0200","msg":"request handled","module":"grpc-server","trace":"c8bb0c43"}
+{"level":"info","ts":"2026-04-20T18:27:24.505+0200","msg":"received request","module":"http-server","trace":"35b66996","addr":"[::1]:56342","method":"POST","url":"/test"}
+{"level":"debug","ts":"2026-04-20T18:27:24.505+0200","msg":"request body received","module":"http-server","trace":"35b66996"}
+{"level":"error","ts":"2026-04-20T18:27:24.505+0200","msg":"failed to serve request","module":"http-server","trace":"35b66996","statusCode":404,"error":"mocker: request specification differs"}
+{"level":"info","ts":"2026-04-20T18:27:24.525+0200","msg":"received request","module":"grpc-server","trace":"52e195da","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.525+0200","msg":"request handled","module":"grpc-server","trace":"52e195da"}
+{"level":"info","ts":"2026-04-20T18:27:24.542+0200","msg":"received request","module":"grpc-server","trace":"b55e145d","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.542+0200","msg":"request handled","module":"grpc-server","trace":"b55e145d"}
+{"level":"info","ts":"2026-04-20T18:27:24.561+0200","msg":"received request","module":"grpc-server","trace":"169daed5","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.561+0200","msg":"request handled","module":"grpc-server","trace":"169daed5"}
+{"level":"info","ts":"2026-04-20T18:27:24.567+0200","msg":"received request","module":"http-server","trace":"e5681392","addr":"[::1]:56354","method":"GET","url":"/test?name=A&name=A"}
+{"level":"debug","ts":"2026-04-20T18:27:24.567+0200","msg":"request body received","module":"http-server","trace":"e5681392"}
+{"level":"info","ts":"2026-04-20T18:27:24.567+0200","msg":"serve request","module":"http-server","trace":"e5681392","statusCode":200,"body":"ok"}
+{"level":"info","ts":"2026-04-20T18:27:24.572+0200","msg":"received request","module":"http-server","trace":"61ff2fe6","addr":"[::1]:56356","method":"GET","url":"/test?name=A"}
+{"level":"debug","ts":"2026-04-20T18:27:24.572+0200","msg":"request body received","module":"http-server","trace":"61ff2fe6"}
+{"level":"error","ts":"2026-04-20T18:27:24.572+0200","msg":"failed to serve request","module":"http-server","trace":"61ff2fe6","statusCode":404,"error":"mocker: request specification differs"}
+{"level":"info","ts":"2026-04-20T18:27:24.590+0200","msg":"received request","module":"grpc-server","trace":"c5c2d0d1","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.590+0200","msg":"request handled","module":"grpc-server","trace":"c5c2d0d1"}
+{"level":"info","ts":"2026-04-20T18:27:24.610+0200","msg":"received request","module":"grpc-server","trace":"0077c067","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.610+0200","msg":"request handled","module":"grpc-server","trace":"0077c067"}
+{"level":"info","ts":"2026-04-20T18:27:24.615+0200","msg":"received request","module":"http-server","trace":"63a96053","addr":"[::1]:56370","method":"HEAD","url":"/users"}
+{"level":"debug","ts":"2026-04-20T18:27:24.615+0200","msg":"request body received","module":"http-server","trace":"63a96053"}
+{"level":"error","ts":"2026-04-20T18:27:24.615+0200","msg":"failed to serve request","module":"http-server","trace":"63a96053","statusCode":405,"error":"mocker: method not supported"}
+{"level":"info","ts":"2026-04-20T18:27:24.635+0200","msg":"received request","module":"grpc-server","trace":"dfb91fdc","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.635+0200","msg":"request handled","module":"grpc-server","trace":"dfb91fdc","error":"rpc error: code = InvalidArgument desc = could not set reply: mocker: method not supported"}
+{"level":"info","ts":"2026-04-20T18:27:24.655+0200","msg":"received request","module":"grpc-server","trace":"accd4c0c","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.655+0200","msg":"request handled","module":"grpc-server","trace":"accd4c0c"}
+{"level":"info","ts":"2026-04-20T18:27:24.677+0200","msg":"received request","module":"grpc-server","trace":"d663c124","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.677+0200","msg":"request handled","module":"grpc-server","trace":"d663c124"}
+{"level":"info","ts":"2026-04-20T18:27:24.696+0200","msg":"received request","module":"grpc-server","trace":"59613fe4","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.696+0200","msg":"request handled","module":"grpc-server","trace":"59613fe4"}
+{"level":"info","ts":"2026-04-20T18:27:24.702+0200","msg":"received request","module":"http-server","trace":"ca568d80","addr":"[::1]:56382","method":"POST","url":"/users/user-1"}
+{"level":"debug","ts":"2026-04-20T18:27:24.702+0200","msg":"request body received","module":"http-server","trace":"ca568d80"}
+{"level":"info","ts":"2026-04-20T18:27:24.702+0200","msg":"serve request","module":"http-server","trace":"ca568d80","statusCode":200,"body":"{\"ok\": true}"}
+{"level":"info","ts":"2026-04-20T18:27:24.721+0200","msg":"received request","module":"grpc-server","trace":"6c28add0","procedure":"/ManagementService/ClearDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.721+0200","msg":"request handled","module":"grpc-server","trace":"6c28add0"}
+{"level":"info","ts":"2026-04-20T18:27:24.742+0200","msg":"received request","module":"grpc-server","trace":"99e60cf4","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.742+0200","msg":"request handled","module":"grpc-server","trace":"99e60cf4"}
+{"level":"info","ts":"2026-04-20T18:27:24.760+0200","msg":"received request","module":"grpc-server","trace":"c1f8c029","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.760+0200","msg":"request handled","module":"grpc-server","trace":"c1f8c029"}
+{"level":"info","ts":"2026-04-20T18:27:24.781+0200","msg":"received request","module":"grpc-server","trace":"878a530b","procedure":"/ManagementService/SetReply"}
+{"level":"info","ts":"2026-04-20T18:27:24.781+0200","msg":"request handled","module":"grpc-server","trace":"878a530b"}
+{"level":"info","ts":"2026-04-20T18:27:24.801+0200","msg":"received request","module":"grpc-server","trace":"3efc03ab","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.801+0200","msg":"request handled","module":"grpc-server","trace":"3efc03ab"}
+{"level":"info","ts":"2026-04-20T18:27:24.820+0200","msg":"received request","module":"grpc-server","trace":"861fceb8","procedure":"/ManagementService/DumpDatabase"}
+{"level":"info","ts":"2026-04-20T18:27:24.820+0200","msg":"request handled","module":"grpc-server","trace":"861fceb8"}
+{"level":"info","ts":"2026-04-20T18:27:24.839+0200","msg":"received request","module":"grpc-server","trace":"e52e5707","procedure":"/ManagementService/ListRequests"}
+{"level":"info","ts":"2026-04-20T18:27:24.839+0200","msg":"request handled","module":"grpc-server","trace":"e52e5707"}
+{"level":"info","ts":"2026-04-20T18:28:25.616+0200","msg":"Received os signal, starting graceful shutdown..."}
+{"level":"info","ts":"2026-04-20T18:28:25.617+0200","msg":"server shutdown success","module":"http-server","tls":false}
+{"level":"info","ts":"2026-04-20T18:28:25.617+0200","msg":"server shutdown success","module":"http-server","tls":true}
