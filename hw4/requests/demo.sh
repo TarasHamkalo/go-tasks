@@ -266,6 +266,40 @@ echo "-- HTTP call /users/users-1 (200, headers preserved) --"
 log_http "POST" "/users/users-1"
 curl -i -X POST $HTTP_ADDR/users/user-1 -d $REQ_BODY
 echo
+
+########################################
+# Example 9: Override configuration even when request body does not match
+########################################
+echo "=============================="
+echo "Example 3: POST body match"
+echo "=============================="
+
+clear_db
+
+REQ_BODY='{"name":"user-name"}'
+B64_REQ=$(echo -n "$REQ_BODY" | base64)
+log_grpc "SetReply POST /users/user-1 (with body=$REQ_BODY, in request base64 encoded)"
+grpcurl -insecure -d "{
+  \"method\": \"POST\",
+  \"path\": \"/users/user-1\",
+  \"request_body\": \"$B64_REQ\",
+  \"status_code\": 200
+}" $GRPC_ADDR $SERVICE/SetReply
+
+dump_db
+
+REQ_BODY='{"name":"NEW-NAME"}'
+B64_REQ=$(echo -n "$REQ_BODY" | base64)
+
+log_grpc "SetReply POST /users/user-1 (with body=$REQ_BODY, in request base64 encoded)"
+grpcurl -insecure -d "{
+  \"method\": \"POST\",
+  \"path\": \"/users/user-1\",
+  \"request_body\": \"$B64_REQ\",
+  \"status_code\": 200
+}" $GRPC_ADDR $SERVICE/SetReply
+
+dump_db
 ########################################
 # List requests, dump db
 ########################################
