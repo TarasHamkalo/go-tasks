@@ -13,7 +13,9 @@ type RequestSpec struct {
 
 	// query stores URL query parameters
 	// in form of association name -> (value, frequency)
-	// NOTE: initially used set of "key:value:freq" elements, but hard to parse back
+	// NOTE: initially used set of "key:value:freq" string elements
+	// which is much faster for matching (primary goal),
+	// but hard to parse back and so for demo left as is
 	query map[string]map[string]int
 
 	// method represents HTTP method,
@@ -78,7 +80,7 @@ func (r *RequestSpec) Equals(other *RequestSpec) bool {
 	if r.hasBody != other.hasBody {
 		return false
 	}
-
+	// verify flags before expensive comparison
 	for key, rValues := range r.query {
 		otherValues, ok := other.query[key]
 		if !ok || len(rValues) != len(otherValues) {

@@ -2,23 +2,48 @@ syntax = "proto3";
 
 option go_package = "./;endpoints";
 
+// ManagementService provides a gRPC interface to manage the mock server's behavior
 service ManagementService {
+  // SetReply registers or updates an HTTP route. If a combination of method
+  // and path already exists, the configuration is overwritten.
   rpc SetReply(SetReplyRequest) returns (SetReplyResponse);
+
+  // DumpDatabase returns running configuration of HTTP mocker
   rpc DumpDatabase(DumpDatabaseRequest) returns (DumpDatabaseResponse);
+
+  // ClearDatabase removes running configuration
   rpc ClearDatabase(ClearDatabaseRequest) returns (ClearDatabaseResponse);
+
+  // ListRequests returns list of requests HTTP mocker received
+  // NOTE: chronologically, newest at the end
   rpc ListRequests(ListRequestsRequest) returns (ListRequestsResponse);
 }
 
 message SetReplyRequest {
+  // path is the URL path (including query parameters) that the incoming
+  // HTTP request must match.
   string path = 1;
+
+  // method is the HTTP method that must be matched.
+  // Validation against supported methods is performed on the server side.
   string method = 2;
+
+  // request_body is HTTP request body that incoming request has to match.
+  // NOTE: no parsing is done so effectively e.g. JSON fields are matched in order as provided
   optional bytes request_body = 3;
 
+  // status_code is HTTP response status code that will be sent for matched request
   int32 status_code = 4;
+
+  // response_body is HTTP response body that will be sent for matched request
   optional bytes response_body = 5;
+
+  // response_headers is HTTP response headers that will be sent for matched request
   map<string, HeaderValues> response_headers = 6;
 }
 
+// HeaderValues encapsulates a list of strings to support multi-value
+// HTTP headers (e.g., Set-Cookie).
 message HeaderValues {
   repeated string values = 1;
 }
@@ -30,6 +55,7 @@ message DumpDatabaseResponse {
   repeated ConfigEntry config = 1;
 }
 
+// ConfigEntry pairs a specific request template with its intended response
 message ConfigEntry {
   RequestSpec req = 1;
   ResponseSpec res = 2;
@@ -38,16 +64,21 @@ message ConfigEntry {
 message RequestSpec {
   string path = 1;
   string method = 2;
+
+  // query stores normalized query parameters (key -> multiple values).
   map<string, QueryValues> query = 3;
+
   optional bytes body = 4;
 }
 
+// QueryValues encapsulates multiple values for a single query parameter key.
 message QueryValues {
   repeated string values = 1;
 }
 
 message ResponseSpec {
   int32 status_code = 1;
+  // headers uses the same HeaderValues wrapper to support multi-value headers.
   map<string, HeaderValues> headers = 2;
   optional bytes body = 3;
 }

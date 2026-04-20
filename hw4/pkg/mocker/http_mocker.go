@@ -15,23 +15,25 @@ var supportedMethods = map[string]bool{
 	"PATCH":  true,
 }
 
-// ErrNoConfigurationExists mocker was not yet configured or configuration is empty
-var ErrNoConfigurationExists = errors.New("mocker: no configuration exists")
+var (
+	// ErrNoConfigurationExists mocker was not yet configured or configuration is empty
+	ErrNoConfigurationExists = errors.New("mocker: no configuration exists")
 
-// ErrMethodNotSupported mocker does not support this kind of HTTP method.
-// See supportedMethods.
-// NOTE: not sure whether such "support" was meant by assignment or when HTTP route
-// does not handle such method.
-var ErrMethodNotSupported = errors.New("mocker: method not supported")
+	// ErrMethodNotSupported mocker does not support this kind of HTTP method.
+	// See supportedMethods.
+	// NOTE: not sure whether such "support" was meant by assignment or when HTTP route
+	// does not handle such method.
+	ErrMethodNotSupported = errors.New("mocker: method not supported")
 
-// ErrSpecificationDiffers occur when RequestSpec Equals return false
-var ErrSpecificationDiffers = errors.New("mocker: request specification differs")
+	// ErrSpecificationDiffers occur when RequestSpec Equals return false
+	ErrSpecificationDiffers = errors.New("mocker: request specification differs")
 
-// ErrPathNotRegistered occur when no configuration for given URL path
-var ErrPathNotRegistered = errors.New("mocker: path not registered")
+	// ErrPathNotRegistered occur when no configuration for given URL path
+	ErrPathNotRegistered = errors.New("mocker: path not registered")
 
-// ErrMethodNotRegistered occur when no method for existing URL path configuration
-var ErrMethodNotRegistered = errors.New("mocker: method not registered")
+	// ErrMethodNotRegistered occur when no method for existing URL path configuration
+	ErrMethodNotRegistered = errors.New("mocker: method not registered")
+)
 
 // HttpMocker handles logic of matching incoming requests to existing configuration.
 // Is safe to use given object (all methods) in multiple routines,
