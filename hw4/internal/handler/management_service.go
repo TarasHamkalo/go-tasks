@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	pb "http-mocker/generated"
-	"http-mocker/internal/mocker"
+	"http-mocker/pkg/mocker"
 )
 
 //go:generate protoc -I=../../protos --go_out=../../generated --go-grpc_out=../../generated ../../protos/management_service.proto

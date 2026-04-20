@@ -1,12 +1,13 @@
 package handler
 
 import (
-	"http-mocker/internal/middleware"
-	"http-mocker/internal/mocker"
 	"io"
 	"net/http"
 
 	"go.uber.org/zap"
+
+	"http-mocker/internal/middleware"
+	"http-mocker/pkg/mocker"
 )
 
 type MockHttpHandler struct {
