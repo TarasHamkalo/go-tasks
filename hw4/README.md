@@ -11,7 +11,7 @@ Vybrané balíčky projektu:
     * Obsahuje inicializaci logování (Zap), načítání certifikátů a spuštění HTTP/S a gRPC serverů.
 * **`pkg/mocker`**
     * Jádro mockeru.
-    * Obsahuje logiku pro vyhledávání shody (matching) a správu konfigurací.
+    * Obsahuje logiku pro vyhledávání (matching) a správu konfigurací.
     * Je nezávislý na transportní vrstvě.
 * **`internal/handler`**
     * Implementace HTTP a gRPC API.
@@ -27,7 +27,7 @@ Toto rozdělení umožňuje použít logiku mockeru nezávisle na transportní v
 
 * **`certs`**: Obsahuje serverové certifikáty pro demo účely (HTTPS).
 * **`protos`**: Zdrojové soubory definující gRPC rozhraní.
-* **`generated`**: Vygenerovaný kód (stubs) pro gRPC v jazyce Go.
+* **`generated`**: Vygenerovaný kód (stubs) pro gRPC.
 
 ---
 
@@ -43,7 +43,7 @@ func setTestRoutes(m *mocker.HttpMocker) {
         mocker.NewRequestSpec(
             "/users", 
             "GET", 
-            nil,   // no query parametry
+            nil,   // no query parameters
             false, // no body
             nil,
         ),
