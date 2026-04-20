@@ -3,10 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	pb "http-mocker/generated"
-	"http-mocker/internal"
-	"http-mocker/internal/handler"
-	"http-mocker/internal/middleware"
 	"log"
 	"os"
 	"os/signal"
@@ -17,24 +13,18 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 
-	"http-mocker/internal/mocker"
+	"http-mocker/internal"
+	"http-mocker/internal/handler"
+	"http-mocker/internal/middleware"
 	"http-mocker/internal/server"
+	"http-mocker/pkg/mocker"
+
+	pb "http-mocker/generated"
 )
 
 const AppLogFilePath = "logs/mocker.log"
 
 func main() {
-	if err := os.Mkdir("logs", 0755); err != nil && !os.IsExist(err) {
-		log.Fatalf("Failed to create log directory: %v", err)
-	}
-
-	appLogFile, err := os.OpenFile(AppLogFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		log.Fatalf("Failed to create app server log, file=%s, err=%v", AppLogFilePath, err)
-	}
-	defer appLogFile.Close()
-	appLogger := internal.LogInitWithConsole(appLogFile, true)
-
 	certPath, keyPath := "certs/server.crt", "certs/server.key"
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	tlsCfg := tls.Config{Certificates: []tls.Certificate{cert}}
@@ -43,36 +33,22 @@ func main() {
 		log.Fatalf("Failed to load server certificate and key: %v", err)
 	}
 
-	m := mocker.NewHttpMocker()
+	appLogFile := createLogFile()
+	defer appLogFile.Close()
 
-	httpServerLogger := appLogger.With(zap.String("module", "http-server"))
-	httpServer := server.NewHttpServer(
-		middleware.HttpTracing(
-			middleware.HttpLogging(httpServerLogger,
-				handler.NewMockHttpHandler(m, httpServerLogger))),
-		httpServerLogger,
-	)
+	appLogger := internal.LogInitWithConsole(appLogFile, true)
 
-	grpcServerLogger := appLogger.With(zap.String("module", "grpc-server"))
-	grpcServer := server.NewGrpcServer(
-		&tlsCfg,
-		grpcServerLogger,
-		middleware.GrpcTracing(),
-		middleware.GrpcLogging(grpcServerLogger),
-	)
-
-	grpcServer.WithServer(func(srv *grpc.Server) {
-		pb.RegisterManagementServiceServer(srv, handler.NewManagementService(m))
-	})
-
+	httpServer, grpcServer := setupServers(appLogger, &tlsCfg)
 	if err = grpcServer.Serve(8081); err != nil {
-		log.Fatalf("Failed to start grpc server: %v", err)
+		log.Fatalf("Failed to start GRPC server: %v", err)
 	}
 
 	httpServer.Run(":8080", ":8443", certPath, keyPath)
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
+
 	appLogger.Info("Received os signal, starting graceful shutdown...")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -85,37 +61,54 @@ func main() {
 	})()
 	go (func() {
 		defer wg.Done()
-		go grpcServer.Shutdown(ctx)
+		grpcServer.Shutdown(ctx)
 	})()
 
 	wg.Wait()
 }
 
-func setTestRoutes(m *mocker.HttpMocker) {
-	//m.SetReply(
-	//	mocker.NewRequestSpecBuilder("/users", "GET").Build(),
-	//	mocker.NewResponseSpec(
-	//		200,
-	//		[]byte(`["user-1","user-2"]`),
-	//	),
-	//)
-	//
-	//m.SetReply(
-	//	mocker.NewRequestSpecBuilder("/test", "POST").
-	//		WithBody([]byte("aaa")).
-	//		Build(),
-	//	mocker.NewResponseSpec(200, []byte("ok")),
-	//)
-	//
-	//m.SetReply(
-	//	mocker.NewRequestSpecBuilder("/test/empty", "POST").
-	//		WithBody([]byte("")).
-	//		Build(),
-	//	mocker.NewResponseSpec(200, []byte("ok")),
-	//)
-	//
-	//m.SetReply(
-	//	mocker.NewRequestSpecBuilder("/test/nil", "POST").Build(),
-	//	mocker.NewResponseSpec(200, []byte("ok")),
-	//)
+func createLogFile() *os.File {
+	if err := os.Mkdir("logs", 0755); err != nil && !os.IsExist(err) {
+		log.Fatalf("Failed to create log directory: %v", err)
+	}
+
+	appLogFile, err := os.OpenFile(
+		AppLogFilePath,
+		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
+		0644,
+	)
+
+	if err != nil {
+		log.Fatalf("Failed to create app server log, file=%s, err=%v", AppLogFilePath, err)
+	}
+
+	return appLogFile
+}
+
+func setupServers(
+	appLogger *zap.Logger,
+	tlsCfg *tls.Config,
+) (*server.HttpServer, *server.GrpcServer) {
+	m := mocker.NewHttpMocker()
+	httpServerLogger := appLogger.With(zap.String("module", "http-server"))
+	httpServer := server.NewHttpServer(
+		middleware.HttpTracing(
+			middleware.HttpLogging(httpServerLogger,
+				handler.NewMockHttpHandler(m, httpServerLogger))),
+		httpServerLogger,
+	)
+
+	grpcServerLogger := appLogger.With(zap.String("module", "grpc-server"))
+	grpcServer := server.NewGrpcServer(
+		tlsCfg,
+		grpcServerLogger,
+		middleware.GrpcTracing(),
+		middleware.GrpcLogging(grpcServerLogger),
+	)
+
+	grpcServer.WithServer(func(srv *grpc.Server) {
+		pb.RegisterManagementServiceServer(srv, handler.NewManagementService(m))
+	})
+
+	return httpServer, grpcServer
 }
