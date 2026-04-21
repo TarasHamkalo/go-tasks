@@ -93,7 +93,7 @@ func (h *HttpServer) ListenAndServeTLS(
 }
 
 // Shutdown handles graceful shutdown of both HTTP and HTTPS servers.
-// Starts two go routines waiting for servers to shut down under given ctx.
+// Starts two go routines waiting for servers to stop under given ctx.
 func (h *HttpServer) Shutdown(ctx context.Context) {
 	var wg sync.WaitGroup
 	wg.Add(2)

@@ -94,6 +94,8 @@ func (r *RequestSpec) Equals(other *RequestSpec) bool {
 		}
 	}
 
+	// for large bodies should probably store hash, but leaving as is for
+	// testing (smaller) bodies
 	if r.hasBody && !bytes.Equal(r.body, other.body) {
 		return false
 	}
