@@ -1,98 +1,117 @@
-2026-04-20T18:27:17.576+0200	INFO	server started	{"module": "grpc-server", "port": 8081}
-2026-04-20T18:27:17.576+0200	INFO	http server listening	{"module": "http-server", "addr": ":8080"}
-2026-04-20T18:27:17.577+0200	INFO	https server listening	{"module": "http-server", "addr": ":8443"}
-2026-04-20T18:27:24.230+0200	INFO	received request	{"module": "grpc-server", "trace": "e7830705", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.231+0200	INFO	request handled	{"module": "grpc-server", "trace": "e7830705"}
-2026-04-20T18:27:24.237+0200	INFO	received request	{"module": "http-server", "trace": "b90d8eb9", "addr": "[::1]:56290", "method": "GET", "url": "/users"}
-2026-04-20T18:27:24.237+0200	DEBUG	request body received	{"module": "http-server", "trace": "b90d8eb9"}
-2026-04-20T18:27:24.237+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "b90d8eb9", "statusCode": 501, "error": "mocker: no configuration exists"}
-2026-04-20T18:27:24.257+0200	INFO	received request	{"module": "grpc-server", "trace": "5f5496b6", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.257+0200	INFO	request handled	{"module": "grpc-server", "trace": "5f5496b6"}
-2026-04-20T18:27:24.278+0200	INFO	received request	{"module": "grpc-server", "trace": "8efe9625", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.278+0200	INFO	request handled	{"module": "grpc-server", "trace": "8efe9625"}
-2026-04-20T18:27:24.297+0200	INFO	received request	{"module": "grpc-server", "trace": "ab5c0793", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.297+0200	INFO	request handled	{"module": "grpc-server", "trace": "ab5c0793"}
-2026-04-20T18:27:24.304+0200	INFO	received request	{"module": "http-server", "trace": "62dce54f", "addr": "[::1]:56300", "method": "GET", "url": "/users"}
-2026-04-20T18:27:24.304+0200	DEBUG	request body received	{"module": "http-server", "trace": "62dce54f"}
-2026-04-20T18:27:24.304+0200	INFO	serve request	{"module": "http-server", "trace": "62dce54f", "statusCode": 200, "body": "[\"user-1\",\"user-2\"]"}
-2026-04-20T18:27:24.310+0200	INFO	received request	{"module": "http-server", "trace": "193d1ef7", "addr": "[::1]:56308", "method": "GET", "url": "/invalid"}
-2026-04-20T18:27:24.310+0200	DEBUG	request body received	{"module": "http-server", "trace": "193d1ef7"}
-2026-04-20T18:27:24.310+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "193d1ef7", "statusCode": 404, "error": "mocker: path not registered"}
-2026-04-20T18:27:24.327+0200	INFO	received request	{"module": "grpc-server", "trace": "d0985447", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.327+0200	INFO	request handled	{"module": "grpc-server", "trace": "d0985447"}
-2026-04-20T18:27:24.346+0200	INFO	received request	{"module": "grpc-server", "trace": "d8e5a246", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.346+0200	INFO	request handled	{"module": "grpc-server", "trace": "d8e5a246"}
-2026-04-20T18:27:24.366+0200	INFO	received request	{"module": "grpc-server", "trace": "04dcef6e", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.366+0200	INFO	request handled	{"module": "grpc-server", "trace": "04dcef6e"}
-2026-04-20T18:27:24.372+0200	INFO	received request	{"module": "http-server", "trace": "9214fca5", "addr": "[::1]:56322", "method": "POST", "url": "/users/user-1"}
-2026-04-20T18:27:24.372+0200	DEBUG	request body received	{"module": "http-server", "trace": "9214fca5"}
-2026-04-20T18:27:24.372+0200	INFO	serve request	{"module": "http-server", "trace": "9214fca5", "statusCode": 200, "body": ""}
-2026-04-20T18:27:24.378+0200	INFO	received request	{"module": "http-server", "trace": "0908ea4c", "addr": "[::1]:56332", "method": "POST", "url": "/users/user-1"}
-2026-04-20T18:27:24.378+0200	DEBUG	request body received	{"module": "http-server", "trace": "0908ea4c"}
-2026-04-20T18:27:24.378+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "0908ea4c", "statusCode": 404, "error": "mocker: request specification differs"}
-2026-04-20T18:27:24.397+0200	INFO	received request	{"module": "grpc-server", "trace": "7b2c86fb", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.397+0200	INFO	request handled	{"module": "grpc-server", "trace": "7b2c86fb"}
-2026-04-20T18:27:24.418+0200	INFO	received request	{"module": "grpc-server", "trace": "fce7cd14", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.418+0200	INFO	request handled	{"module": "grpc-server", "trace": "fce7cd14"}
-2026-04-20T18:27:24.438+0200	INFO	received request	{"module": "grpc-server", "trace": "24ec7a12", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.438+0200	INFO	request handled	{"module": "grpc-server", "trace": "24ec7a12"}
-2026-04-20T18:27:24.444+0200	INFO	received request	{"module": "http-server", "trace": "ad9cd943", "addr": "[::1]:56338", "method": "GET", "url": "/test?name=Surname&name=Nickname&name=Name"}
-2026-04-20T18:27:24.444+0200	DEBUG	request body received	{"module": "http-server", "trace": "ad9cd943"}
-2026-04-20T18:27:24.444+0200	INFO	serve request	{"module": "http-server", "trace": "ad9cd943", "statusCode": 200, "body": "{\"ok\": true}"}
-2026-04-20T18:27:24.461+0200	INFO	received request	{"module": "grpc-server", "trace": "461bf3bb", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.462+0200	INFO	request handled	{"module": "grpc-server", "trace": "461bf3bb"}
-2026-04-20T18:27:24.481+0200	INFO	received request	{"module": "grpc-server", "trace": "d3068ab1", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.481+0200	INFO	request handled	{"module": "grpc-server", "trace": "d3068ab1"}
-2026-04-20T18:27:24.499+0200	INFO	received request	{"module": "grpc-server", "trace": "c8bb0c43", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.499+0200	INFO	request handled	{"module": "grpc-server", "trace": "c8bb0c43"}
-2026-04-20T18:27:24.505+0200	INFO	received request	{"module": "http-server", "trace": "35b66996", "addr": "[::1]:56342", "method": "POST", "url": "/test"}
-2026-04-20T18:27:24.505+0200	DEBUG	request body received	{"module": "http-server", "trace": "35b66996"}
-2026-04-20T18:27:24.505+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "35b66996", "statusCode": 404, "error": "mocker: request specification differs"}
-2026-04-20T18:27:24.525+0200	INFO	received request	{"module": "grpc-server", "trace": "52e195da", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.525+0200	INFO	request handled	{"module": "grpc-server", "trace": "52e195da"}
-2026-04-20T18:27:24.542+0200	INFO	received request	{"module": "grpc-server", "trace": "b55e145d", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.542+0200	INFO	request handled	{"module": "grpc-server", "trace": "b55e145d"}
-2026-04-20T18:27:24.561+0200	INFO	received request	{"module": "grpc-server", "trace": "169daed5", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.561+0200	INFO	request handled	{"module": "grpc-server", "trace": "169daed5"}
-2026-04-20T18:27:24.567+0200	INFO	received request	{"module": "http-server", "trace": "e5681392", "addr": "[::1]:56354", "method": "GET", "url": "/test?name=A&name=A"}
-2026-04-20T18:27:24.567+0200	DEBUG	request body received	{"module": "http-server", "trace": "e5681392"}
-2026-04-20T18:27:24.567+0200	INFO	serve request	{"module": "http-server", "trace": "e5681392", "statusCode": 200, "body": "ok"}
-2026-04-20T18:27:24.572+0200	INFO	received request	{"module": "http-server", "trace": "61ff2fe6", "addr": "[::1]:56356", "method": "GET", "url": "/test?name=A"}
-2026-04-20T18:27:24.572+0200	DEBUG	request body received	{"module": "http-server", "trace": "61ff2fe6"}
-2026-04-20T18:27:24.572+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "61ff2fe6", "statusCode": 404, "error": "mocker: request specification differs"}
-2026-04-20T18:27:24.590+0200	INFO	received request	{"module": "grpc-server", "trace": "c5c2d0d1", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.590+0200	INFO	request handled	{"module": "grpc-server", "trace": "c5c2d0d1"}
-2026-04-20T18:27:24.610+0200	INFO	received request	{"module": "grpc-server", "trace": "0077c067", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.610+0200	INFO	request handled	{"module": "grpc-server", "trace": "0077c067"}
-2026-04-20T18:27:24.615+0200	INFO	received request	{"module": "http-server", "trace": "63a96053", "addr": "[::1]:56370", "method": "HEAD", "url": "/users"}
-2026-04-20T18:27:24.615+0200	DEBUG	request body received	{"module": "http-server", "trace": "63a96053"}
-2026-04-20T18:27:24.615+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "63a96053", "statusCode": 405, "error": "mocker: method not supported"}
-2026-04-20T18:27:24.635+0200	INFO	received request	{"module": "grpc-server", "trace": "dfb91fdc", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.635+0200	INFO	request handled	{"module": "grpc-server", "trace": "dfb91fdc", "error": "rpc error: code = InvalidArgument desc = could not set reply: mocker: method not supported"}
-2026-04-20T18:27:24.655+0200	INFO	received request	{"module": "grpc-server", "trace": "accd4c0c", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.655+0200	INFO	request handled	{"module": "grpc-server", "trace": "accd4c0c"}
-2026-04-20T18:27:24.677+0200	INFO	received request	{"module": "grpc-server", "trace": "d663c124", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.677+0200	INFO	request handled	{"module": "grpc-server", "trace": "d663c124"}
-2026-04-20T18:27:24.696+0200	INFO	received request	{"module": "grpc-server", "trace": "59613fe4", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.696+0200	INFO	request handled	{"module": "grpc-server", "trace": "59613fe4"}
-2026-04-20T18:27:24.702+0200	INFO	received request	{"module": "http-server", "trace": "ca568d80", "addr": "[::1]:56382", "method": "POST", "url": "/users/user-1"}
-2026-04-20T18:27:24.702+0200	DEBUG	request body received	{"module": "http-server", "trace": "ca568d80"}
-2026-04-20T18:27:24.702+0200	INFO	serve request	{"module": "http-server", "trace": "ca568d80", "statusCode": 200, "body": "{\"ok\": true}"}
-2026-04-20T18:27:24.721+0200	INFO	received request	{"module": "grpc-server", "trace": "6c28add0", "procedure": "/ManagementService/ClearDatabase"}
-2026-04-20T18:27:24.721+0200	INFO	request handled	{"module": "grpc-server", "trace": "6c28add0"}
-2026-04-20T18:27:24.742+0200	INFO	received request	{"module": "grpc-server", "trace": "99e60cf4", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.742+0200	INFO	request handled	{"module": "grpc-server", "trace": "99e60cf4"}
-2026-04-20T18:27:24.760+0200	INFO	received request	{"module": "grpc-server", "trace": "c1f8c029", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.760+0200	INFO	request handled	{"module": "grpc-server", "trace": "c1f8c029"}
-2026-04-20T18:27:24.781+0200	INFO	received request	{"module": "grpc-server", "trace": "878a530b", "procedure": "/ManagementService/SetReply"}
-2026-04-20T18:27:24.781+0200	INFO	request handled	{"module": "grpc-server", "trace": "878a530b"}
-2026-04-20T18:27:24.801+0200	INFO	received request	{"module": "grpc-server", "trace": "3efc03ab", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.801+0200	INFO	request handled	{"module": "grpc-server", "trace": "3efc03ab"}
-2026-04-20T18:27:24.820+0200	INFO	received request	{"module": "grpc-server", "trace": "861fceb8", "procedure": "/ManagementService/DumpDatabase"}
-2026-04-20T18:27:24.820+0200	INFO	request handled	{"module": "grpc-server", "trace": "861fceb8"}
-2026-04-20T18:27:24.839+0200	INFO	received request	{"module": "grpc-server", "trace": "e52e5707", "procedure": "/ManagementService/ListRequests"}
-2026-04-20T18:27:24.839+0200	INFO	request handled	{"module": "grpc-server", "trace": "e52e5707"}
-2026-04-20T18:28:25.616+0200	INFO	Received os signal, starting graceful shutdown...
-2026-04-20T18:28:25.617+0200	INFO	server shutdown success	{"module": "http-server", "tls": false}
-2026-04-20T18:28:25.617+0200	INFO	server shutdown success	{"module": "http-server", "tls": true}
-2026-04-20T18:28:25.617+0200	INFO	server stopped gracefully	{"module": "grpc-server"}
+2026-04-21T12:16:38.630+0200	INFO	server started	{"module": "grpc-server", "port": 8081}
+2026-04-21T12:16:38.630+0200	INFO	http server listening	{"module": "http-server", "addr": ":8080"}
+2026-04-21T12:16:38.631+0200	INFO	https server listening	{"module": "http-server", "addr": ":8443"}
+2026-04-21T12:16:45.582+0200	INFO	received request	{"module": "grpc-server", "trace": "51d3e40d", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.582+0200	INFO	request handled	{"module": "grpc-server", "trace": "51d3e40d"}
+2026-04-21T12:16:45.588+0200	INFO	received request	{"module": "http-server", "trace": "11bb606c", "addr": "[::1]:48606", "method": "GET", "url": "/users"}
+2026-04-21T12:16:45.588+0200	DEBUG	request body received	{"module": "http-server", "trace": "11bb606c"}
+2026-04-21T12:16:45.588+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "11bb606c", "statusCode": 501, "error": "mocker: no configuration exists"}
+2026-04-21T12:16:45.606+0200	INFO	received request	{"module": "grpc-server", "trace": "396b8af8", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.606+0200	INFO	request handled	{"module": "grpc-server", "trace": "396b8af8"}
+2026-04-21T12:16:45.626+0200	INFO	received request	{"module": "grpc-server", "trace": "d205a891", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:45.626+0200	INFO	request handled	{"module": "grpc-server", "trace": "d205a891"}
+2026-04-21T12:16:45.645+0200	INFO	received request	{"module": "grpc-server", "trace": "9d10e0e7", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:45.645+0200	INFO	request handled	{"module": "grpc-server", "trace": "9d10e0e7"}
+2026-04-21T12:16:45.650+0200	INFO	received request	{"module": "http-server", "trace": "75f7d2c0", "addr": "[::1]:48620", "method": "GET", "url": "/users"}
+2026-04-21T12:16:45.650+0200	DEBUG	request body received	{"module": "http-server", "trace": "75f7d2c0"}
+2026-04-21T12:16:45.650+0200	INFO	serve request	{"module": "http-server", "trace": "75f7d2c0", "statusCode": 200, "body": "[\"user-1\",\"user-2\"]"}
+2026-04-21T12:16:45.655+0200	INFO	received request	{"module": "http-server", "trace": "c1489557", "addr": "[::1]:48624", "method": "GET", "url": "/invalid"}
+2026-04-21T12:16:45.655+0200	DEBUG	request body received	{"module": "http-server", "trace": "c1489557"}
+2026-04-21T12:16:45.656+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "c1489557", "statusCode": 404, "error": "mocker: path not registered"}
+2026-04-21T12:16:45.674+0200	INFO	received request	{"module": "grpc-server", "trace": "a64e7608", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.674+0200	INFO	request handled	{"module": "grpc-server", "trace": "a64e7608"}
+2026-04-21T12:16:45.694+0200	INFO	received request	{"module": "grpc-server", "trace": "bc694fde", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:45.694+0200	INFO	request handled	{"module": "grpc-server", "trace": "bc694fde"}
+2026-04-21T12:16:45.711+0200	INFO	received request	{"module": "grpc-server", "trace": "dd69d652", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:45.711+0200	INFO	request handled	{"module": "grpc-server", "trace": "dd69d652"}
+2026-04-21T12:16:45.718+0200	INFO	received request	{"module": "http-server", "trace": "c09b87a7", "addr": "[::1]:48638", "method": "POST", "url": "/users/user-1"}
+2026-04-21T12:16:45.718+0200	DEBUG	request body received	{"module": "http-server", "trace": "c09b87a7"}
+2026-04-21T12:16:45.718+0200	INFO	serve request	{"module": "http-server", "trace": "c09b87a7", "statusCode": 200, "body": ""}
+2026-04-21T12:16:45.723+0200	INFO	received request	{"module": "http-server", "trace": "091b89c6", "addr": "[::1]:48644", "method": "POST", "url": "/users/user-1"}
+2026-04-21T12:16:45.723+0200	DEBUG	request body received	{"module": "http-server", "trace": "091b89c6"}
+2026-04-21T12:16:45.723+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "091b89c6", "statusCode": 404, "error": "mocker: request specification differs"}
+2026-04-21T12:16:45.740+0200	INFO	received request	{"module": "grpc-server", "trace": "b48ae4d1", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.740+0200	INFO	request handled	{"module": "grpc-server", "trace": "b48ae4d1"}
+2026-04-21T12:16:45.761+0200	INFO	received request	{"module": "grpc-server", "trace": "6006af2c", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:45.761+0200	INFO	request handled	{"module": "grpc-server", "trace": "6006af2c"}
+2026-04-21T12:16:45.781+0200	INFO	received request	{"module": "grpc-server", "trace": "b2912f7d", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:45.781+0200	INFO	request handled	{"module": "grpc-server", "trace": "b2912f7d"}
+2026-04-21T12:16:45.787+0200	INFO	received request	{"module": "http-server", "trace": "b4e83f19", "addr": "[::1]:48648", "method": "GET", "url": "/test?name=Surname&name=Nickname&name=Name"}
+2026-04-21T12:16:45.787+0200	DEBUG	request body received	{"module": "http-server", "trace": "b4e83f19"}
+2026-04-21T12:16:45.787+0200	INFO	serve request	{"module": "http-server", "trace": "b4e83f19", "statusCode": 200, "body": "{\"ok\": true}"}
+2026-04-21T12:16:45.805+0200	INFO	received request	{"module": "grpc-server", "trace": "c53dbe56", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.805+0200	INFO	request handled	{"module": "grpc-server", "trace": "c53dbe56"}
+2026-04-21T12:16:45.824+0200	INFO	received request	{"module": "grpc-server", "trace": "15b45fb5", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:45.824+0200	INFO	request handled	{"module": "grpc-server", "trace": "15b45fb5"}
+2026-04-21T12:16:45.841+0200	INFO	received request	{"module": "grpc-server", "trace": "bc4219fc", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:45.841+0200	INFO	request handled	{"module": "grpc-server", "trace": "bc4219fc"}
+2026-04-21T12:16:45.846+0200	INFO	received request	{"module": "http-server", "trace": "3597960b", "addr": "[::1]:48656", "method": "POST", "url": "/test"}
+2026-04-21T12:16:45.846+0200	DEBUG	request body received	{"module": "http-server", "trace": "3597960b"}
+2026-04-21T12:16:45.846+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "3597960b", "statusCode": 404, "error": "mocker: request specification differs"}
+2026-04-21T12:16:45.865+0200	INFO	received request	{"module": "grpc-server", "trace": "919759fa", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.865+0200	INFO	request handled	{"module": "grpc-server", "trace": "919759fa"}
+2026-04-21T12:16:45.885+0200	INFO	received request	{"module": "grpc-server", "trace": "f2b333e5", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:45.885+0200	INFO	request handled	{"module": "grpc-server", "trace": "f2b333e5"}
+2026-04-21T12:16:45.904+0200	INFO	received request	{"module": "grpc-server", "trace": "ab009a73", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:45.904+0200	INFO	request handled	{"module": "grpc-server", "trace": "ab009a73"}
+2026-04-21T12:16:45.909+0200	INFO	received request	{"module": "http-server", "trace": "697c1e98", "addr": "[::1]:48660", "method": "GET", "url": "/test?name=A&name=A"}
+2026-04-21T12:16:45.909+0200	DEBUG	request body received	{"module": "http-server", "trace": "697c1e98"}
+2026-04-21T12:16:45.909+0200	INFO	serve request	{"module": "http-server", "trace": "697c1e98", "statusCode": 200, "body": "ok"}
+2026-04-21T12:16:45.914+0200	INFO	received request	{"module": "http-server", "trace": "e15b2cf3", "addr": "[::1]:48674", "method": "GET", "url": "/test?name=A"}
+2026-04-21T12:16:45.914+0200	DEBUG	request body received	{"module": "http-server", "trace": "e15b2cf3"}
+2026-04-21T12:16:45.914+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "e15b2cf3", "statusCode": 404, "error": "mocker: request specification differs"}
+2026-04-21T12:16:45.933+0200	INFO	received request	{"module": "grpc-server", "trace": "96e0ed21", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.933+0200	INFO	request handled	{"module": "grpc-server", "trace": "96e0ed21"}
+2026-04-21T12:16:45.950+0200	INFO	received request	{"module": "grpc-server", "trace": "c0737c97", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:45.950+0200	INFO	request handled	{"module": "grpc-server", "trace": "c0737c97"}
+2026-04-21T12:16:45.955+0200	INFO	received request	{"module": "http-server", "trace": "569dd522", "addr": "[::1]:48686", "method": "HEAD", "url": "/users"}
+2026-04-21T12:16:45.955+0200	DEBUG	request body received	{"module": "http-server", "trace": "569dd522"}
+2026-04-21T12:16:45.955+0200	ERROR	failed to serve request	{"module": "http-server", "trace": "569dd522", "statusCode": 405, "error": "mocker: method not supported"}
+2026-04-21T12:16:45.975+0200	INFO	received request	{"module": "grpc-server", "trace": "d68ef82a", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:45.975+0200	INFO	request handled	{"module": "grpc-server", "trace": "d68ef82a", "error": "rpc error: code = InvalidArgument desc = could not set reply: mocker: method not supported"}
+2026-04-21T12:16:45.994+0200	INFO	received request	{"module": "grpc-server", "trace": "ac360dd3", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:45.994+0200	INFO	request handled	{"module": "grpc-server", "trace": "ac360dd3"}
+2026-04-21T12:16:46.016+0200	INFO	received request	{"module": "grpc-server", "trace": "d1a09441", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:46.016+0200	INFO	request handled	{"module": "grpc-server", "trace": "d1a09441"}
+2026-04-21T12:16:46.033+0200	INFO	received request	{"module": "grpc-server", "trace": "e5953741", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:46.033+0200	INFO	request handled	{"module": "grpc-server", "trace": "e5953741"}
+2026-04-21T12:16:46.039+0200	INFO	received request	{"module": "http-server", "trace": "46999e42", "addr": "[::1]:48698", "method": "POST", "url": "/users/user-1"}
+2026-04-21T12:16:46.039+0200	DEBUG	request body received	{"module": "http-server", "trace": "46999e42"}
+2026-04-21T12:16:46.039+0200	INFO	serve request	{"module": "http-server", "trace": "46999e42", "statusCode": 200, "body": "{\"ok\": true}"}
+2026-04-21T12:16:46.059+0200	INFO	received request	{"module": "grpc-server", "trace": "3605c9dd", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:46.060+0200	INFO	request handled	{"module": "grpc-server", "trace": "3605c9dd"}
+2026-04-21T12:16:46.080+0200	INFO	received request	{"module": "grpc-server", "trace": "b168be58", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:46.080+0200	INFO	request handled	{"module": "grpc-server", "trace": "b168be58"}
+2026-04-21T12:16:46.097+0200	INFO	received request	{"module": "grpc-server", "trace": "86f0a8e0", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:46.097+0200	INFO	request handled	{"module": "grpc-server", "trace": "86f0a8e0"}
+2026-04-21T12:16:46.117+0200	INFO	received request	{"module": "grpc-server", "trace": "28658c28", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:46.117+0200	INFO	request handled	{"module": "grpc-server", "trace": "28658c28"}
+2026-04-21T12:16:46.136+0200	INFO	received request	{"module": "grpc-server", "trace": "8732ef71", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:46.136+0200	INFO	request handled	{"module": "grpc-server", "trace": "8732ef71"}
+2026-04-21T12:16:46.154+0200	INFO	received request	{"module": "grpc-server", "trace": "fbfb74ce", "procedure": "/ManagementService/ClearDatabase"}
+2026-04-21T12:16:46.154+0200	INFO	request handled	{"module": "grpc-server", "trace": "fbfb74ce"}
+2026-04-21T12:16:46.174+0200	INFO	received request	{"module": "grpc-server", "trace": "5156d8e9", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:46.174+0200	INFO	request handled	{"module": "grpc-server", "trace": "5156d8e9"}
+2026-04-21T12:16:46.194+0200	INFO	received request	{"module": "grpc-server", "trace": "2429be5a", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:46.194+0200	INFO	request handled	{"module": "grpc-server", "trace": "2429be5a"}
+2026-04-21T12:16:46.212+0200	INFO	received request	{"module": "grpc-server", "trace": "e8af2099", "procedure": "/ManagementService/SetReply"}
+2026-04-21T12:16:46.212+0200	INFO	request handled	{"module": "grpc-server", "trace": "e8af2099"}
+2026-04-21T12:16:46.229+0200	INFO	received request	{"module": "grpc-server", "trace": "ffee4c44", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:46.230+0200	INFO	request handled	{"module": "grpc-server", "trace": "ffee4c44"}
+2026-04-21T12:16:46.234+0200	INFO	received request	{"module": "http-server", "trace": "a57d15b4", "addr": "[::1]:48714", "method": "PUT", "url": "/users/user-1"}
+2026-04-21T12:16:46.234+0200	DEBUG	request body received	{"module": "http-server", "trace": "a57d15b4"}
+2026-04-21T12:16:46.234+0200	INFO	serve request	{"module": "http-server", "trace": "a57d15b4", "statusCode": 204, "body": ""}
+2026-04-21T12:16:46.240+0200	INFO	received request	{"module": "http-server", "trace": "cb9c7b0c", "addr": "[::1]:48720", "method": "DELETE", "url": "/users/user-1"}
+2026-04-21T12:16:46.240+0200	DEBUG	request body received	{"module": "http-server", "trace": "cb9c7b0c"}
+2026-04-21T12:16:46.240+0200	INFO	serve request	{"module": "http-server", "trace": "cb9c7b0c", "statusCode": 200, "body": "{\"deleted\":true}"}
+2026-04-21T12:16:46.246+0200	INFO	received request	{"module": "http-server", "trace": "9ffd38d9", "addr": "[::1]:48728", "method": "PATCH", "url": "/users/user-1"}
+2026-04-21T12:16:46.246+0200	DEBUG	request body received	{"module": "http-server", "trace": "9ffd38d9"}
+2026-04-21T12:16:46.246+0200	INFO	serve request	{"module": "http-server", "trace": "9ffd38d9", "statusCode": 200, "body": ""}
+2026-04-21T12:16:46.264+0200	INFO	received request	{"module": "grpc-server", "trace": "7f8c8fde", "procedure": "/ManagementService/DumpDatabase"}
+2026-04-21T12:16:46.264+0200	INFO	request handled	{"module": "grpc-server", "trace": "7f8c8fde"}
+2026-04-21T12:16:46.285+0200	INFO	received request	{"module": "grpc-server", "trace": "04c2add6", "procedure": "/ManagementService/ListRequests"}
+2026-04-21T12:16:46.285+0200	INFO	request handled	{"module": "grpc-server", "trace": "04c2add6"}
+2026-04-21T12:17:18.619+0200	INFO	Received os signal, starting graceful shutdown...
+2026-04-21T12:17:18.619+0200	INFO	server shutdown success	{"module": "http-server", "tls": false}
+2026-04-21T12:17:18.619+0200	INFO	server shutdown success	{"module": "http-server", "tls": true}
+2026-04-21T12:17:18.619+0200	INFO	server stopped gracefully	{"module": "grpc-server"}

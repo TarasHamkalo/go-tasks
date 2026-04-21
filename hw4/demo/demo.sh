@@ -280,6 +280,53 @@ grpcurl -insecure -d "{
 dump_db
 
 ########################################
+# Example 10: Extended HTTP Methods (PUT, DELETE, PATCH)
+########################################
+echo "=== Example 10: Extended HTTP Methods (PUT, DELETE, PATCH) ==="
+
+clear_db
+
+# 1. Register PUT
+log_grpc "SetReply, method: PUT, path: /users/user-1"
+grpcurl -insecure -d "{
+  \"method\": \"PUT\",
+  \"path\": \"/users/user-1\",
+  \"request_body\": \"$(echo -n '{"status":"active"}' | base64)\",
+  \"status_code\": 204
+}" $GRPC_ADDR $SERVICE/SetReply
+
+# 2. Register DELETE
+log_grpc "SetReply, method: DELETE, path: /users/user-1"
+grpcurl -insecure -d "{
+  \"method\": \"DELETE\",
+  \"path\": \"/users/user-1\",
+  \"status_code\": 200,
+  \"response_body\": \"$(echo -n '{"deleted":true}' | base64)\"
+}" $GRPC_ADDR $SERVICE/SetReply
+
+# 3. Register PATCH
+log_grpc "SetReply, method: PATCH, path: /users/user-1"
+grpcurl -insecure -d "{
+  \"method\": \"PATCH\",
+  \"path\": \"/users/user-1\",
+  \"status_code\": 200
+}" $GRPC_ADDR $SERVICE/SetReply
+
+dump_db
+
+echo "Test: Expect 204 No Content for PUT"
+curl -i -X PUT $HTTP_ADDR/users/user-1 -d '{"status":"active"}'
+echo
+
+echo "Test: Expect 200 OK for DELETE"
+curl -i -X DELETE $HTTP_ADDR/users/user-1
+echo
+
+echo "Test: Expect 200 OK for PATCH"
+curl -i -X PATCH $HTTP_ADDR/users/user-1
+echo
+
+########################################
 # Final configuration and received requests
 ########################################
 echo "=== Final Database State ==="

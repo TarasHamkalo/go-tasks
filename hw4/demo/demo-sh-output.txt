@@ -1,5 +1,5 @@
-~/repositories/ni-gol/hw4 tasks/http-mocker* ⇡
-❯ ./requests/demo.sh
+~/repositories/ni-gol/hw4 tasks/http-mocker*
+❯ ./demo/demo.sh
 === Example 1: Empty state test ===
 gRPC Call: method: ClearDatabase
 {}
@@ -7,7 +7,7 @@ gRPC Call: method: ClearDatabase
 Test: Expect 501 when no configuration exists
 HTTP Request: method: GET, path: /users
 HTTP/1.1 501 Not Implemented
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 0
 
 
@@ -36,7 +36,7 @@ gRPC Call: method: DumpDatabase
 Test: Expect 200 on path match
 HTTP Request: method: GET, path: /users
 HTTP/1.1 200 OK
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 19
 Content-Type: text/plain; charset=utf-8
 
@@ -44,7 +44,7 @@ Content-Type: text/plain; charset=utf-8
 Test: Expect 404 on path mismatch
 HTTP Request: method: GET, path: /invalid
 HTTP/1.1 404 Not Found
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 0
 
 
@@ -73,14 +73,14 @@ gRPC Call: method: DumpDatabase
 Test: Expect 200 on matching body
 HTTP Request: method: POST, path: /users/user-1, body: {"name":"user-name"}
 HTTP/1.1 200 OK
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 0
 
 
 Test: Expect 404 on body content mismatch
 HTTP Request: method: POST, path: /users/user-1, body: {"name":"wrong"}
 HTTP/1.1 404 Not Found
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 0
 
 
@@ -118,7 +118,7 @@ gRPC Call: method: DumpDatabase
 Test: Expect 200 even if query order is different
 HTTP Request: method: GET, path: /test?name=Surname&name=Nickname&name=Name
 HTTP/1.1 200 OK
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 12
 Content-Type: text/plain; charset=utf-8
 
@@ -148,7 +148,7 @@ gRPC Call: method: DumpDatabase
 Test: Expect 404 for provided body 'bbb'
 HTTP Request: method: POST, path: /test, body: bbb
 HTTP/1.1 404 Not Found
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 0
 
 
@@ -184,14 +184,14 @@ gRPC Call: method: DumpDatabase
 
 Test: Expect 200 on exact count match
 HTTP/1.1 200 OK
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 2
 Content-Type: text/plain; charset=utf-8
 
 ok
 Test: Expect 404 when query parameter count differs
 HTTP/1.1 404 Not Found
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 Content-Length: 0
 
 
@@ -204,7 +204,7 @@ gRPC Call: method: SetReply, method: GET, path: /users
 Test: Expect 405, reason: HEAD is not supported by mocker
 HTTP Request: method: HEAD, path: /users
 HTTP/1.1 405 Method Not Allowed
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:45 GMT
 
 
 Test: Expect gRPC Error, reason: Cannot configure unsupported method
@@ -255,7 +255,7 @@ HTTP/1.1 200 OK
 Content-Type: application/json
 Cookie: a
 Cookie: b
-Date: Mon, 20 Apr 2026 16:27:24 GMT
+Date: Tue, 21 Apr 2026 10:16:46 GMT
 Content-Length: 12
 
 {"ok": true}
@@ -299,6 +299,69 @@ gRPC Call: method: DumpDatabase
   ]
 }
 
+=== Example 10: Extended HTTP Methods (PUT, DELETE, PATCH) ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, method: PUT, path: /users/user-1
+{}
+gRPC Call: method: SetReply, method: DELETE, path: /users/user-1
+{}
+gRPC Call: method: SetReply, method: PATCH, path: /users/user-1
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "PUT",
+        "body": "eyJzdGF0dXMiOiJhY3RpdmUifQ=="
+      },
+      "res": {
+        "statusCode": 204
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "DELETE"
+      },
+      "res": {
+        "statusCode": 200,
+        "body": "eyJkZWxldGVkIjp0cnVlfQ=="
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "PATCH"
+      },
+      "res": {
+        "statusCode": 200
+      }
+    }
+  ]
+}
+
+Test: Expect 204 No Content for PUT
+HTTP/1.1 204 No Content
+Date: Tue, 21 Apr 2026 10:16:46 GMT
+
+
+Test: Expect 200 OK for DELETE
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:46 GMT
+Content-Length: 16
+Content-Type: text/plain; charset=utf-8
+
+{"deleted":true}
+Test: Expect 200 OK for PATCH
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:46 GMT
+Content-Length: 0
+
+
 === Final Database State ===
 gRPC Call: method: DumpDatabase
 {
@@ -306,8 +369,27 @@ gRPC Call: method: DumpDatabase
     {
       "req": {
         "path": "/users/user-1",
-        "method": "POST",
-        "body": "eyJuYW1lIjoibmV3LW5hbWUifQ=="
+        "method": "PUT",
+        "body": "eyJzdGF0dXMiOiJhY3RpdmUifQ=="
+      },
+      "res": {
+        "statusCode": 204
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "DELETE"
+      },
+      "res": {
+        "statusCode": 200,
+        "body": "eyJkZWxldGVkIjp0cnVlfQ=="
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "PATCH"
       },
       "res": {
         "statusCode": 200
@@ -347,9 +429,9 @@ gRPC Call: method: ListRequests
       "query": {
         "name": {
           "values": [
-            "Name",
             "Surname",
-            "Nickname"
+            "Nickname",
+            "Name"
           ]
         }
       }
@@ -390,8 +472,21 @@ gRPC Call: method: ListRequests
       "path": "/users/user-1",
       "method": "POST",
       "body": "eyJuYW1lIjoidXNlci1uYW1lIn0="
+    },
+    {
+      "path": "/users/user-1",
+      "method": "PUT",
+      "body": "eyJzdGF0dXMiOiJhY3RpdmUifQ=="
+    },
+    {
+      "path": "/users/user-1",
+      "method": "DELETE"
+    },
+    {
+      "path": "/users/user-1",
+      "method": "PATCH"
     }
   ]
 }
-~/repositories/ni-gol/hw4 tasks/http-mocker* ⇡
+~/repositories/ni-gol/hw4 tasks/http-mocker*
 ❯
