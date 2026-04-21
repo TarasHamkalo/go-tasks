@@ -43,6 +43,8 @@ func main() {
 		log.Fatalf("Failed to start GRPC server: %v", err)
 	}
 
+	// problem of design, application don't detect whether http server
+	// started successfully, will make it better next time
 	httpServer.Run(":8080", ":8443", certPath, keyPath)
 
 	stop := make(chan os.Signal, 1)
@@ -65,6 +67,8 @@ func main() {
 	})()
 
 	wg.Wait()
+
+	appLogger.Info("Main routine exits")
 }
 
 func createLogFile() *os.File {
