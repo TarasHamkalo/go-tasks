@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+option go_package = "./generated;pb";
+
+package profile;
+
+// protoc \
+//   --go_out=. \
+//   --go-grpc_out=. \
+//   protos/profile_service.proto
+service ProfileService {
+
+  rpc RegisterProfile(RegisterProfileRequest) returns (RegisterProfileResponse);
+
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+
+}
+
+message RegisterProfileRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message RegisterProfileResponse {
+  string user_id = 1;
+  Tokens tokens = 2;
+}
+
+message Tokens {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message LoginRequest {
+  string user_id = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  Tokens tokens = 1;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  Tokens tokens = 1;
+}
+
+// GetUserProfileRequest request has to be authenticated by bearer token 
+message GetUserProfileRequest {
+  string user_id = 1; 
+}
+
+message GetUserProfileResponse {
+  string user_id = 1;
+  string username = 2;
+}
