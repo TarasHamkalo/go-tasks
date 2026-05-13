@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
+	"google.golang.org/grpc/peer"
 	"go.uber.org/zap"
 
 	pb "gomessenger/generated"
@@ -45,19 +45,26 @@ func (s *ProfileService) RegisterProfile(
 ) (*pb.RegisterProfileResponse, error) {
 	hash, err := bcrypt.GenerateFromPassword(req.Password, bcrypt.DefaultCost)
 	if err != nil {
-		return nil, status.Error(
-			codes.Internal,
+		s.logger.Error(
 			"could not create password hash",
+			zap.Error(err),
+			zap.String("addr", peerAddress(ctx)),
 		)
+
+		return nil, status.Error(codes.Internal, "could not create password hash")
 	}
 
+	// a few attempts generating unique random number
 	for range 10 {
 		userId, err := generateUserID()
 		if err != nil {
-			return nil, status.Error(
-				codes.Internal,
+			s.logger.Error(
 				"could not generate user ID",
+				zap.Error(err),
+				zap.String("addr", peerAddress(ctx)),
 			)
+
+			return nil, status.Error(codes.Internal, "could not generate user ID")
 		}
 
 		profile := Profile{
@@ -68,6 +75,13 @@ func (s *ProfileService) RegisterProfile(
 
 		err = s.repo.InsertProfile(ctx, profile)
 		if err == nil {
+			s.logger.Info(
+				"profile registered",
+				zap.String("userId", userId),
+				zap.String("username", req.Username),
+				zap.String("addr", peerAddress(ctx)),
+			)
+
 			return &pb.RegisterProfileResponse{
 				UserId: userId,
 			}, nil
@@ -77,8 +91,22 @@ func (s *ProfileService) RegisterProfile(
 			continue
 		}
 
+		s.logger.Error(
+			"could not store profile",
+			zap.Error(err),
+			zap.String("userId", userId),
+			zap.String("username", req.Username),
+			zap.String("addr", peerAddress(ctx)),
+		)
+
 		return nil, status.Error(codes.Internal, "could not store profile")
 	}
+
+	s.logger.Error(
+		"could not generate unique user ID",
+		zap.String("username", req.Username),
+		zap.String("addr", peerAddress(ctx)),
+	)
 
 	return nil, status.Error(codes.Internal, "could not generate unique user ID")
 }
@@ -90,4 +118,13 @@ func generateUserID() (string, error) {
 	}
 
 	return strconv.FormatInt(n.Int64()+100000000, 10), nil
+}
+
+func peerAddress(ctx context.Context) string {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return "unknown"
+	}
+
+	return p.Addr.String()
 }
