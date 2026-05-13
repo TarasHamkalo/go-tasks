@@ -10,7 +10,6 @@ var ErrorUniqueConstraintViolated = errors.New(
 )
 
 type Repository interface {
-
 	InitializeSchema(ctx context.Context) error
 
 	InsertProfile(ctx context.Context, p Profile) error

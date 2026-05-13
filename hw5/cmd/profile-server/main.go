@@ -9,9 +9,7 @@ import (
 	"os"
 
 	"go.uber.org/zap"
-	sqlite "modernc.org/sqlite"
 )
-
 
 const AppLogFilePath = "logs/profile-server.log"
 const ProfilesDbPath = "data/profiles.db"
@@ -28,7 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	defer repo.Close()	
+	defer repo.Close()
 
 	err = repo.InitializeSchema(context.TODO())
 	if err != nil {
@@ -36,25 +34,23 @@ func main() {
 		os.Exit(1)
 	}
 
-
 	appLogger.Info(
 		"database and schema initialized", zap.String("path", ProfilesDbPath),
 	)
 
 	p := profiles.Profile{
-		UserId: "1234",
+		UserId:   "1234",
 		Username: "Taras",
 		Password: "Taras",
 	}
 
 	err = repo.InsertProfile(context.TODO(), p)
-
-	if err != nil {
+	if err == profiles.ErrorUniqueConstraintViolated {
 		appLogger.Error(
-			"could not insert user", zap.Error(err), zap.String("error", sqlite.ErrorCodeString[err.]
+			"could not insert user because user id not unique", zap.Error(err),
 		)
 	}
-	
+
 	userP, err := repo.GetProfileByUserId(context.TODO(), p.UserId)
 
 	if err != nil {
@@ -62,19 +58,19 @@ func main() {
 			"could not get user", zap.Error(err),
 		)
 	}
-	
+
 	fmt.Println(userP)
 }
 
 func createLogFile() *os.File {
-	if err := os.Mkdir("logs", 0755); err != nil && !os.IsExist(err) {
+	if err := os.Mkdir("logs", 0750); err != nil && !os.IsExist(err) {
 		log.Fatalf("Failed to create log directory: %v", err)
 	}
 
 	appLogFile, err := os.OpenFile(
 		AppLogFilePath,
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
-		0644,
+		0600,
 	)
 
 	if err != nil {

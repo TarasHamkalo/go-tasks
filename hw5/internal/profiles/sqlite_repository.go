@@ -60,7 +60,7 @@ func (r SqliteRepository) InsertProfile(ctx context.Context, p Profile) error {
 	defer cancel()
 	_, err := r.Db.NamedExecContext(queryCtx, INSERT_QUERY, p)
 	if err != nil && isUniqueConstraint(err) {
-		return ErrorUniqueConstraintViolated;
+		return ErrorUniqueConstraintViolated
 	}
 
 	return err
@@ -82,7 +82,9 @@ func (r SqliteRepository) Close() error {
 	return r.Db.Close()
 }
 
+// isUniqueConstraint verifies whether given SQL error is unique constraint 
+// violation. Pretty hard to check with given API of modernc.org/sqlite
 func isUniqueConstraint(err error) bool {
-    return err != nil &&
-        strings.Contains(err.Error(), "UNIQUE constraint failed")
+	return err != nil &&
+		strings.Contains(err.Error(), "UNIQUE constraint failed")
 }
