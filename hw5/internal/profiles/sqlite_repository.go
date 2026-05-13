@@ -15,7 +15,7 @@ const (
 			profiles(
 					user_id TEXT PRIMARY KEY,
 					username TEXT NOT NULL,
-					password TEXT NOT NULL
+					password BLOB NOT NULL
 			)
 	`
 

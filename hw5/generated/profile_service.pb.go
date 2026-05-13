@@ -24,7 +24,7 @@ const (
 type RegisterProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	Password      []byte                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -66,11 +66,11 @@ func (x *RegisterProfileRequest) GetUsername() string {
 	return ""
 }
 
-func (x *RegisterProfileRequest) GetPassword() string {
+func (x *RegisterProfileRequest) GetPassword() []byte {
 	if x != nil {
 		return x.Password
 	}
-	return ""
+	return nil
 }
 
 type RegisterProfileResponse struct {
@@ -180,7 +180,7 @@ func (x *Tokens) GetRefreshToken() string {
 type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	Password      []byte                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -222,11 +222,11 @@ func (x *LoginRequest) GetUserId() string {
 	return ""
 }
 
-func (x *LoginRequest) GetPassword() string {
+func (x *LoginRequest) GetPassword() []byte {
 	if x != nil {
 		return x.Password
 	}
-	return ""
+	return nil
 }
 
 type LoginResponse struct {
@@ -465,7 +465,7 @@ const file_protos_profile_service_proto_rawDesc = "" +
 	"\x1cprotos/profile_service.proto\x12\aprofile\"P\n" +
 	"\x16RegisterProfileRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"[\n" +
+	"\bpassword\x18\x02 \x01(\fR\bpassword\"[\n" +
 	"\x17RegisterProfileResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
 	"\x06tokens\x18\x02 \x01(\v2\x0f.profile.TokensR\x06tokens\"P\n" +
@@ -474,7 +474,7 @@ const file_protos_profile_service_proto_rawDesc = "" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"C\n" +
 	"\fLoginRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"8\n" +
+	"\bpassword\x18\x02 \x01(\fR\bpassword\"8\n" +
 	"\rLoginResponse\x12'\n" +
 	"\x06tokens\x18\x01 \x01(\v2\x0f.profile.TokensR\x06tokens\"5\n" +
 	"\x0eRefreshRequest\x12#\n" +
