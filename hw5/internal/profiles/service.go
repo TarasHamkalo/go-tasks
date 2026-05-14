@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"strconv"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -16,16 +15,9 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
-
 	pb "gomessenger/generated"
+	"gomessenger/internal/auth"
 )
-
-type MessengerClaims struct {
-	TokenType string `json:"tokenType"`
-	jwt.RegisteredClaims
-}
 
 type ProfileService struct {
 	repo Repository
@@ -191,30 +183,13 @@ func (s *ProfileService) Refresh(
 	ctx context.Context, req *pb.RefreshRequest,
 ) (*pb.RefreshResponse, error) {
 
-	token, err := jwt.ParseWithClaims(
-		req.RefreshToken,
-		&MessengerClaims{},
-		func(token *jwt.Token) (any, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-				return nil, errors.New("unexpected signing method")
-			}
-			return s.verificationKey, nil
-		},
+	claims, err := auth.ValidateToken(
+		req.RefreshToken, s.issuer, s.verificationKey, auth.RefreshTokenType,
 	)
-
-	if err != nil || !token.Valid {
+	if err != nil {
 		s.logger.Debug(
-			"invalid refresh token signature or expired",
+			"invalid refresh token",
 			zap.Error(err),
-			zap.String("addr", peerAddress(ctx)),
-		)
-		return nil, status.Error(codes.Unauthenticated, "invalid refresh token")
-	}
-
-	claims, ok := token.Claims.(*MessengerClaims)
-	if !ok || claims.TokenType != "refresh" || claims.Issuer != s.issuer {
-		s.logger.Debug(
-			"invalid refresh token claims",
 			zap.String("addr", peerAddress(ctx)),
 		)
 		return nil, status.Error(codes.Unauthenticated, "invalid refresh token")
@@ -241,7 +216,6 @@ func (s *ProfileService) Refresh(
 		return nil, status.Error(codes.Unauthenticated, "token has been revoked")
 	}
 
-	// fetch user profile 
 	p, err := s.repo.GetProfileByUserId(ctx, userId)
 	if err != nil {
 		s.logger.Error(
@@ -296,43 +270,9 @@ func (s *ProfileService) GetUserProfile(
 }
 
 func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
-	now := time.Now()
-
-	accessClaims := MessengerClaims{
-		TokenType: "access",
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   p.UserId,
-			Issuer:    s.issuer,
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(1 * time.Hour)),
-		},
-	}
-
-	accessToken, err := jwt.NewWithClaims(
-		jwt.SigningMethodRS256, accessClaims,
-	).SignedString(s.signingKey)
-
-	if err != nil {
-		return "", "", err
-	}
-
-	jti := uuid.New().String()
-
-	refreshClaims := MessengerClaims{
-		TokenType: "refresh",
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   p.UserId,
-			Issuer:    s.issuer,
-			ID:        jti,
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(24 * 7 * time.Hour)), // 7 days
-		},
-	}
-
-	refreshToken, err := jwt.NewWithClaims(
-		jwt.SigningMethodRS256, refreshClaims,
-	).SignedString(s.signingKey)
-	
+	access, refresh, jti, err := auth.BuildTokens(
+		p.UserId, s.issuer, s.signingKey,
+	)
 	if err != nil {
 		return "", "", err
 	}
@@ -342,7 +282,7 @@ func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
 	s.activeRefreshTokens[jti] = p.UserId
 	s.mu.Unlock()
 
-	return accessToken, refreshToken, nil
+	return access, refresh, nil
 }
 
 func generateUserID() (string, error) {
