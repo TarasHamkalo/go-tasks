@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math/big"
 	"strconv"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -32,10 +33,12 @@ type ProfileService struct {
 	issuer string
 
 	verificationKey *rsa.PublicKey
-
-	signingKey *rsa.PrivateKey
+	signingKey      *rsa.PrivateKey
 
 	logger *zap.Logger
+
+	activeRefreshTokens map[string]string
+	mu                  sync.RWMutex
 
 	pb.UnimplementedProfileServiceServer
 }
@@ -55,16 +58,10 @@ func NewProfileService(
 		signingKey:      signingKey,
 
 		logger: logger,
+
+		activeRefreshTokens: make(map[string]string, 10),
 	}
 }
-
-// type ProfileServiceServer interface {
-// 	RegisterProfile(context.Context, *RegisterProfileRequest) (*RegisterProfileResponse, error)
-// 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
-// 	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
-// 	GetUserProfile(context.Context, *GetUserProfileRequest) (*GetUserProfileResponse, error)
-// 	mustEmbedUnimplementedProfileServiceServer()
-// }
 
 // TODO: move errors to interceptor
 func (s *ProfileService) RegisterProfile(
@@ -111,6 +108,8 @@ func (s *ProfileService) RegisterProfile(
 				zap.String("addr", peerAddress(ctx)),
 			)
 
+			// TODO: Automatically log the user in and return tokens on registration if desired,
+			// or just return the UserID as per the current proto structure.
 			return &pb.RegisterProfileResponse{
 				UserId: userId,
 			}, nil
@@ -155,7 +154,7 @@ func (s *ProfileService) Login(
 		return nil, status.Error(codes.NotFound, "could not retrieve user profile")
 	}
 
-	err = bcrypt.CompareHashAndPassword(p.Password, req.Password);
+	err = bcrypt.CompareHashAndPassword(p.Password, req.Password)
 	if err == nil {
 		s.logger.Info(
 			"user matched, generating tokens",
@@ -188,9 +187,117 @@ func (s *ProfileService) Login(
 	)
 }
 
-// TODO: store active list of jti
+func (s *ProfileService) Refresh(
+	ctx context.Context, req *pb.RefreshRequest,
+) (*pb.RefreshResponse, error) {
+
+	token, err := jwt.ParseWithClaims(
+		req.RefreshToken,
+		&MessengerClaims{},
+		func(token *jwt.Token) (any, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+				return nil, errors.New("unexpected signing method")
+			}
+			return s.verificationKey, nil
+		},
+	)
+
+	if err != nil || !token.Valid {
+		s.logger.Debug(
+			"invalid refresh token signature or expired",
+			zap.Error(err),
+			zap.String("addr", peerAddress(ctx)),
+		)
+		return nil, status.Error(codes.Unauthenticated, "invalid refresh token")
+	}
+
+	claims, ok := token.Claims.(*MessengerClaims)
+	if !ok || claims.TokenType != "refresh" || claims.Issuer != s.issuer {
+		s.logger.Debug(
+			"invalid refresh token claims",
+			zap.String("addr", peerAddress(ctx)),
+		)
+		return nil, status.Error(codes.Unauthenticated, "invalid refresh token")
+	}
+
+	jti := claims.ID
+	userId := claims.Subject
+
+	// check JTI against active list and remove it (one-time use)
+	s.mu.Lock()
+	expectedUserId, exists := s.activeRefreshTokens[jti]
+	if exists && expectedUserId == userId {
+		delete(s.activeRefreshTokens, jti)
+	}
+	s.mu.Unlock()
+
+	if !exists || expectedUserId != userId {
+		s.logger.Warn(
+			"attempted to use revoked or unknown refresh token",
+			zap.String("jti", jti),
+			zap.String("userId", userId),
+			zap.String("addr", peerAddress(ctx)),
+		)
+		return nil, status.Error(codes.Unauthenticated, "token has been revoked")
+	}
+
+	// fetch user profile 
+	p, err := s.repo.GetProfileByUserId(ctx, userId)
+	if err != nil {
+		s.logger.Error(
+			"could not retrieve user profile during refresh",
+			zap.String("userId", userId),
+			zap.String("addr", peerAddress(ctx)),
+		)
+		return nil, status.Error(codes.Internal, "could not retrieve user profile")
+	}
+
+	access, refresh, err := s.buildTokens(p)
+	if err != nil {
+		s.logger.Error(
+			"could not generate new tokens during refresh",
+			zap.String("userId", userId),
+			zap.String("addr", peerAddress(ctx)),
+		)
+		return nil, status.Error(codes.Internal, "could not generate tokens")
+	}
+
+	s.logger.Info(
+		"tokens refreshed successfully",
+		zap.String("userId", userId),
+		zap.String("addr", peerAddress(ctx)),
+	)
+
+	return &pb.RefreshResponse{
+		Tokens: &pb.Tokens{AccessToken: access, RefreshToken: refresh},
+	}, nil
+}
+
+func (s *ProfileService) GetUserProfile(
+	ctx context.Context, req *pb.GetUserProfileRequest,
+) (*pb.GetUserProfileResponse, error) {
+
+	// TODO: request has to be authenticated
+	p, err := s.repo.GetProfileByUserId(ctx, req.UserId)
+	if err != nil {
+		s.logger.Debug(
+			"could not retrieve user profile",
+			zap.Error(err),
+			zap.String("userId", req.UserId),
+			zap.String("addr", peerAddress(ctx)),
+		)
+		return nil, status.Error(codes.NotFound, "user profile not found")
+	}
+
+	return &pb.GetUserProfileResponse{
+		UserId:   p.UserId,
+		Username: p.Username,
+	}, nil
+}
+
 func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
 	now := time.Now()
+
 	accessClaims := MessengerClaims{
 		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -225,9 +332,15 @@ func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
 	refreshToken, err := jwt.NewWithClaims(
 		jwt.SigningMethodRS256, refreshClaims,
 	).SignedString(s.signingKey)
+	
 	if err != nil {
 		return "", "", err
 	}
+
+	// register the new refresh token in the active list
+	s.mu.Lock()
+	s.activeRefreshTokens[jti] = p.UserId
+	s.mu.Unlock()
 
 	return accessToken, refreshToken, nil
 }
