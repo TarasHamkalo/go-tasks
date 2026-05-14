@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+option go_package = "./generated;pb";
+
+import "google/protobuf/timestamp.proto";
+
+package messaging;
+
+service MessagingService {
+  rpc Subscribe(SubscribeRequest) returns (stream SubscriptionMessageStream);
+
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+
+  rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
+
+  rpc SetMessageRead(SetMessageReadRequest) returns (SetMessageReadResponse);
+}
+
+// SubscribeRequest has to be authenticated with bearer token
+message SubscribeRequest {}
+
+message SubscriptionMessageStream {
+  string id = 1;
+  string sender_id = 2; 
+  string chat_id = 3;
+  bytes content = 4;
+  google.protobuf.Timestamp sent_at = 5;
+}
+
+message SendMessageRequest {
+  string chat_id = 1;
+  bytes content = 2;
+}
+
+message SendMessageResponse {
+  string msg_id = 1;
+}
+
+message AckMessageRequest {
+  string msg_id = 1;
+  google.protobuf.Timestamp delivered_at = 2;
+}
+
+message AckMessageResponse {}
+
+message SetMessageReadRequest {
+  string msg_id = 1;
+  google.protobuf.Timestamp read_at = 2;
+}
+
+message SetMessageReadResponse {}
+
