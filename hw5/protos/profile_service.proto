@@ -27,7 +27,6 @@ message RegisterProfileRequest {
 
 message RegisterProfileResponse {
   string user_id = 1;
-  Tokens tokens = 2;
 }
 
 message Tokens {

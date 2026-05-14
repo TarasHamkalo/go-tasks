@@ -76,7 +76,6 @@ func (x *RegisterProfileRequest) GetPassword() []byte {
 type RegisterProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Tokens        *Tokens                `protobuf:"bytes,2,opt,name=tokens,proto3" json:"tokens,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -116,13 +115,6 @@ func (x *RegisterProfileResponse) GetUserId() string {
 		return x.UserId
 	}
 	return ""
-}
-
-func (x *RegisterProfileResponse) GetTokens() *Tokens {
-	if x != nil {
-		return x.Tokens
-	}
-	return nil
 }
 
 type Tokens struct {
@@ -465,10 +457,9 @@ const file_protos_profile_service_proto_rawDesc = "" +
 	"\x1cprotos/profile_service.proto\x12\aprofile\"P\n" +
 	"\x16RegisterProfileRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\fR\bpassword\"[\n" +
+	"\bpassword\x18\x02 \x01(\fR\bpassword\"2\n" +
 	"\x17RegisterProfileResponse\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
-	"\x06tokens\x18\x02 \x01(\v2\x0f.profile.TokensR\x06tokens\"P\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"P\n" +
 	"\x06Tokens\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\"C\n" +
@@ -517,22 +508,21 @@ var file_protos_profile_service_proto_goTypes = []any{
 	(*GetUserProfileResponse)(nil),  // 8: profile.GetUserProfileResponse
 }
 var file_protos_profile_service_proto_depIdxs = []int32{
-	2, // 0: profile.RegisterProfileResponse.tokens:type_name -> profile.Tokens
-	2, // 1: profile.LoginResponse.tokens:type_name -> profile.Tokens
-	2, // 2: profile.RefreshResponse.tokens:type_name -> profile.Tokens
-	0, // 3: profile.ProfileService.RegisterProfile:input_type -> profile.RegisterProfileRequest
-	3, // 4: profile.ProfileService.Login:input_type -> profile.LoginRequest
-	5, // 5: profile.ProfileService.Refresh:input_type -> profile.RefreshRequest
-	7, // 6: profile.ProfileService.GetUserProfile:input_type -> profile.GetUserProfileRequest
-	1, // 7: profile.ProfileService.RegisterProfile:output_type -> profile.RegisterProfileResponse
-	4, // 8: profile.ProfileService.Login:output_type -> profile.LoginResponse
-	6, // 9: profile.ProfileService.Refresh:output_type -> profile.RefreshResponse
-	8, // 10: profile.ProfileService.GetUserProfile:output_type -> profile.GetUserProfileResponse
-	7, // [7:11] is the sub-list for method output_type
-	3, // [3:7] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: profile.LoginResponse.tokens:type_name -> profile.Tokens
+	2, // 1: profile.RefreshResponse.tokens:type_name -> profile.Tokens
+	0, // 2: profile.ProfileService.RegisterProfile:input_type -> profile.RegisterProfileRequest
+	3, // 3: profile.ProfileService.Login:input_type -> profile.LoginRequest
+	5, // 4: profile.ProfileService.Refresh:input_type -> profile.RefreshRequest
+	7, // 5: profile.ProfileService.GetUserProfile:input_type -> profile.GetUserProfileRequest
+	1, // 6: profile.ProfileService.RegisterProfile:output_type -> profile.RegisterProfileResponse
+	4, // 7: profile.ProfileService.Login:output_type -> profile.LoginResponse
+	6, // 8: profile.ProfileService.Refresh:output_type -> profile.RefreshResponse
+	8, // 9: profile.ProfileService.GetUserProfile:output_type -> profile.GetUserProfileResponse
+	6, // [6:10] is the sub-list for method output_type
+	2, // [2:6] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_protos_profile_service_proto_init() }
