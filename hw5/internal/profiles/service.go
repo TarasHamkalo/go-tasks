@@ -101,8 +101,7 @@ func (s *ProfileService) RegisterProfile(
 				zap.String("addr", peerAddress(ctx)),
 			)
 
-			// TODO: Automatically log the user in and return tokens on registration if desired,
-			// or just return the UserID as per the current proto structure.
+			// TODO: automatically log the user in and return tokens on registration
 			return &pb.RegisterProfileResponse{
 				UserId: userId,
 			}, nil
