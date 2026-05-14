@@ -37,6 +37,7 @@ type ProfileService struct {
 
 func NewProfileService(
 	repo Repository,
+	issuer string,
 	verificationKey *rsa.PublicKey,
 	signingKey *rsa.PrivateKey,
 	logger *zap.Logger,
@@ -44,7 +45,7 @@ func NewProfileService(
 	return &ProfileService{
 		repo: repo,
 
-		issuer: "hamkatar-gommessenger",
+		issuer: issuer,
 
 		verificationKey: verificationKey,
 		signingKey:      signingKey,
@@ -250,8 +251,15 @@ func (s *ProfileService) Refresh(
 func (s *ProfileService) GetUserProfile(
 	ctx context.Context, req *pb.GetUserProfileRequest,
 ) (*pb.GetUserProfileResponse, error) {
+	// we are not interested in which user requesting this information
+	_, ok := auth.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, status.Error(
+			codes.Internal,
+			"missing authentication claims",
+		)
+	}
 
-	// TODO: request has to be authenticated
 	p, err := s.repo.GetProfileByUserId(ctx, req.UserId)
 	if err != nil {
 		s.logger.Debug(

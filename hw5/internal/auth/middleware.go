@@ -34,15 +34,15 @@ func AuthorizationInterceptor(
 
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
-			return "", status.Error(codes.Unauthenticated, "metadata missing")
+			return "", status.Error(codes.Unauthenticated, "access token missing")
 		}
 
 		values := md.Get("authorization")
 		if len(values) == 0 {
-			return "", status.Error(codes.Unauthenticated, "token missing")
+			return "", status.Error(codes.Unauthenticated, "access token missing")
 		}
 
-		// Remove "Bearer " prefix
+		// remove "Bearer " prefix
 		token := strings.TrimPrefix(values[0], "Bearer ")
 		claims, err := ValidateToken(
 			token, issuer, verificationKey, AccessTokenType,

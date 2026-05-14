@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	pb "gomessenger/generated"
 	gomessenger "gomessenger/internal"
+	"gomessenger/internal/auth"
 	"gomessenger/internal/profiles"
 	"log"
 	"os"
@@ -24,6 +25,8 @@ const PrivateKeyPath = "resources/jwt-keys/private.key"
 
 const CertPath = "resources/certs/server.crt"
 const KeyPath = "resources/certs/server.key"
+
+const Issuer = "hamkatar-gommessenger"
 
 func main() {
 	appLogFile := createLogFile()
@@ -70,12 +73,24 @@ func main() {
 	)
 
 	grpcServerLogger := appLogger.With(zap.String("module", "grpc-server"))
-	grpcServer := gomessenger.NewGrpcServer(&tlsCfg, grpcServerLogger)
+	grpcServer := gomessenger.NewGrpcServer(
+		&tlsCfg,
+		grpcServerLogger,
+		auth.AuthorizationInterceptor(
+			publicKey,
+			Issuer,
+			map[string]bool{
+				"/profile.ProfileService/RegisterProfile": true,
+				"/profile.ProfileService/Login":           true,
+				"/profile.ProfileService/Refresh":         true,
+			},
+		),
+	)
 
 	grpcServer.WithServer(func(srv *grpc.Server) {
 		pb.RegisterProfileServiceServer(
 			srv,
-			profiles.NewProfileService(repo, publicKey, privateKey, appLogger),
+			profiles.NewProfileService(repo, Issuer, publicKey, privateKey, appLogger),
 		)
 	})
 
