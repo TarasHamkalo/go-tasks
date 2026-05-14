@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"crypto/tls"
-	pb "gomessenger/generated"
-	gomessenger "gomessenger/internal"
-	"gomessenger/internal/auth"
-	"gomessenger/internal/profiles"
 	"log"
 	"os"
 	"os/signal"
@@ -14,7 +11,14 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+
 	"google.golang.org/grpc"
+
+	pb "gomessenger/generated"
+	gomessenger "gomessenger/internal"
+
+	"gomessenger/internal/auth"
+	"gomessenger/internal/profiles"
 )
 
 const AppLogFilePath = "logs/profile-server.log"
@@ -34,88 +38,108 @@ func main() {
 
 	appLogger := gomessenger.LogInitWithConsole(appLogFile, true)
 
-	privateKey, err := gomessenger.LoadPrivateKey(PrivateKeyPath)
-	if err != nil {
-		appLogger.Fatal("could not load private key", zap.Error(err))
-		os.Exit(1)
+	privateKey, publicKey, tlsCfg := loadSecurityAssets(appLogger)
+
+	repo := initDatabase(appLogger)
+	defer repo.Close()
+
+	grpcServer := initGrpcServer(appLogger, tlsCfg, publicKey, privateKey, repo)
+
+	if err := grpcServer.Serve(8081); err != nil {
+		appLogger.Fatal("failed to start gRPC server", zap.Error(err))
 	}
 
-	publicKey, err := gomessenger.LoadPublicKey(PublicKeyPath)
+	waitForShutdown(appLogger, grpcServer)
+}
+
+// loadSecurityAssets handles loading JWT keys and SSL certificates
+func loadSecurityAssets(
+	logger *zap.Logger,
+) (*rsa.PrivateKey, *rsa.PublicKey, *tls.Config) {
+	privateKey, err := auth.LoadPrivateKey(PrivateKeyPath)
 	if err != nil {
-		appLogger.Fatal("could not load public key", zap.Error(err))
-		os.Exit(1)
+		logger.Fatal("could not load private key", zap.Error(err))
+	}
+
+	publicKey, err := auth.LoadPublicKey(PublicKeyPath)
+	if err != nil {
+		logger.Fatal("could not load public key", zap.Error(err))
 	}
 
 	cert, err := tls.LoadX509KeyPair(CertPath, KeyPath)
 	if err != nil {
-		appLogger.Fatal("could not load server certs", zap.Error(err))
-		os.Exit(1)
+		logger.Fatal("could not load server certs", zap.Error(err))
 	}
 
 	tlsCfg := tls.Config{Certificates: []tls.Certificate{cert}}
+	return privateKey, publicKey, &tlsCfg
+}
 
+// initDatabase prepares SQLite database
+func initDatabase(logger *zap.Logger) *profiles.SqliteRepository {
 	repo, err := profiles.NewSqliteRepository(ProfilesDbPath)
 	if err != nil {
-		appLogger.Fatal("could not open sqlite db", zap.Error(err))
-		os.Exit(1)
+		logger.Fatal("could not open sqlite db", zap.Error(err))
 	}
 
-	defer repo.Close()
-
-	err = repo.InitializeSchema(context.TODO())
-	if err != nil {
-		appLogger.Fatal("could not initialize schema", zap.Error(err))
-		os.Exit(1)
+	if err = repo.InitializeSchema(context.Background()); err != nil {
+		repo.Close()
+		logger.Fatal("could not initialize schema", zap.Error(err))
 	}
 
-	appLogger.Info(
-		"database and schema initialized", zap.String("path", ProfilesDbPath),
-	)
+	logger.Info("database and schema initialized", zap.String("path", ProfilesDbPath))
+	return repo
+}
 
-	grpcServerLogger := appLogger.With(zap.String("module", "grpc-server"))
+// initGrpcServer configures interceptors and registers services
+func initGrpcServer(
+	logger *zap.Logger,
+	tlsCfg *tls.Config,
+	publicKey *rsa.PublicKey,
+	privateKey *rsa.PrivateKey,
+	repo *profiles.SqliteRepository,
+) *gomessenger.GrpcServer {
+
+	// TODO: maybe separate but loggers by modules
+
+	// define unprotected routes
+	publicRoutes := map[string]bool{
+		"/profile.ProfileService/RegisterProfile": true,
+		"/profile.ProfileService/Login":           true,
+		"/profile.ProfileService/Refresh":         true,
+	}
+
 	grpcServer := gomessenger.NewGrpcServer(
-		&tlsCfg,
-		grpcServerLogger,
-		auth.AuthorizationInterceptor(
-			publicKey,
-			Issuer,
-			map[string]bool{
-				"/profile.ProfileService/RegisterProfile": true,
-				"/profile.ProfileService/Login":           true,
-				"/profile.ProfileService/Refresh":         true,
-			},
-		),
+		tlsCfg,
+		logger,
+		auth.AuthorizationInterceptor(publicKey, Issuer, publicRoutes),
 	)
 
 	grpcServer.WithServer(func(srv *grpc.Server) {
 		pb.RegisterProfileServiceServer(
 			srv,
-			profiles.NewProfileService(repo, Issuer, publicKey, privateKey, appLogger),
+			profiles.NewProfileService(repo, Issuer, publicKey, privateKey, logger),
 		)
 	})
 
-	if err = grpcServer.Serve(8081); err != nil {
-		appLogger.Error("failed to start gRPC server", zap.Error(err))
-		os.Exit(1)
-	}
+	return grpcServer
+}
 
+// waitForShutdown blocks until an OS signal is intercepted,
+// then gracefully stops the server
+func waitForShutdown(logger *zap.Logger, server *gomessenger.GrpcServer) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 
-	appLogger.Info(
-		"initiate shutdown",
-		zap.Duration("timeout", time.Duration(time.Second*5)),
-	)
+	shutdownTimeout := 5 * time.Second
+	logger.Info("initiate shutdown", zap.Duration("timeout", shutdownTimeout))
 
-	ctx, cancel := context.WithTimeout(
-		context.Background(), time.Duration(time.Second*5),
-	)
-
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	grpcServer.Shutdown(ctx)
 
-	appLogger.Info("main routine exits")
+	server.Shutdown(ctx)
+	logger.Info("main routine exits")
 }
 
 func createLogFile() *os.File {
@@ -128,38 +152,11 @@ func createLogFile() *os.File {
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
 		0600,
 	)
-
 	if err != nil {
 		log.Fatalf(
-			"Failed to create app server log, file=%s, err=%v",
-			AppLogFilePath,
-			err,
+			"Failed to create app server log, file=%s, err=%v", AppLogFilePath, err,
 		)
 	}
 
 	return appLogFile
 }
-
-// p := profiles.Profile{
-// 	UserId:   "1234",
-// 	Username: "Taras",
-// 	Password: []byte("Taras"),
-// }
-//
-// err = repo.InsertProfile(context.TODO(), p)
-// if err == profiles.ErrorUniqueConstraintViolated {
-// 	appLogger.Error(
-// 		"could not insert user because user id not unique", zap.Error(err),
-// 	)
-// }
-//
-// userP, err := repo.GetProfileByUserId(context.TODO(), p.UserId)
-//
-// if err != nil {
-// 	appLogger.Error(
-// 		"could not get user", zap.Error(err),
-// 	)
-// }
-// fmt.Println(userP)
-//
-// service.Login(context.TODO(), &pb.LoginRequest{})
