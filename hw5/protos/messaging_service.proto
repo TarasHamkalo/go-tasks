@@ -2,26 +2,50 @@ syntax = "proto3";
 
 option go_package = "./generated;pb";
 
-import "google/protobuf/timestamp.proto";
-
 package messaging;
 
-service MessagingService {
-  rpc Subscribe(SubscribeRequest) returns (stream SubscriptionMessageStream);
+import "google/protobuf/timestamp.proto";
 
+service MessagingService {
+
+  // authenticated via bearer token
+  rpc Subscribe(SubscribeRequest) returns (stream ServerEvent);
+
+  // authenticated via bearer token
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
 
+  // authenticated via bearer token
   rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
 
+  // authenticated via bearer token
   rpc SetMessageRead(SetMessageReadRequest) returns (SetMessageReadResponse);
+  
+  rpc GetUserChats(GetUserChatsRequest) returns (GetUserChatsResponse);
+
+  rpc GetChatMembers(GetChatMembersRequest) returns (GetChatMembersResponse);
+
+  rpc CreateDirectChat(CreateDirectChatRequest) returns (CreateDirectChatResponse);
+
+  rpc CreateGroupChat(CreateGroupChatRequest) returns (CreateGroupChatResponse);
+
+  rpc AddChatMember(AddChatMemberRequest) returns (AddChatMemberResponse);
+
+  rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
+
+  rpc GetMessageAcks(GetMessageAcksRequest) returns (GetMessageAcksResponse);
 }
 
-// SubscribeRequest has to be authenticated with bearer token
 message SubscribeRequest {}
 
-message SubscriptionMessageStream {
+message ServerEvent {
+  oneof event {
+    IncomingMessage incoming_message = 1;
+  }
+}
+
+message IncomingMessage {
   string id = 1;
-  string sender_id = 2; 
+  string sender_id = 2;
   string chat_id = 3;
   bytes content = 4;
   google.protobuf.Timestamp sent_at = 5;
@@ -38,15 +62,12 @@ message SendMessageResponse {
 
 message AckMessageRequest {
   string msg_id = 1;
-  google.protobuf.Timestamp delivered_at = 2;
 }
 
 message AckMessageResponse {}
 
 message SetMessageReadRequest {
   string msg_id = 1;
-  google.protobuf.Timestamp read_at = 2;
 }
 
 message SetMessageReadResponse {}
-
