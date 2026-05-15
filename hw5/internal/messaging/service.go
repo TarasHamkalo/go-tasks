@@ -284,9 +284,9 @@ func (s *MessagingService) CreateGroupChat(
 	}
 	// ensure valid group name
 	groupName := strings.TrimSpace(req.Name)
-	if groupName == "" {
+	if len(groupName) < 1 || len(groupName) > 100 {
 		return nil, status.Error(
-			codes.InvalidArgument, "group chat name cannot be empty",
+			codes.InvalidArgument, "group name must be between 1 and 100 characters",
 		)
 	}
 
