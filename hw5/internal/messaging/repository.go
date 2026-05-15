@@ -10,8 +10,10 @@ type Repository interface {
 	Close() error
 
 	// Chats
-	GetChatById(ctx context.Context, chatId string) error
-	GetDirectChatByUsers(ctx context.Context, chatId string) Chat
+	GetChatById(ctx context.Context, chatId string) (Chat, error)
+	GetDirectChatByUsers(
+		ctx context.Context, userIdA string, userIdB string,
+	) (Chat, error)
 
 	InsertChat(ctx context.Context, chat Chat, memberIds []string) error
 	GetUserChats(ctx context.Context, userId string) ([]Chat, error)
@@ -22,8 +24,7 @@ type Repository interface {
 	GetChatMembers(ctx context.Context, chatId string) ([]string, error)
 
 	// Messages
-
-	GetMessageById(ctx context.Context, messageId string) error
+	GetMessageById(ctx context.Context, messageId string) (Message, error) 
 	InsertMessage(ctx context.Context, message *Message) error
 	InsertMessageWithAcks(
 		ctx context.Context, message *Message, acks []MessageAck,
