@@ -244,7 +244,9 @@ func (s *MessagingService) CreateDirectChat(
 	}
 
 	// validate whether direct chat already exists
+	// TODO: ideally should be under transaction.... (read-check-write)
 	chat, err := s.repo.GetDirectChatByUsers(ctx, userId, targetId)
+
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		s.logger.Error("could not create direct chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
@@ -281,7 +283,6 @@ func (s *MessagingService) CreateGroupChat(
 		)
 	}
 	// ensure valid group name
-	// TODO: should also verify uniqueness probably...
 	groupName := strings.TrimSpace(req.Name)
 	if groupName == "" {
 		return nil, status.Error(

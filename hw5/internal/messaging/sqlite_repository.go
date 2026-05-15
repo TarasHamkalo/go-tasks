@@ -16,11 +16,11 @@ const (
 	PRAGMA foreign_keys = ON;
 
 	CREATE TABLE IF NOT EXISTS
-			chats(
-					id TEXT PRIMARY KEY,
-					name TEXT NOT NULL,
-					is_group INTEGER NOT NULL
-			);
+		chats(
+				id TEXT PRIMARY KEY,
+				name TEXT NOT NULL,
+				is_group INTEGER NOT NULL
+		);
 
 	CREATE TABLE IF NOT EXISTS 
 		chat_members(
