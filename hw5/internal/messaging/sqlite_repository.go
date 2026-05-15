@@ -47,8 +47,8 @@ const (
 				message_id TEXT NOT NULL,
 				user_id TEXT NOT NULL, -- FK to profile service users
 
-				delivered_at DATETIME 
-				read_at DATETIME 
+				delivered_at DATETIME,
+				read_at DATETIME,
 
 				PRIMARY KEY(message_id, user_id),
 				FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
@@ -135,7 +135,7 @@ type SqliteRepository struct {
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
 	db, err := sqlx.Open("sqlite", dbPath)
 	if err != nil {
-		return &SqliteRepository{}, err
+		return nil, err
 	}
 	return &SqliteRepository{Db: db}, nil
 }
