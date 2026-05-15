@@ -1,8 +1,8 @@
 package messaging
 
 import (
-	"slices"
 	"context"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -214,7 +214,7 @@ func (s *MessagingService) CreateDirectChat(
 	chat := Chat{
 		Id:      chatId,
 		IsGroup: false,
-		Name:    "", // client should resolve user profile 
+		Name:    "", // client should resolve user profile
 	}
 
 	err := s.repo.InsertChat(
@@ -224,7 +224,6 @@ func (s *MessagingService) CreateDirectChat(
 		s.logger.Error("could not create direct chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
 	}
-
 
 	return &pb.CreateDirectChatResponse{ChatId: chatId}, nil
 }
@@ -246,21 +245,20 @@ func (s *MessagingService) CreateGroupChat(
 		Name:    req.Name,
 	}
 
-	memberIds := make([]string, 0, len(req.MemberIds) + 1)
+	memberIds := make([]string, 0, len(req.MemberIds)+1)
 	memberIds = append(memberIds, claims.Subject)
 	// Add all requested members
 	for _, memberId := range req.MemberIds {
-		if memberId != claims.Subject { 
+		if memberId != claims.Subject {
 			memberIds = append(memberIds, memberId)
 		}
 	}
 
-		err := s.repo.InsertChat(ctx, chat, memberIds)
-	if ; err != nil {
+	err := s.repo.InsertChat(ctx, chat, memberIds)
+	if err != nil {
 		s.logger.Error("could not create group chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
 	}
-
 
 	return &pb.CreateGroupChatResponse{ChatId: chatId}, nil
 }
@@ -268,8 +266,40 @@ func (s *MessagingService) CreateGroupChat(
 func (s *MessagingService) AddChatMember(
 	ctx context.Context, req *pb.AddChatMemberRequest,
 ) (*pb.AddChatMemberResponse, error) {
-	// TODO: verify that caller is in group AND Chat is a group
-	err := s.repo.AddChatMember(ctx, req.ChatId, req.TargetUserId)
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
+	}
+
+	chats, err := s.repo.GetUserChats(ctx, claims.Subject)
+	if err != nil {
+		return nil, status.Error(
+			codes.Internal, "could not add chat member",
+		)
+	}
+
+	targetChatIndex := slices.IndexFunc(chats, func(chat Chat) bool {
+		return chat.Id == req.ChatId
+	})
+
+	if targetChatIndex == -1 {
+		return nil, status.Error(
+			codes.PermissionDenied,
+			"user is not a part of given chat",
+		)
+	}
+	
+	targetChat := chats[targetChatIndex]
+	if !targetChat.IsGroup {
+		return nil, status.Error(
+			codes.InvalidArgument,
+			"can not add members to direct chat",
+		)
+	}
+
+	err = s.repo.AddChatMember(ctx, targetChat.Id, req.TargetUserId)
 	if err != nil {
 		s.logger.Error(
 			"could not add chat member",
