@@ -157,13 +157,50 @@ func (r SqliteRepository) Close() error {
 	return r.Db.Close()
 }
 
-func (r SqliteRepository) InsertChat(ctx context.Context, chat Chat) error {
+func (r SqliteRepository) InsertChat(
+	ctx context.Context, chat Chat, memberIds []string,
+) error {
 	queryCtx, cancel := context.WithTimeout(
-		ctx, time.Duration(time.Second*2),
+		ctx, time.Duration(time.Second*3),
 	)
 	defer cancel()
-	_, err := r.Db.NamedExecContext(queryCtx, INSERT_CHAT_QUERY, chat)
-	return err
+
+
+	tx, err := r.Db.BeginTxx(queryCtx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.NamedExecContext(queryCtx, INSERT_CHAT_QUERY, chat)
+	if err != nil {
+		return err
+	}
+
+	if len(memberIds) == 0 {
+		return tx.Commit()
+	}
+	
+	members := make([]map[string]interface{}, 0, len(memberIds))
+	// not the nices way, copied from docs
+	for _, memberId := range memberIds {
+		members = append(
+			members, 
+			map[string]interface{}{"chat_id": chat.Id, "user_id": memberId},
+		)
+	}
+
+	_, err = r.Db.NamedExecContext(
+		queryCtx,
+		ADD_CHAT_MEMBER_QUERY,
+		members,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
 }
 
 func (r SqliteRepository) GetUserChats(

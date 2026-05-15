@@ -217,14 +217,14 @@ func (s *MessagingService) CreateDirectChat(
 		Name:    "", // client should resolve user profile 
 	}
 
-	// TODO: InsertChat and AddChatMembers = InsertDirectChat (single transaction)
-	if err := s.repo.InsertChat(ctx, chat); err != nil {
+	err := s.repo.InsertChat(
+		ctx, chat, []string{claims.Subject, req.TargetUserId},
+	)
+	if err != nil {
 		s.logger.Error("could not create direct chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
 	}
 
-	_ = s.repo.AddChatMember(ctx, chatId, claims.Subject)
-	_ = s.repo.AddChatMember(ctx, chatId, req.TargetUserId)
 
 	return &pb.CreateDirectChatResponse{ChatId: chatId}, nil
 }
@@ -246,21 +246,21 @@ func (s *MessagingService) CreateGroupChat(
 		Name:    req.Name,
 	}
 
-	// TODO: refactor this to single transaction
-	if err := s.repo.InsertChat(ctx, chat); err != nil {
+	memberIds := make([]string, 0, len(req.MemberIds) + 1)
+	memberIds = append(memberIds, claims.Subject)
+	// Add all requested members
+	for _, memberId := range req.MemberIds {
+		if memberId != claims.Subject { 
+			memberIds = append(memberIds, memberId)
+		}
+	}
+
+		err := s.repo.InsertChat(ctx, chat, memberIds)
+	if ; err != nil {
 		s.logger.Error("could not create group chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
 	}
 
-	// Add the creator
-	_ = s.repo.AddChatMember(ctx, chatId, claims.Subject)
-
-	// Add all requested members
-	for _, memberId := range req.MemberIds {
-		if memberId != claims.Subject { // prevent duplicate insert
-			_ = s.repo.AddChatMember(ctx, chatId, memberId)
-		}
-	}
 
 	return &pb.CreateGroupChatResponse{ChatId: chatId}, nil
 }
@@ -268,8 +268,7 @@ func (s *MessagingService) CreateGroupChat(
 func (s *MessagingService) AddChatMember(
 	ctx context.Context, req *pb.AddChatMemberRequest,
 ) (*pb.AddChatMemberResponse, error) {
-	// TODO: verify that caller is in group 
-
+	// TODO: verify that caller is in group AND Chat is a group
 	err := s.repo.AddChatMember(ctx, req.ChatId, req.TargetUserId)
 	if err != nil {
 		s.logger.Error(

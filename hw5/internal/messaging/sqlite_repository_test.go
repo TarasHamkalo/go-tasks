@@ -50,14 +50,9 @@ func TestInsertChatAndGetUserChats(t *testing.T) {
 		IsGroup: false,
 	}
 
-	err := repo.InsertChat(ctx, chat)
+	err := repo.InsertChat(ctx, chat, []string{"user-1"})
 	if err != nil {
 		t.Fatalf("InsertChat failed: %v", err)
-	}
-
-	err = repo.AddChatMember(ctx, chat.Id, "user-1")
-	if err != nil {
-		t.Fatalf("AddChatMember failed: %v", err)
 	}
 
 	chats, err := repo.GetUserChats(ctx, "user-1")
@@ -87,14 +82,9 @@ func TestAddAndRemoveChatMember(t *testing.T) {
 		IsGroup: true,
 	}
 
-	err := repo.InsertChat(ctx, chat)
+	err := repo.InsertChat(ctx, chat, []string{"user-1"})
 	if err != nil {
 		t.Fatalf("InsertChat failed: %v", err)
-	}
-
-	err = repo.AddChatMember(ctx, chat.Id, "user-1")
-	if err != nil {
-		t.Fatalf("AddChatMember failed: %v", err)
 	}
 
 	err = repo.AddChatMember(ctx, chat.Id, "user-2")
@@ -139,7 +129,7 @@ func TestInsertMessageWithAcksAndGetUndeliveredMessages(t *testing.T) {
 		IsGroup: false,
 	}
 
-	err := repo.InsertChat(ctx, chat)
+	err := repo.InsertChat(ctx, chat, []string{"user-1", "user-2", "user-3"})
 	if err != nil {
 		t.Fatalf("InsertChat failed: %v", err)
 	}
@@ -199,7 +189,7 @@ func TestSetMessageDelivered(t *testing.T) {
 		IsGroup: false,
 	}
 
-	err := repo.InsertChat(ctx, chat)
+	err := repo.InsertChat(ctx, chat, []string{"user-1", "user-2"})
 	if err != nil {
 		t.Fatalf("InsertChat failed: %v", err)
 	}
@@ -259,7 +249,7 @@ func TestSetMessageRead(t *testing.T) {
 		IsGroup: false,
 	}
 
-	err := repo.InsertChat(ctx, chat)
+	err := repo.InsertChat(ctx, chat, []string{"user-1", "user-2"})
 	if err != nil {
 		t.Fatalf("InsertChat failed: %v", err)
 	}
@@ -319,7 +309,7 @@ func TestInsertMessageWithAcksRollbackOnInvalidAck(t *testing.T) {
 		IsGroup: false,
 	}
 
-	err := repo.InsertChat(ctx, chat)
+	err := repo.InsertChat(ctx, chat, []string{"user-1", "user-2"})
 	if err != nil {
 		t.Fatalf("InsertChat failed: %v", err)
 	}
