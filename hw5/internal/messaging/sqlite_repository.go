@@ -247,8 +247,36 @@ func (r SqliteRepository) InsertMessage(
 	return err
 }
 
-// TODO: message and acks could be inserted in a single transaction for consistency
-// client should buffer message until success write
+// InsertMessageWithAcks unifies message and acks insert under one transaction.
+func (r SqliteRepository) InsertMessageWithAcks(
+	ctx context.Context,
+	message Message,
+	acks []MessageAck,
+) error {
+	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tx, err := r.Db.BeginTxx(queryCtx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	_, err = tx.NamedExecContext(queryCtx, INSERT_MESSAGE_QUERY, message)
+	if err != nil {
+		return err
+	}
+
+	if len(acks) > 0 {
+		_, err = tx.NamedExecContext(queryCtx, INSERT_MESSAGE_ACK_QUERY, acks)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 func (r SqliteRepository) InsertMessageAcks(
 	ctx context.Context, acks []MessageAck,
 ) error {

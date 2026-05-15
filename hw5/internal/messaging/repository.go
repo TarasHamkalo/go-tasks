@@ -20,6 +20,9 @@ type Repository interface {
 
 	// Messages
 	InsertMessage(ctx context.Context, message Message) error
+	InsertMessageWithAcks(
+		ctx context.Context, message Message, acks []MessageAck,
+	) error
 
 	// Delivery/read tracking
 	InsertMessageAcks(ctx context.Context, acks []MessageAck) error
