@@ -2,6 +2,8 @@ package messaging
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -128,6 +130,28 @@ const (
 		FROM message_acks 
 		WHERE message_id = ?
 	`
+
+	GET_CHAT_BY_ID_QUERY = `
+		SELECT id, name, is_group
+		FROM chats
+		WHERE id = ?
+
+	`
+	GET_DIRECT_CHAT_BY_USERS_QUERY = `
+		SELECT c.id, c.name, c.is_group 
+		FROM chats c
+		INNER JOIN chat_members cm1 ON c.id = cm1.chat_id
+		INNER JOIN chat_members cm2 ON c.id = cm2.chat_id
+		WHERE c.is_group = 0 
+		  AND cm1.user_id = ? 
+		  AND cm2.user_id = ?
+	`
+
+	GET_MESSAGE_BY_ID_QUERY = `
+		SELECT id, chat_id, sender_id, content, sent_at
+		FROM messages
+		WHERE id = ?
+	`
 )
 
 type SqliteRepository struct {
@@ -157,6 +181,32 @@ func (r SqliteRepository) Close() error {
 	return r.Db.Close()
 }
 
+func (r SqliteRepository) GetChatById(
+	ctx context.Context, chatId string,
+) (Chat, error) {
+	chat := Chat{}
+
+	queryCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	err := r.Db.GetContext(queryCtx, &chat, GET_CHAT_BY_ID_QUERY, chatId)
+	return chat, err
+}
+
+func (r SqliteRepository) GetDirectChatByUsers(
+	ctx context.Context, userIdA string, userIdB string,
+) (Chat, error) {
+	var chat Chat
+
+	queryCtx, cancel := context.WithTimeout(ctx, time.Duration(time.Second*2))
+	defer cancel()
+
+	err := r.Db.GetContext(
+		queryCtx, &chat, GET_DIRECT_CHAT_BY_USERS_QUERY, userIdA, userIdB,
+	)
+	return chat, err
+}
+
 func (r SqliteRepository) InsertChat(
 	ctx context.Context, chat Chat, memberIds []string,
 ) error {
@@ -164,7 +214,6 @@ func (r SqliteRepository) InsertChat(
 		ctx, time.Duration(time.Second*3),
 	)
 	defer cancel()
-
 
 	tx, err := r.Db.BeginTxx(queryCtx, nil)
 	if err != nil {
@@ -180,12 +229,12 @@ func (r SqliteRepository) InsertChat(
 	if len(memberIds) == 0 {
 		return tx.Commit()
 	}
-	
+
 	members := make([]map[string]interface{}, 0, len(memberIds))
 	// not the nices way, copied from docs
 	for _, memberId := range memberIds {
 		members = append(
-			members, 
+			members,
 			map[string]interface{}{"chat_id": chat.Id, "user_id": memberId},
 		)
 	}
@@ -273,6 +322,20 @@ func (r SqliteRepository) GetChatMembers(
 	)
 
 	return ids, err
+}
+
+func (r SqliteRepository) GetMessageById(
+	ctx context.Context, messageId string,
+) (Message, error) {
+	message := Message{}
+
+	queryCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	err := r.Db.GetContext(
+		queryCtx, &message, GET_MESSAGE_BY_ID_QUERY, messageId,
+	)
+	return message, err
 }
 
 func (r SqliteRepository) InsertMessage(
