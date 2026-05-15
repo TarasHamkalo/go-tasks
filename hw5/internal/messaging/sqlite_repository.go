@@ -157,10 +157,17 @@ type SqliteRepository struct {
 }
 
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
-	db, err := sqlx.Open("sqlite", dbPath)
+	dsn := "file:" + dbPath + "?_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL"
+	db, err := sqlx.Open("sqlite", dsn)
+
 	if err != nil {
 		return nil, err
 	}
+
+	db.SetMaxOpenConns(4)                 
+	db.SetMaxIdleConns(2)                 
+	db.SetConnMaxLifetime(1 * time.Hour)
+
 	return &SqliteRepository{Db: db}, nil
 }
 
@@ -237,7 +244,7 @@ func (r SqliteRepository) InsertChat(
 		)
 	}
 
-	_, err = r.Db.NamedExecContext(
+	_, err = tx.NamedExecContext(
 		queryCtx,
 		ADD_CHAT_MEMBER_QUERY,
 		members,
