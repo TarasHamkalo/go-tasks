@@ -6,13 +6,14 @@ import (
 )
 
 var ErrorUniqueConstraintViolated = errors.New(
-	"profile repository: query failed due to unique constrain violation",
+	"profile repository: query failed due to unique constraint violation",
 )
 
 type Repository interface {
 	InitializeSchema(ctx context.Context) error
 
-	InsertProfile(ctx context.Context, p Profile) error
+	// fill in the generated UserId
+	InsertProfile(ctx context.Context, p *Profile) error
 
 	GetProfileByUserId(ctx context.Context, userID string) (Profile, error)
 

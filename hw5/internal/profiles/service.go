@@ -2,11 +2,8 @@ package profiles
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/rsa"
 	"errors"
-	"math/big"
-	"strconv"
 	"sync"
 
 	"go.uber.org/zap"
@@ -68,67 +65,46 @@ func (s *ProfileService) RegisterProfile(
 			zap.Error(err),
 			zap.String("addr", peerAddress(ctx)),
 		)
-
 		return nil, status.Error(codes.Internal, "could not create password hash")
 	}
 
-	// a few attempts generating unique random number,
-	// should have just used incremental sequence
-	for range 10 {
-		userId, err := generateUserID()
-		if err != nil {
-			s.logger.Error(
-				"could not generate user ID",
-				zap.Error(err),
-				zap.String("addr", peerAddress(ctx)),
-			)
+	// database generates id
+	profile := Profile{
+		Username: req.Username,
+		Password: hash,
+	}
 
-			return nil, status.Error(codes.Internal, "could not generate user ID")
-		}
-
-		profile := Profile{
-			UserId:   userId,
-			Username: req.Username,
-			Password: hash,
-		}
-
-		err = s.repo.InsertProfile(ctx, profile)
-		if err == nil {
-			s.logger.Info(
-				"profile registered",
-				zap.String("userId", userId),
+	err = s.repo.InsertProfile(ctx, &profile)
+	
+	if err != nil {
+		if errors.Is(err, ErrorUniqueConstraintViolated) {
+			s.logger.Warn(
+				"username already exists",
 				zap.String("username", req.Username),
 				zap.String("addr", peerAddress(ctx)),
 			)
-
-			// TODO: automatically log the user in and return tokens on registration
-			return &pb.RegisterProfileResponse{
-				UserId: userId,
-			}, nil
-		}
-
-		if errors.Is(err, ErrorUniqueConstraintViolated) {
-			continue
+			return nil, status.Error(codes.AlreadyExists, "username is already taken")
 		}
 
 		s.logger.Error(
 			"could not store profile",
 			zap.Error(err),
-			zap.String("userId", userId),
 			zap.String("username", req.Username),
 			zap.String("addr", peerAddress(ctx)),
 		)
-
 		return nil, status.Error(codes.Internal, "could not store profile")
 	}
 
-	s.logger.Error(
-		"could not generate unique user ID",
+	s.logger.Info(
+		"profile registered",
+		zap.String("userId", profile.UserId),
 		zap.String("username", req.Username),
 		zap.String("addr", peerAddress(ctx)),
 	)
 
-	return nil, status.Error(codes.Internal, "could not generate unique user ID")
+	return &pb.RegisterProfileResponse{
+		UserId: profile.UserId,
+	}, nil
 }
 
 func (s *ProfileService) Login(
@@ -290,15 +266,6 @@ func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
 	s.mu.Unlock()
 
 	return access, refresh, nil
-}
-
-func generateUserID() (string, error) {
-	n, err := rand.Int(rand.Reader, big.NewInt(900000000))
-	if err != nil {
-		return "", err
-	}
-
-	return strconv.FormatInt(n.Int64()+100000000, 10), nil
 }
 
 func peerAddress(ctx context.Context) string {
