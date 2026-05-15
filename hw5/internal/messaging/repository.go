@@ -19,9 +19,9 @@ type Repository interface {
 	GetChatMembers(ctx context.Context, chatId string) ([]string, error)
 
 	// Messages
-	InsertMessage(ctx context.Context, message Message) error
+	InsertMessage(ctx context.Context, message *Message) error
 	InsertMessageWithAcks(
-		ctx context.Context, message Message, acks []MessageAck,
+		ctx context.Context, message *Message, acks []MessageAck,
 	) error
 
 	// Delivery/read tracking

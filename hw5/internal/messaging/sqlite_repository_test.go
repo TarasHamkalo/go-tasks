@@ -1,5 +1,4 @@
 package messaging
-
 import (
 	"context"
 	"database/sql"
@@ -164,7 +163,7 @@ func TestInsertMessageWithAcksAndGetUndeliveredMessages(t *testing.T) {
 		},
 	}
 
-	err = repo.InsertMessageWithAcks(ctx, message, acks)
+	err = repo.InsertMessageWithAcks(ctx, &message, acks)
 	if err != nil {
 		t.Fatalf("InsertMessageWithAcks failed: %v", err)
 	}
@@ -220,7 +219,7 @@ func TestSetMessageDelivered(t *testing.T) {
 		},
 	}
 
-	err = repo.InsertMessageWithAcks(ctx, message, acks)
+	err = repo.InsertMessageWithAcks(ctx, &message, acks)
 	if err != nil {
 		t.Fatalf("InsertMessageWithAcks failed: %v", err)
 	}
@@ -280,7 +279,7 @@ func TestSetMessageRead(t *testing.T) {
 		},
 	}
 
-	err = repo.InsertMessageWithAcks(ctx, message, acks)
+	err = repo.InsertMessageWithAcks(ctx, &message, acks)
 	if err != nil {
 		t.Fatalf("InsertMessageWithAcks failed: %v", err)
 	}
@@ -345,7 +344,7 @@ func TestInsertMessageWithAcksRollbackOnInvalidAck(t *testing.T) {
 		},
 	}
 
-	err = repo.InsertMessageWithAcks(ctx, message, acks)
+	err = repo.InsertMessageWithAcks(ctx, &message, acks)
 	if err == nil {
 		t.Fatal("expected InsertMessageWithAcks to fail")
 	}

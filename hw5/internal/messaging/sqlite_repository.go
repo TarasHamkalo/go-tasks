@@ -239,7 +239,7 @@ func (r SqliteRepository) GetChatMembers(
 }
 
 func (r SqliteRepository) InsertMessage(
-	ctx context.Context, message Message,
+	ctx context.Context, message *Message,
 ) error {
 	queryCtx, cancel := context.WithTimeout(
 		ctx, time.Duration(time.Second*2),
@@ -252,7 +252,7 @@ func (r SqliteRepository) InsertMessage(
 // InsertMessageWithAcks unifies message and acks insert under one transaction.
 func (r SqliteRepository) InsertMessageWithAcks(
 	ctx context.Context,
-	message Message,
+	message *Message,
 	acks []MessageAck,
 ) error {
 	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
