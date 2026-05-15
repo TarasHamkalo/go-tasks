@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"errors"
+	"strings"
 	"sync"
 
 	"go.uber.org/zap"
@@ -58,6 +59,20 @@ func (s *ProfileService) RegisterProfile(
 	ctx context.Context,
 	req *pb.RegisterProfileRequest,
 ) (*pb.RegisterProfileResponse, error) {
+	trimmedUsername := strings.TrimSpace(req.Username)
+	if len(trimmedUsername) < 3 || len(trimmedUsername) > 32 {
+		return nil, status.Error(
+			codes.InvalidArgument,
+			"username has to have between 3 to 32 non empty characters",
+		)
+	}
+
+	if len(req.Password) < 8 || len(req.Password) > 72 {
+		return nil, status.Error(
+			codes.InvalidArgument, "password has to have between 8 and 71 chars",
+		)
+	}
+
 	hash, err := bcrypt.GenerateFromPassword(req.Password, bcrypt.DefaultCost)
 	if err != nil {
 		s.logger.Error(
@@ -75,7 +90,7 @@ func (s *ProfileService) RegisterProfile(
 	}
 
 	err = s.repo.InsertProfile(ctx, &profile)
-	
+
 	if err != nil {
 		if errors.Is(err, ErrorUniqueConstraintViolated) {
 			s.logger.Warn(
