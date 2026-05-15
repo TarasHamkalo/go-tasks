@@ -37,7 +37,7 @@ type SqliteRepository struct {
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
 	db, err := sqlx.Open("sqlite", dbPath)
 	if err != nil {
-		return &SqliteRepository{}, err
+		return nil, err
 	}
 	return &SqliteRepository{Db: db}, nil
 }
