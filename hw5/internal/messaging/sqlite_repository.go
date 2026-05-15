@@ -47,13 +47,13 @@ const (
 	CREATE TABLE IF NOT EXISTS 
 		message_acks(
 				message_id TEXT NOT NULL,
-				user_id TEXT NOT NULL, -- FK to profile service users
+				user_id TEXT NOT NULL, 
+				chat_id TEXT NOT NULL,
 
 				delivered_at DATETIME,
 				read_at DATETIME,
 
-				PRIMARY KEY(message_id, user_id),
-				FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE CASCADE
+				PRIMARY KEY(message_id, user_id)
 		);
 	`
 
@@ -99,8 +99,14 @@ const (
 	// Messages are sort by sent_at so the client app appends them in
 	// historical order.
 	INSERT_MESSAGE_ACK_QUERY = `
-		INSERT INTO message_acks (message_id, user_id, delivered_at, read_at)
-		VALUES (:message_id, :user_id, :delivered_at, :read_at)
+		INSERT INTO message_acks (message_id, user_id, chat_id, delivered_at, read_at)
+		VALUES (:message_id, :user_id, :chat_id, :delivered_at, :read_at)
+	`
+	// Query to check if any other recipients are still waiting for this message
+	COUNT_PENDING_ACKS_QUERY = `
+		SELECT COUNT(*) 
+		FROM message_acks 
+		WHERE message_id = ? AND delivered_at IS NULL
 	`
 
 	GET_UNDELIVERED_MESSAGES_QUERY = `
@@ -117,6 +123,11 @@ const (
 		WHERE message_id = ? AND user_id = ? AND delivered_at IS NULL
 	`
 
+	DELETE_MESSAGE_QUERY = `
+		DELETE FROM messages 
+		WHERE id = ?
+	`
+
 	SET_MESSAGE_READ_QUERY = `
 		UPDATE message_acks 
 		SET read_at = ? 
@@ -124,7 +135,7 @@ const (
 	`
 
 	GET_MESSAGE_ACKS_QUERY = `
-		SELECT message_id, user_id, delivered_at, read_at 
+		SELECT message_id, user_id, chat_id, delivered_at, read_at 
 		FROM message_acks 
 		WHERE message_id = ?
 	`
@@ -144,12 +155,6 @@ const (
 		  AND cm1.user_id = ? 
 		  AND cm2.user_id = ?
 	`
-
-	GET_MESSAGE_BY_ID_QUERY = `
-		SELECT id, chat_id, sender_id, content, sent_at
-		FROM messages
-		WHERE id = ?
-	`
 )
 
 type SqliteRepository struct {
@@ -164,8 +169,8 @@ func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
 		return nil, err
 	}
 
-	db.SetMaxOpenConns(4)                 
-	db.SetMaxIdleConns(2)                 
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(1 * time.Hour)
 
 	return &SqliteRepository{Db: db}, nil
@@ -329,20 +334,6 @@ func (r SqliteRepository) GetChatMembers(
 	return ids, err
 }
 
-func (r SqliteRepository) GetMessageById(
-	ctx context.Context, messageId string,
-) (Message, error) {
-	message := Message{}
-
-	queryCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-
-	err := r.Db.GetContext(
-		queryCtx, &message, GET_MESSAGE_BY_ID_QUERY, messageId,
-	)
-	return message, err
-}
-
 func (r SqliteRepository) InsertMessage(
 	ctx context.Context, message *Message,
 ) error {
@@ -435,27 +426,68 @@ func (r SqliteRepository) GetUndeliveredMessages(
 	return messages, err
 }
 
-func (r SqliteRepository) SetMessageDelivered(
-	ctx context.Context,
-	messageId string,
-	userId string,
-	deliveredAt time.Time,
+func (r *SqliteRepository) AcknowledgeAndCleanupMessage(
+	ctx context.Context, messageId string, userId string, deliveredAt time.Time,
 ) error {
-	queryCtx, cancel := context.WithTimeout(
-		ctx, time.Duration(time.Second*2),
-	)
+	queryCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
 	defer cancel()
 
-	_, err := r.Db.ExecContext(
-		queryCtx,
-		SET_MESSAGE_DELIVERED_QUERY,
-		deliveredAt,
-		messageId,
-		userId,
+	tx, err := r.Db.BeginTxx(queryCtx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// mark this user's delivery ack status
+	_, err = tx.ExecContext(
+		queryCtx, SET_MESSAGE_DELIVERED_QUERY, deliveredAt, messageId, userId,
 	)
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	// count how many users still haven't received this message
+	var pendingCount int
+	err = tx.GetContext(
+		queryCtx, &pendingCount, COUNT_PENDING_ACKS_QUERY, messageId,
+	)
+	if err != nil {
+		return err
+	}
+
+	// if no pending acks remain, and remove message
+	if pendingCount == 0 {
+		_, err = tx.ExecContext(queryCtx, DELETE_MESSAGE_QUERY, messageId)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
+
+// func (r SqliteRepository) SetMessageDelivered(
+// 	ctx context.Context,
+// 	messageId string,
+// 	userId string,
+// 	deliveredAt time.Time,
+// ) error {
+// 	queryCtx, cancel := context.WithTimeout(
+// 		ctx, time.Duration(time.Second*2),
+// 	)
+// 	defer cancel()
+//
+// 	_, err := r.Db.ExecContext(
+// 		queryCtx,
+// 		SET_MESSAGE_DELIVERED_QUERY,
+// 		deliveredAt,
+// 		messageId,
+// 		userId,
+// 	)
+//
+// 	return err
+// }
 
 func (r SqliteRepository) SetMessageRead(
 	ctx context.Context,

@@ -20,6 +20,7 @@ type Message struct {
 }
 
 type MessageAck struct {
+	ChatId      string       `db:"chat_id"`
 	MessageId   string       `db:"message_id"`
 	UserId      string       `db:"user_id"`
 	DeliveredAt sql.NullTime `db:"delivered_at"`

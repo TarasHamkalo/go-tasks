@@ -56,7 +56,9 @@ func (s *MessagingService) AckMessage(
 	userId := claims.Subject
 	deliveredAt := time.Now().UTC()
 
-	err := s.repo.SetMessageDelivered(ctx, req.MsgId, userId, deliveredAt)
+	err := s.repo.AcknowledgeAndCleanupMessage(
+		ctx, req.MsgId, userId, deliveredAt,
+	)
 	if err != nil {
 		s.logger.Error(
 			"could not set delivery for message",
@@ -97,6 +99,7 @@ func (s *MessagingService) SetMessageRead(
 	}
 
 	return &pb.SetMessageReadResponse{}, nil
+
 }
 
 func (s *MessagingService) GetMessageAcks(
@@ -109,27 +112,6 @@ func (s *MessagingService) GetMessageAcks(
 		)
 	}
 
-	message, err := s.repo.GetMessageById(ctx, req.MsgId)
-	if err != nil {
-		return nil, status.Error(
-			codes.Internal, "could not retrieve message",
-		)
-	}
-
-	members, err := s.repo.GetChatMembers(ctx, message.ChatId)
-	if err != nil {
-		return nil, status.Error(
-			codes.Internal, "could not retrieve chat members for given message",
-		)
-	}
-	
-	if !slices.Contains(members, claims.Subject) {
-		return nil, status.Error(
-			codes.PermissionDenied, 
-			"user can not query acks for chat it does not belong to",
-		)
-	}
-
 	acks, err := s.repo.GetMessageAcks(ctx, req.MsgId)
 	if err != nil {
 		s.logger.Error(
@@ -137,11 +119,32 @@ func (s *MessagingService) GetMessageAcks(
 			zap.Error(err),
 			zap.String("messageId", req.MsgId),
 		)
+		return nil, status.Error(codes.Internal, "could not retrieve message acks")
+	}
+
+	if len(acks) == 0 {
+		// e.g. empty chat
+		return &pb.GetMessageAcksResponse{Acks: []*pb.MessageAckInfo{}}, nil
+	}
+
+	// extract chat id from the first ack record to verify permissions
+	targetChatId := acks[0].ChatId
+
+	members, err := s.repo.GetChatMembers(ctx, targetChatId)
+	if err != nil {
 		return nil, status.Error(
-			codes.Internal, "could not retrieve message acks",
+			codes.Internal, "could not retrieve chat members for verification",
 		)
 	}
 
+	if !slices.Contains(members, claims.Subject) {
+		return nil, status.Error(
+			codes.PermissionDenied,
+			"user cannot query acks for a chat they do not belong to",
+		)
+	}
+
+	// map to protobuf
 	var pbAcks []*pb.MessageAckInfo
 	for _, ack := range acks {
 		ackInfo := &pb.MessageAckInfo{
@@ -240,17 +243,16 @@ func (s *MessagingService) CreateDirectChat(
 		)
 	}
 
-
 	// validate whether direct chat already exists
 	chat, err := s.repo.GetDirectChatByUsers(ctx, userId, targetId)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		s.logger.Error("could not create direct chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
 	}
-		
+
 	if err == nil && len(chat.Id) != 0 {
 		s.logger.Debug("user attempted to create existing chat")
-		return &pb.CreateDirectChatResponse{ChatId: chat.Id}, nil 
+		return &pb.CreateDirectChatResponse{ChatId: chat.Id}, nil
 	}
 
 	chatId := uuid.New().String()
@@ -278,7 +280,7 @@ func (s *MessagingService) CreateGroupChat(
 			codes.Unauthenticated, "missing authentication claims",
 		)
 	}
-	// ensure valid group name 
+	// ensure valid group name
 	// TODO: should also verify uniqueness probably...
 	groupName := strings.TrimSpace(req.Name)
 	if groupName == "" {
@@ -347,10 +349,10 @@ func (s *MessagingService) AddChatMember(
 
 	if !chat.IsGroup {
 		return nil, status.Error(
-			codes.InvalidArgument, "cannot add members to a direct chat", 
+			codes.InvalidArgument, "cannot add members to a direct chat",
 		)
 	}
-	
+
 	err = s.repo.AddChatMember(ctx, req.ChatId, req.TargetUserId)
 	if err != nil {
 		s.logger.Error(
@@ -452,6 +454,7 @@ func (s *MessagingService) SendMessage(
 
 		acks = append(acks, MessageAck{
 			MessageId: message.Id,
+			ChatId:    message.ChatId,
 			UserId:    chatMember,
 		})
 	}
