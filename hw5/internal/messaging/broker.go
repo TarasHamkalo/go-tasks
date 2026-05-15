@@ -10,12 +10,21 @@ import (
 type UserSession struct {
 	id          string
 	messageChan chan *Message
+	done        chan struct{}
+	closeOnce   sync.Once
+}
+
+type messageTarget struct {
+	userId  string
+	session *UserSession
 }
 
 func newUserSession() *UserSession {
 	return &UserSession{
 		id:          uuid.New().String(),
-		messageChan: make(chan *Message, 50),
+		messageChan: make(chan *Message, 30),
+		done:        make(chan struct{}),
+		closeOnce:   sync.Once{},
 	}
 }
 
@@ -23,11 +32,22 @@ func (s *UserSession) GetMessageChan() <-chan *Message {
 	return s.messageChan
 }
 
+// Done returns a channel will be closed when the session is force killed
+func (s *UserSession) Done() <-chan struct{} {
+	return s.done
+}
+
+// Close safely closes session, signals without panicking 
+// (e.g. if multiple routines try too close session because of slow client)
+func (s *UserSession) Close() {
+	s.closeOnce.Do(func() {
+		close(s.done)
+	})
+}
+
 type Broker struct {
 	sessions   map[string][]*UserSession
 	sessionsMu sync.RWMutex
-
-	shutdownChan chan struct{}
 
 	logger *zap.Logger
 }
@@ -36,10 +56,7 @@ func NewBroker(logger *zap.Logger) *Broker {
 	return &Broker{
 		sessions:   make(map[string][]*UserSession, 10),
 		sessionsMu: sync.RWMutex{},
-
-		shutdownChan: make(chan struct{}),
-
-		logger: logger,
+		logger:     logger,
 	}
 }
 
@@ -48,13 +65,15 @@ func (b *Broker) Subscribe(userId string) *UserSession {
 	defer b.sessionsMu.Unlock()
 
 	userSession := newUserSession()
-	userSessions, ok := b.sessions[userId]
-	if !ok {
-		userSessions = []*UserSession{}
-	}
 
-	userSessions = append(userSessions, userSession)
-	b.sessions[userId] = userSessions
+	b.sessions[userId] = append(b.sessions[userId], userSession)
+
+	b.logger.Info("client subscribed to broker session",
+		zap.String("userId", userId),
+		zap.String("sessionId", userSession.id),
+		zap.Int("activeUserSessions", len(b.sessions[userId])),
+	)
+
 	return userSession
 }
 
@@ -64,43 +83,71 @@ func (b *Broker) Unsubscribe(userId string, targetSession *UserSession) {
 
 	userSessions, ok := b.sessions[userId]
 	if !ok {
-		// okay, session is not present, accept it
+		// no sessions present.
 		return
 	}
 
-	filtered := make([]*UserSession, len(userSessions))
+	filtered := make([]*UserSession, 0, len(userSessions))
 	for _, session := range userSessions {
 		if session.id != targetSession.id {
 			filtered = append(filtered, session)
 		}
 	}
+
+	if len(filtered) == 0 {
+		delete(b.sessions, userId)
+		b.logger.Info("all sessions removed for user, clearing map entry", zap.String("userId", userId))
+	} else {
+		b.sessions[userId] = filtered
+		b.logger.Debug(
+			"removed single session for user",
+			zap.String("userId", userId),
+			zap.String("sessionId", targetSession.id),
+		)
+	}
 }
 
 func (b *Broker) Publish(message *Message, acks []MessageAck) {
-	var targets []*UserSession
+	// make copy of all target sessions under read lock
 	b.sessionsMu.RLock()
+
+	var targets []messageTarget
 	for _, ack := range acks {
-		userSessions, ok := b.sessions[ack.UserId]
-		if !ok {
-			continue
+		if userSessions, online := b.sessions[ack.UserId]; online {
+			for _, session := range userSessions {
+				targets = append(
+					targets,
+					messageTarget{userId: ack.UserId, session: session},
+				)
+			}
 		}
-
-		targets = append(targets, userSessions...)
 	}
-
 	b.sessionsMu.RUnlock()
 
-	for _, session := range targets {
+	// broadcast messages using non-blocking selection
+	for _, t := range targets {
 		select {
-		case session.messageChan <- message:
+		case <-t.session.Done():
+			// session already closed
+			continue
+
+		case t.session.messageChan <- message:
+			// message written
 		default:
 			// Session buffer full, message remains in DB and will
-			// be delivered later after reconnect. 
+			// be delivered later after reconnect.
 
-			// In my impl that simplest way to make client keep up with whats happenning
+			// In my impl that is the simplest way to make client 
+			// keep up with whats happening
 			// and build history/UI of messages properly
-			b.logger.Warn("killing slow client session", zap.String("sessionId", session.id))
-			close(session.messageChan)
+			b.logger.Warn("killing slow client session",
+				zap.String("userId", t.userId),
+				zap.String("sessionId", t.session.id),
+				zap.String("messageId", message.Id),
+			)
+
+			// chan reader should react on chan closing and call Unsubscribe
+			t.session.Close()
 		}
 	}
 }

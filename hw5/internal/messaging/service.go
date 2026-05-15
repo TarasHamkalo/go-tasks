@@ -176,15 +176,22 @@ func (s *MessagingService) Subscribe(
 
 	for {
 		select {
-		// what about slow clients?
+		case <-session.Done():
+			// client is probably slow and broker closes session, force client
+			// to reconnect and retrieve messages from db
+			s.logger.Info(
+				"user session closed by broker",
+				zap.String("userId", userId),
+				zap.String("addr", peerAddress(stream.Context())),
+			)
+
+			return nil
+
 		case message, ok := <-session.GetMessageChan():
 			if !ok {
-				s.logger.Info(
-					"user session channel closed by broker",
-					zap.String("userId", userId),
-					zap.String("addr", peerAddress(stream.Context())),
+				s.logger.Error(
+					"session messages channel was closed (should never occur)",
 				)
-
 				return nil
 			}
 
