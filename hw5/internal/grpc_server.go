@@ -24,13 +24,34 @@ type GrpcServer struct {
 func NewGrpcServer(
 	tlsCfg *tls.Config,
 	logger *zap.Logger,
-	interceptor ...grpc.UnaryServerInterceptor,
+	interceptor grpc.UnaryServerInterceptor,
+) *GrpcServer {
+
+	opts := []grpc.ServerOption{
+		grpc.MaxSendMsgSize(1024 * 1024 * 10), // max 10 MB
+		grpc.Creds(credentials.NewTLS(tlsCfg)),
+		grpc.UnaryInterceptor(interceptor),
+	}
+
+	return &GrpcServer{
+		srv:    grpc.NewServer(opts...),
+		logger: logger,
+	}
+}
+
+func NewGrpcServerWithStreams(
+	tlsCfg *tls.Config,
+	logger *zap.Logger,
+	interceptor grpc.UnaryServerInterceptor,
+	streamInterceptor grpc.StreamServerInterceptor,
 ) *GrpcServer {
 	opts := []grpc.ServerOption{
 		grpc.MaxSendMsgSize(1024 * 1024 * 10), // max 10 MB
 		grpc.Creds(credentials.NewTLS(tlsCfg)),
-		grpc.ChainUnaryInterceptor(interceptor...),
+		grpc.UnaryInterceptor(interceptor),
+		grpc.StreamInterceptor(streamInterceptor),
 	}
+
 	return &GrpcServer{
 		srv:    grpc.NewServer(opts...),
 		logger: logger,
