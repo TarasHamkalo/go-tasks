@@ -13,6 +13,8 @@ const (
 	// sender id still, so...
 	// Just leaving constraints that are possible to verify (inside single db)
 	SCHEMA_QUERY = `
+	PRAGMA foreign_keys = ON;
+
 	CREATE TABLE IF NOT EXISTS
 			chats(
 					id TEXT PRIMARY KEY,
