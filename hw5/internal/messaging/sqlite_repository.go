@@ -115,6 +115,7 @@ const (
 		INNER JOIN message_acks ma ON m.id = ma.message_id
 		WHERE ma.user_id = ? AND ma.delivered_at IS NULL
 		ORDER BY m.sent_at ASC
+		LIMIT 100
 	`
 
 	SET_MESSAGE_DELIVERED_QUERY = `
