@@ -10,7 +10,7 @@ type Repository interface {
 	Close() error
 
 	// Chats
-	CreateChat(ctx context.Context, chat Chat) error
+	InsertChat(ctx context.Context, chat Chat) error
 	GetUserChats(ctx context.Context, userId string) ([]Chat, error)
 
 	// Chat members
