@@ -58,6 +58,12 @@ func AuthorizationInterceptor(
 	}
 }
 
+func ContextWithClaims(
+	ctx context.Context, messengerClaims *MessengerClaims,
+) context.Context {
+	return context.WithValue(ctx, claimsContextKey{}, messengerClaims)
+}
+
 func ClaimsFromContext(ctx context.Context) (*MessengerClaims, bool) {
 	claims, ok := ctx.Value(claimsContextKey{}).(*MessengerClaims)
 	return claims, ok
