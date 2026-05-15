@@ -426,7 +426,7 @@ func (r SqliteRepository) GetUndeliveredMessages(
 	return messages, err
 }
 
-func (r *SqliteRepository) AcknowledgeAndCleanupMessage(
+func (r SqliteRepository) AcknowledgeAndCleanupMessage(
 	ctx context.Context, messageId string, userId string, deliveredAt time.Time,
 ) error {
 	queryCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
