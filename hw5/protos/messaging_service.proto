@@ -23,7 +23,6 @@ service MessagingService {
   rpc CreateGroupChat(CreateGroupChatRequest) returns (CreateGroupChatResponse);
   rpc AddChatMember(AddChatMemberRequest) returns (AddChatMemberResponse);
   rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
-  
 }
 
 message SubscribeRequest {}
@@ -64,7 +63,6 @@ message SetMessageReadRequest {
 message SetMessageReadResponse {}
 
 // chat management 
-
 message GetUserChatsRequest {}
 
 message ChatInfo {
