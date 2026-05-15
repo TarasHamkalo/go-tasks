@@ -2,6 +2,8 @@ package messaging
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"slices"
 	"strings"
 	"time"
@@ -100,9 +102,33 @@ func (s *MessagingService) SetMessageRead(
 func (s *MessagingService) GetMessageAcks(
 	ctx context.Context, req *pb.GetMessageAcksRequest,
 ) (*pb.GetMessageAcksResponse, error) {
-	// TODO:
-	// s.repo.GetMessageById()
-	// s.repo.GetChatMembers(message.chat)
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
+	}
+
+	message, err := s.repo.GetMessageById(ctx, req.MsgId)
+	if err != nil {
+		return nil, status.Error(
+			codes.Internal, "could not retrieve message",
+		)
+	}
+
+	members, err := s.repo.GetChatMembers(ctx, message.ChatId)
+	if err != nil {
+		return nil, status.Error(
+			codes.Internal, "could not retrieve chat members for given message",
+		)
+	}
+	
+	if !slices.Contains(members, claims.Subject) {
+		return nil, status.Error(
+			codes.PermissionDenied, 
+			"user can not query acks for chat it does not belong to",
+		)
+	}
 
 	acks, err := s.repo.GetMessageAcks(ctx, req.MsgId)
 	if err != nil {
@@ -214,17 +240,27 @@ func (s *MessagingService) CreateDirectChat(
 		)
 	}
 
-	// TODO: validate whether direct chat already exists
-	// s.repo.GetDirectChatByUsers(ctx, userA, userB)
+
+	// validate whether direct chat already exists
+	chat, err := s.repo.GetDirectChatByUsers(ctx, userId, targetId)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		s.logger.Error("could not create direct chat", zap.Error(err))
+		return nil, status.Error(codes.Internal, "could not create chat")
+	}
+		
+	if err == nil && len(chat.Id) != 0 {
+		s.logger.Debug("user attempted to create existing chat")
+		return &pb.CreateDirectChatResponse{ChatId: chat.Id}, nil 
+	}
 
 	chatId := uuid.New().String()
-	chat := Chat{
+	chat = Chat{
 		Id:      chatId,
 		IsGroup: false,
 		Name:    "", // client should resolve user profile
 	}
 
-	err := s.repo.InsertChat(ctx, chat, []string{userId, targetId})
+	err = s.repo.InsertChat(ctx, chat, []string{userId, targetId})
 	if err != nil {
 		s.logger.Error("could not create direct chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
@@ -304,7 +340,17 @@ func (s *MessagingService) AddChatMember(
 		)
 	}
 
-	// TODO: validate `Chat.IsGroup` is true `s.repo.GetChat(ctx, id)`
+	chat, err := s.repo.GetChatById(ctx, req.ChatId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "could not verify chat metadata")
+	}
+
+	if !chat.IsGroup {
+		return nil, status.Error(
+			codes.InvalidArgument, "cannot add members to a direct chat", 
+		)
+	}
+	
 	err = s.repo.AddChatMember(ctx, req.ChatId, req.TargetUserId)
 	if err != nil {
 		s.logger.Error(
@@ -326,9 +372,23 @@ func (s *MessagingService) LeaveChat(
 		return nil, status.Error(codes.Unauthenticated, "missing authentication claims")
 	}
 
-	// TODO s.repo.GetChat and verify that is a group chat
+	chat, err := s.repo.GetChatById(ctx, req.ChatId)
+	if err != nil {
+		s.logger.Error(
+			"could not leave chat",
+			zap.Error(err),
+			zap.String("chatId", req.ChatId),
+		)
+		return nil, status.Error(codes.Internal, "could not leave chat")
+	}
 
-	err := s.repo.RemoveChatMember(ctx, req.ChatId, claims.Subject)
+	if !chat.IsGroup {
+		return nil, status.Error(
+			codes.InvalidArgument, "can not leave direct chat",
+		)
+	}
+
+	err = s.repo.RemoveChatMember(ctx, req.ChatId, claims.Subject)
 	if err != nil {
 		s.logger.Error(
 			"could not leave chat",
