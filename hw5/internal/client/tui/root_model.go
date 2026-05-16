@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"crypto/rsa"
 	"crypto/tls"
 	"fmt"
 
@@ -10,11 +11,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	pb "gomessenger/generated" 
+	pb "gomessenger/generated"
+	"gomessenger/internal/auth"
 )
-
-const PROFILES_API_URL = "localhost:8081"
-const MESSAGING_API_URL = "localhost:8082"
 
 type RootModel struct {
 	state ProgramState
@@ -26,7 +25,10 @@ type RootModel struct {
 	onboarding OnboardingModel
 
 	// gRPC clients and sec
-	tlsCfg *tls.Config
+	verificationKey *rsa.PublicKey
+	tlsCfg          *tls.Config
+
+	tokenCredentialsInterceptor *auth.TokenCredentialsInterecptor
 
 	profileClient   pb.ProfileServiceClient
 	messagingClient pb.MessagingServiceClient
@@ -34,17 +36,67 @@ type RootModel struct {
 
 func NewRootModel(
 	ctx context.Context,
+	issuer string,
+	verificationKey *rsa.PublicKey,
 	tlsCfg *tls.Config,
 	logger *zap.Logger,
 ) *RootModel {
-	return &RootModel{
-		state: ProgramState{
-			Id:     StateOnboarding,
-			UserId: "",
+	state := ProgramState{
+		Id:              StateOnboarding,
+		UserId:          "",
+		ProfilesApiUrl:  "localhost:8081",
+		MessagingApiUrl: "localhost:8082",
+	}
+
+	authInterceptor := auth.NewTokenCredentialsInterecptor(
+		issuer,
+		verificationKey,
+		map[string]bool{
+			pb.ProfileService_RegisterProfile_FullMethodName: true,
+			pb.ProfileService_Login_FullMethodName:           true,
+			pb.ProfileService_Refresh_FullMethodName:         true,
 		},
-		ctx:        ctx,
-		logger:     logger.With(zap.String("module", "root")),
-		onboarding: NewOnboardingModel(ctx, logger.With(zap.String("module", "onboarding"))),
+		logger.With(zap.String("module", "auth-interceptor")),
+	)
+
+	// dial both servers at application startup
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
+		grpc.WithPerRPCCredentials(authInterceptor),
+	}
+
+	profileConn, err := grpc.NewClient(state.ProfilesApiUrl, opts...)
+	if err != nil {
+		logger.Fatal("failed to connect to profile server", zap.Error(err))
+	}
+	profileClient := pb.NewProfileServiceClient(profileConn)
+
+	messagingConn, err := grpc.NewClient(state.MessagingApiUrl, opts...)
+	if err != nil {
+		logger.Fatal("failed to connect to messaging server", zap.Error(err))
+	}
+	messagingClient := pb.NewMessagingServiceClient(messagingConn)
+
+	authInterceptor.SetProfileClient(profileClient)
+
+	return &RootModel{
+		state:  state,
+		ctx:    ctx,
+		logger: logger.With(zap.String("module", "root")),
+
+		tlsCfg: tlsCfg,
+
+		tokenCredentialsInterceptor: authInterceptor,
+
+		profileClient:   profileClient,
+		messagingClient: messagingClient,
+
+		// Pass the actual profileClient down so Onboarding can run the Login RPC!
+		onboarding: NewOnboardingModel(
+			ctx,
+			logger.With(zap.String("module", "onboarding")),
+			profileClient,
+		),
 	}
 }
 
@@ -53,53 +105,20 @@ func (m *RootModel) Init() tea.Cmd {
 }
 
 func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// TODO: i am logging REFRESH TOKEN ==)
 	m.logger.Info("received message", zap.Any("msg", msg))
 
 	switch msg := msg.(type) {
 	case AuthSucceededMsg:
-		m.logger.Info(
-			"authentication succeeded, initializing client state",
-			zap.String("userId", msg.UserID),
+		m.logger.Info("authentication succeeded", zap.String("userId", msg.UserID))
+
+		// TODO: here you can store tokens to some keyring (or file ==))
+		// inject new tokens into the active gRPC Interceptor
+		m.tokenCredentialsInterceptor.SetTokens(
+			msg.UserID, msg.AccessToken, msg.RefreshToken,
 		)
 
-		// 1. Save tokens to tokens-<userId>.json
-		err := saveTokens(msg.UserID, msg.AccessToken, msg.RefreshToken)
-		if err != nil {
-			m.logger.Error("failed to save tokens", zap.Error(err))
-			return m, tea.Quit
-		}
-
-		m.logger.Info("tokens saved to disk")
-
-		// 2. Create authenticated gRPC connection configs
-		authCreds := TokenAuth{
-			accessToken: msg.AccessToken,
-			refreshToken: msg.RefreshToken,
-		}
-
-		opts := []grpc.DialOption{
-			grpc.WithTransportCredentials(credentials.NewTLS(m.tlsCfg)),
-			grpc.WithPerRPCCredentials(authCreds),
-		}
-
-		// 3. Dial Profiles (8081)
-		// TODO: define which paths require authorization 
-		// TODO: after creation of profile client path it to tokens auth object
-		profileConn, err := grpc.NewClient(PROFILES_API_URL, opts...)
-		if err != nil {
-			m.logger.Fatal("failed to connect to profile server", zap.Error(err))
-		}
-		m.profileClient = pb.NewProfileServiceClient(profileConn)
-
-		// 4. Dial Messaging (8082)
-		messagingConn, err := grpc.NewClient(MESSAGING_API_URL, opts...)
-		if err != nil {
-			m.logger.Fatal("failed to connect to messaging server", zap.Error(err))
-		}
-		m.messagingClient = pb.NewMessagingServiceClient(messagingConn)
-
-		m.logger.Info("gRPC clients configured and ready. Exiting as requested.")
+		m.state.UserId = msg.UserID
+		m.state.Id = StateChatList
 
 		fmt.Printf("Success! Logged in as %s. Tokens saved.\n", msg.UserID)
 		return m, tea.Quit
@@ -110,7 +129,6 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model, cmd := m.onboarding.Update(msg)
 		m.onboarding = model.(OnboardingModel)
 		return m, cmd
-
 	case StateChatList:
 		return m, tea.Quit
 	}

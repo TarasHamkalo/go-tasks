@@ -2,7 +2,10 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	pb "gomessenger/generated"
+	"strings"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -26,6 +29,8 @@ const (
 )
 
 type OnboardingModel struct {
+	profileClient pb.ProfileServiceClient
+
 	ctx context.Context
 
 	subState AuthSubState
@@ -37,19 +42,44 @@ type OnboardingModel struct {
 	err    error
 }
 
-// TODO: a lot of verification of field inputs
 func NewOnboardingModel(
 	ctx context.Context,
+	profileClient pb.ProfileServiceClient,
 	logger *zap.Logger,
 ) OnboardingModel {
 	username := textinput.New()
+	username.CharLimit = 32
 	username.Placeholder = "Username"
+	username.Validate = func(s string) error {
+		trimmed := strings.TrimSpace(s)
+		if len(trimmed) < 3 || len(trimmed) > 32 {
+			return errors.New(
+				"username has to have between 3 to 32 non white characters",
+			)
+		}
+		return nil
+	}
+
 	username.SetWidth(30)
 
 	password := textinput.New()
+	password.CharLimit = 72
 	password.Placeholder = "Password"
-	password.SetWidth(30)
 	password.EchoMode = textinput.EchoPassword
+	password.SetWidth(30)
+
+	password.Validate = func(s string) error {
+		trimmed := strings.TrimSpace(s)
+		if strings.Contains(s, " ") {
+			return errors.New("password should not contain whitespaces")
+		}
+
+		if len(trimmed) < 8 {
+			return errors.New("min password length: 8")
+		}
+
+		return nil
+	}
 
 	return OnboardingModel{
 		ctx:      ctx,
@@ -61,6 +91,7 @@ func NewOnboardingModel(
 }
 
 func (m OnboardingModel) Init() tea.Cmd {
+	// just proceed with rendering
 	return nil
 }
 
@@ -160,13 +191,15 @@ func (m OnboardingModel) submit() tea.Cmd {
 func (m OnboardingModel) View() tea.View {
 	switch m.subState {
 	case AuthPromptChoice:
-		return tea.NewView(
+		view := tea.NewView(
 			"Go Messenger\n\n" +
 				"1. Login\n" +
 				"2. Register\n\n" +
 				"[1|2] Select\n" +
 				"[Esc] Quit",
 		)
+		view.AltScreen = true
+		return view
 
 	case AuthLoginForm:
 		return m.formView("Login")

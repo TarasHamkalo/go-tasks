@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -12,20 +13,23 @@ import (
 
 	"gomessenger/internal"
 	"gomessenger/internal/client/tui"
+
+	"gomessenger/internal/auth"
 )
 
-const	AppLogFilePath = "logs/tui.log"
-const	ServerCertPath = "resources/certs/server.crt"
+const AppLogFilePath = "logs/tui.log"
+const ServerCertPath = "resources/certs/server.crt"
+const JwtPublicKeyPath = "resources/jwt-keys/public.key"
 
 func main() {
-	tlsCfg := loadServerCert(ServerCertPath)
+	verificationKey, tlsCfg := loadSecurityAssets(JwtPublicKeyPath, ServerCertPath)
 
 	appLogFile := createLogFile()
 	defer appLogFile.Close()
 
 	logger := internal.LogInit(appLogFile, true)
 	model := tui.NewRootModel(
-		context.Background(), tlsCfg, logger,
+		context.Background(), verificationKey, tlsCfg, logger,
 	)
 
 	p := tea.NewProgram(model)
@@ -54,7 +58,14 @@ func createLogFile() *os.File {
 	return appLogFile
 }
 
-func loadServerCert(certPath string) *tls.Config {
+func loadSecurityAssets(
+	publicKeyPath, certPath string,
+) (*rsa.PublicKey, *tls.Config) {
+	publicKey, err := auth.LoadPublicKey(publicKeyPath)
+	if err != nil {
+		log.Fatal("could not load public: %w", err)
+	}
+
 	pem, err := os.ReadFile(certPath)
 	if err != nil {
 		log.Fatalf("not read certificate: %w", err)
@@ -74,5 +85,5 @@ func loadServerCert(certPath string) *tls.Config {
 		ServerName: "localhost",
 	}
 
-	return tlsCfg
+	return publicKey, tlsCfg
 }
