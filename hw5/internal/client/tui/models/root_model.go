@@ -12,6 +12,8 @@ import (
 	"gomessenger/internal/client/tui"
 )
 
+type RootHandleErrorMsg error
+
 type RootModel struct {
 	currentSubModel SubModel
 
@@ -19,23 +21,28 @@ type RootModel struct {
 	height int
 
 	appContext *state.AppContext
-	session    *state.Session
 
 	logger *zap.Logger
 
-	onboardingSubModel OnboardingSubModel
+	onboardingSubModel *OnboardingSubModel
+
+	pullDataModel *PullDataModel
 }
 
 func NewRootModel(appContext *state.AppContext) *RootModel {
 	onboardingSubModel := NewOnboardingModel(appContext)
+	pullDataModel := NewPullDataModel(appContext)
+
+	appContext.Session = &state.Session{} // empty state
+
 	return &RootModel{
 		currentSubModel: onboardingSubModel,
 		appContext:      appContext,
-		session:         &state.Session{},
 		logger:          appContext.RootLogger.With(zap.String("mvc", "root")),
 
 		// to reuse all
 		onboardingSubModel: onboardingSubModel,
+		pullDataModel:      pullDataModel,
 	}
 }
 
@@ -59,6 +66,10 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
+	case RootHandleErrorMsg:
+		m.currentSubModel = NewErrorSubModel(msg, m.onboardingSubModel)
+		return m, nil
+
 	case AuthSucceededMsg:
 		m.logger.Info("authentication succeeded", zap.String("userId", msg.UserId))
 
@@ -73,10 +84,9 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.session.UserId = msg.UserId
-		m.currentSubModel = TodoSubModel{}
-
-		return m, nil
+		m.appContext.Session.UserId = msg.UserId
+		m.currentSubModel = m.pullDataModel 
+		return m, m.currentSubModel.Init()
 	}
 
 	nextSubModel, cmd := m.currentSubModel.Update(msg)

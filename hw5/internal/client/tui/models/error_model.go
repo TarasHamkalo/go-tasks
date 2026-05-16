@@ -12,28 +12,28 @@ type ErrorSubModel struct {
 	returnTo SubModel // The state we pop back to when dismissed
 }
 
-func NewErrorSubModel(err error, returnTo SubModel) ErrorSubModel {
-	return ErrorSubModel{
+func NewErrorSubModel(err error, returnTo SubModel) *ErrorSubModel {
+	return &ErrorSubModel{
 		err:      err,
 		returnTo: returnTo,
 	}
 }
 
-func (m ErrorSubModel) Id() SubModelId {
+func (m *ErrorSubModel) Id() SubModelId {
 	return ScreenError
 }
 
-func (m ErrorSubModel) Init() tea.Cmd {
+func (m *ErrorSubModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m ErrorSubModel) ShortHelp() []Binding {
+func (m *ErrorSubModel) ShortHelp() []Binding {
 	return []Binding{
 		{Key: "Enter/Esc", Description: "Dismiss Error"},
 	}
 }
 
-func (m ErrorSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *ErrorSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -44,11 +44,11 @@ func (m ErrorSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m ErrorSubModel) View() tea.View {
+func (m *ErrorSubModel) View() tea.View {
 	return tea.NewView("")
 }
 
-func (m ErrorSubModel) ContentView(width, height int) tea.View {
+func (m *ErrorSubModel) ContentView(width, height int) tea.View {
 	// Style the error specifically to look like an alert
 	alertStyle := tui.DialogBoxStyle.BorderForeground(lipgloss.Color("#FF0000"))
 

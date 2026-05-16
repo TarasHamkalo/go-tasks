@@ -9,12 +9,13 @@ type SubModelId int
 const (
 	ScreenOnboarding SubModelId = iota
 	ScreenError      SubModelId = iota
+	ScreenPullData       SubModelId = iota
 
 	TODOScreen SubModelId = iota
 )
 
 type Binding struct {
-	Key string
+	Key         string
 	Description string
 }
 
@@ -42,7 +43,7 @@ func (t TodoSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (t TodoSubModel) View() tea.View {
-	return t.ContentView(500, 500);
+	return t.ContentView(500, 500)
 }
 
 func (t TodoSubModel) ContentView(width, height int) tea.View {

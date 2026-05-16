@@ -51,7 +51,7 @@ type OnboardingSubModel struct {
 // Ensure 9 digits only
 var userIdRegex = regexp.MustCompile(`^\d{9}$`)
 
-func NewOnboardingModel(appContext *state.AppContext) OnboardingSubModel {
+func NewOnboardingModel(appContext *state.AppContext) *OnboardingSubModel {
 	// Username Field (For Registration)
 	username := textinput.New()
 	username.CharLimit = 33
@@ -77,7 +77,7 @@ func NewOnboardingModel(appContext *state.AppContext) OnboardingSubModel {
 		}
 		return nil
 	}
-
+	
 	// Password Field (Shared)
 	password := textinput.New()
 	password.CharLimit = 73
@@ -99,7 +99,10 @@ func NewOnboardingModel(appContext *state.AppContext) OnboardingSubModel {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 
-	return OnboardingSubModel{
+	//TODO: remove
+	userId.SetValue("100000000")
+	password.SetValue("taras123")
+	return &OnboardingSubModel{
 		profileClient: appContext.ProfileClient,
 		ctx:           appContext.Ctx,
 		subState:      AuthPromptChoice,
@@ -111,15 +114,15 @@ func NewOnboardingModel(appContext *state.AppContext) OnboardingSubModel {
 	}
 }
 
-func (m OnboardingSubModel) Id() SubModelId {
+func (m *OnboardingSubModel) Id() SubModelId {
 	return ScreenOnboarding
 }
 
-func (m OnboardingSubModel) Init() tea.Cmd {
+func (m *OnboardingSubModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m OnboardingSubModel) ShortHelp() []Binding {
+func (m *OnboardingSubModel) ShortHelp() []Binding {
 	switch m.subState {
 	case AuthPromptChoice:
 		return []Binding{
@@ -137,7 +140,7 @@ func (m OnboardingSubModel) ShortHelp() []Binding {
 	}
 }
 
-func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.logger.Info("received message", zap.Any("msg", msg))
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
@@ -241,8 +244,6 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AuthSubmitting:
 		switch msg := msg.(type) {
 		case error:
-			// If an error returns from the gRPC call, we return an ErrorSubModel!
-			// It will display the error and return us back to 'm' (the onboarding screen)
 			m.subState = AuthPromptChoice // Reset state for when they come back
 			return NewErrorSubModel(msg, m), nil
 
@@ -254,11 +255,11 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m OnboardingSubModel) View() tea.View {
+func (m *OnboardingSubModel) View() tea.View {
 	return tea.NewView("")
 }
 
-func (m OnboardingSubModel) submitLogin() tea.Cmd {
+func (m *OnboardingSubModel) submitLogin() tea.Cmd {
 	id := strings.TrimSpace(m.userId.Value())
 	pass := []byte(m.password.Value())
 
@@ -284,7 +285,7 @@ func (m OnboardingSubModel) submitLogin() tea.Cmd {
 	}
 }
 
-func (m OnboardingSubModel) submitRegister() tea.Cmd {
+func (m *OnboardingSubModel) submitRegister() tea.Cmd {
 	uname := strings.TrimSpace(m.username.Value())
 	pass := []byte(m.password.Value())
 
@@ -323,7 +324,7 @@ func (m OnboardingSubModel) submitRegister() tea.Cmd {
 	}
 }
 
-func (m OnboardingSubModel) ContentView(width, height int) tea.View {
+func (m *OnboardingSubModel) ContentView(width, height int) tea.View {
 	var content string
 
 	switch m.subState {
@@ -355,7 +356,7 @@ func (m OnboardingSubModel) ContentView(width, height int) tea.View {
 	return tea.NewView(centered)
 }
 
-func (m OnboardingSubModel) formView(
+func (m *OnboardingSubModel) formView(
 	title, topLabel string, topInput textinput.Model,
 ) string {
 	body := lipgloss.JoinVertical(

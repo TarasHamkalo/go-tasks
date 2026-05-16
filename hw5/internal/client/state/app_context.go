@@ -1,4 +1,4 @@
-package state 
+package state
 
 import (
 	"context"
@@ -7,16 +7,18 @@ import (
 
 	pb "gomessenger/generated"
 	"gomessenger/internal/auth"
+	"gomessenger/internal/client/storage"
 
 	"go.uber.org/zap"
 )
 
 type AppContext struct {
 	Ctx context.Context
-	
+
 	RootLogger *zap.Logger
 
-	Config *Config
+	Session *Session
+	Config  *Config
 
 	VerificationKey *rsa.PublicKey
 	TlsConfig       *tls.Config
@@ -25,4 +27,6 @@ type AppContext struct {
 
 	ProfileClient   pb.ProfileServiceClient
 	MessagingClient pb.MessagingServiceClient
+
+	LocalRepo storage.Repository
 }
