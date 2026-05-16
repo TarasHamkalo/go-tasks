@@ -28,7 +28,7 @@ const (
 	AuthSubmitting
 )
 
-type OnboardingModel struct {
+type OnboardingSubModel struct {
 	profileClient pb.ProfileServiceClient
 
 	subState AuthSubState
@@ -41,7 +41,7 @@ type OnboardingModel struct {
 	err error
 }
 
-func NewOnboardingModel(appContext *app.AppContext) OnboardingModel {
+func NewOnboardingModel(appContext *app.AppContext) OnboardingSubModel {
 	username := textinput.New()
 	username.CharLimit = 32
 	username.Placeholder = "Username"
@@ -76,7 +76,7 @@ func NewOnboardingModel(appContext *app.AppContext) OnboardingModel {
 		return nil
 	}
 
-	return OnboardingModel{
+	return OnboardingSubModel{
 		subState: AuthPromptChoice,
 		username: username,
 		password: password,
@@ -84,12 +84,12 @@ func NewOnboardingModel(appContext *app.AppContext) OnboardingModel {
 	}
 }
 
-func (m OnboardingModel) Init() tea.Cmd {
+func (m OnboardingSubModel) Init() tea.Cmd {
 	// just proceed with rendering
 	return nil
 }
 
-func (m OnboardingModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.logger.Info("received message", zap.Any("msg", msg))
 	var cmd tea.Cmd
 
@@ -157,7 +157,7 @@ func (m OnboardingModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m OnboardingModel) submit() tea.Cmd {
+func (m OnboardingSubModel) submit() tea.Cmd {
 	username := m.username.Value()
 	password := m.password.Value()
 	mode := m.subState
@@ -182,7 +182,7 @@ func (m OnboardingModel) submit() tea.Cmd {
 	}
 }
 
-func (m OnboardingModel) View() tea.View {
+func (m OnboardingSubModel) View() tea.View {
 	switch m.subState {
 	case AuthPromptChoice:
 		view := tea.NewView(
@@ -208,7 +208,7 @@ func (m OnboardingModel) View() tea.View {
 	return tea.NewView("")
 }
 
-func (m OnboardingModel) formView(title string) tea.View {
+func (m OnboardingSubModel) formView(title string) tea.View {
 	body := lipgloss.JoinVertical(
 		lipgloss.Left,
 		title,

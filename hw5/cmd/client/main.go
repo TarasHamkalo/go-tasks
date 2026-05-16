@@ -59,7 +59,7 @@ func main() {
 	setupClients(appContext)
 	model := models.NewRootModel(appContext)
 
-	p := tea.NewProgram(model)
+	p := tea.NewProgram(model, tea.WithContext(appContext.Ctx))
 	if _, err := p.Run(); err != nil {
 		logger.Info("error occurred BubbleTea run", zap.Error(err))
 		os.Exit(1)
