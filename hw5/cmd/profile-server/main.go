@@ -104,9 +104,9 @@ func initGrpcServer(
 
 	// define unprotected routes
 	publicRoutes := map[string]bool{
-		"/profile.ProfileService/RegisterProfile": true,
-		"/profile.ProfileService/Login":           true,
-		"/profile.ProfileService/Refresh":         true,
+		pb.ProfileService_RegisterProfile_FullMethodName: true,
+		pb.ProfileService_Login_FullMethodName: true,
+		pb.ProfileService_Refresh_FullMethodName: true,
 	}
 
 	grpcServer := gomessenger.NewGrpcServer(
