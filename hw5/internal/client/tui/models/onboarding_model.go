@@ -1,10 +1,10 @@
-package tui
+package models
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	pb "gomessenger/generated"
+	"gomessenger/internal/client/tui/app"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -31,22 +31,17 @@ const (
 type OnboardingModel struct {
 	profileClient pb.ProfileServiceClient
 
-	ctx context.Context
-
 	subState AuthSubState
 
 	username textinput.Model
 	password textinput.Model
 
 	logger *zap.Logger
-	err    error
+
+	err error
 }
 
-func NewOnboardingModel(
-	ctx context.Context,
-	profileClient pb.ProfileServiceClient,
-	logger *zap.Logger,
-) OnboardingModel {
+func NewOnboardingModel(appContext *app.AppContext) OnboardingModel {
 	username := textinput.New()
 	username.CharLimit = 32
 	username.Placeholder = "Username"
@@ -82,11 +77,10 @@ func NewOnboardingModel(
 	}
 
 	return OnboardingModel{
-		ctx:      ctx,
 		subState: AuthPromptChoice,
 		username: username,
 		password: password,
-		logger:   logger,
+		logger:   appContext.RootLogger.With(zap.String("mvc", "onboarding")),
 	}
 }
 

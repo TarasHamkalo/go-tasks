@@ -5,36 +5,63 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"log"
 	"os"
 
-	tea "charm.land/bubbletea/v2"
+	pb "gomessenger/generated"
 
 	"gomessenger/internal"
-	"gomessenger/internal/client/tui"
+	"gomessenger/internal/client/tui/app"
+	"gomessenger/internal/client/tui/models"
 
 	"gomessenger/internal/auth"
+
+	tea "charm.land/bubbletea/v2"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const AppLogFilePath = "logs/tui.log"
+const Issuer = "hamkatar-gommessenger"
 const ServerCertPath = "resources/certs/server.crt"
 const JwtPublicKeyPath = "resources/jwt-keys/public.key"
+const	ProfilesApiAddr = "localhost:8081"
+const	MessagingApiAddr = "localhost:8082"
+const LocalDataDir = "data"
 
 func main() {
-	verificationKey, tlsCfg := loadSecurityAssets(JwtPublicKeyPath, ServerCertPath)
-
-	appLogFile := createLogFile()
-	defer appLogFile.Close()
-
-	logger := internal.LogInit(appLogFile, true)
-	model := tui.NewRootModel(
-		context.Background(), verificationKey, tlsCfg, logger,
+	verificationKey, tlsCfg := loadSecurityAssets(
+		JwtPublicKeyPath, ServerCertPath,
 	)
+
+ 	appLogFile := createLogFile()
+ 	defer appLogFile.Close()
+
+ 	logger := internal.LogInit(appLogFile, true)
+	
+	appContext := &app.AppContext{
+		Ctx: context.Background(),
+
+		RootLogger: logger,
+
+		Config: &app.Config{
+			ProfilesApiAddr:  ProfilesApiAddr,
+			MessagingApiAddr: MessagingApiAddr,
+			TokenIssuer:      Issuer,
+			LocalDataDir:     LocalDataDir,
+		},
+
+		VerificationKey: verificationKey,
+		TlsConfig:       tlsCfg,
+	}
+
+	setupClients(appContext)
+	model := models.NewRootModel(appContext)
 
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
-		fmt.Printf("there's been an error: %v", err)
+		logger.Info("error occurred BubbleTea run", zap.Error(err))
 		os.Exit(1)
 	}
 }
@@ -86,4 +113,50 @@ func loadSecurityAssets(
 	}
 
 	return publicKey, tlsCfg
+}
+
+func setupClients(appContext  *app.AppContext) {
+	credentialsInterceptor := auth.NewTokenCredentialsInterecptor(
+		appContext.Config.TokenIssuer,
+		appContext.VerificationKey,
+		map[string]bool{
+			pb.ProfileService_RegisterProfile_FullMethodName: true,
+			pb.ProfileService_Login_FullMethodName:           true,
+			pb.ProfileService_Refresh_FullMethodName:         true,
+		},
+		appContext.RootLogger.With(zap.String("module", "auth-interceptor")),
+	)
+
+	// dial both servers at application startup
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(credentials.NewTLS(appContext.TlsConfig)),
+		grpc.WithPerRPCCredentials(credentialsInterceptor),
+	}
+
+	profileConn, err := grpc.NewClient(
+		appContext.Config.ProfilesApiAddr, opts...
+	)
+	if err != nil {
+		appContext.RootLogger.Fatal(
+			"failed to connect to profile server", zap.Error(err),
+		)
+	}
+	profileClient := pb.NewProfileServiceClient(profileConn)
+
+	messagingConn, err := grpc.NewClient(
+		appContext.Config.MessagingApiAddr, opts...
+	)
+	if err != nil {
+		appContext.RootLogger.Fatal(
+			"failed to connect to messaging server", zap.Error(err),
+		)
+	}
+
+	messagingClient := pb.NewMessagingServiceClient(messagingConn)
+	credentialsInterceptor.SetProfileClient(profileClient)
+
+	appContext.CredentialsInterceptor = credentialsInterceptor
+	appContext.MessagingClient = messagingClient
+	appContext.ProfileClient = profileClient
+	
 }
