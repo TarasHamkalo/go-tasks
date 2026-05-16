@@ -14,6 +14,7 @@ import (
 )
 
 var ErrSessionExpired = status.Error(codes.Unauthenticated, "session_expired")
+
 // WithPerRPCCredentials
 type TokenCredentialsInterecptor struct {
 	mu sync.RWMutex
@@ -24,7 +25,6 @@ type TokenCredentialsInterecptor struct {
 	refreshToken   string
 	accessTokenExp time.Time
 
-	publicMethods   map[string]bool
 	issuer          string
 	verificationKey *rsa.PublicKey
 
@@ -37,13 +37,11 @@ type TokenCredentialsInterecptor struct {
 func NewTokenCredentialsInterecptor(
 	issuer string,
 	verificationKey *rsa.PublicKey,
-	publicMethods map[string]bool,
 	logger *zap.Logger,
 ) *TokenCredentialsInterecptor {
 	return &TokenCredentialsInterecptor{
 		issuer:          issuer,
 		verificationKey: verificationKey,
-		publicMethods:   publicMethods,
 
 		logger: logger,
 	}
@@ -88,20 +86,19 @@ func (t *TokenCredentialsInterecptor) SetProfileClient(client pb.ProfileServiceC
 func (t *TokenCredentialsInterecptor) GetRequestMetadata(
 	ctx context.Context, uri ...string,
 ) (map[string]string, error) {
-	if len(uri) > 0 && t.publicMethods[uri[0]] {
-		return nil, nil
-	}
-
 	// acquire Read Lock to check expiration
 	t.mu.RLock()
 	isExpired := time.Now().After(t.accessTokenExp)
 	access := t.accessToken
 	t.mu.RUnlock()
 
+	// no tokens, send unauthenticated request
+	// and possibly get error from server
+	if access == "" {
+		return nil, nil
+	}
+
 	if !isExpired {
-		if access == "" {
-			return nil, nil
-		}
 		return map[string]string{"authorization": "Bearer " + access}, nil
 	}
 

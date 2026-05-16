@@ -24,7 +24,9 @@ import (
 
 const AppLogFilePath = "logs/tui.log"
 const Issuer = "hamkatar-gommessenger"
-const ServerCertPath = "resources/certs/server.crt"
+// const ServerCertPath = "resources/certs/server.crt"
+const ServerCertPath = "resources/certs2/localhost-cert.pem"
+
 const JwtPublicKeyPath = "resources/jwt-keys/public.key"
 const	ProfilesApiAddr = "localhost:8081"
 const	MessagingApiAddr = "localhost:8082"
@@ -119,11 +121,6 @@ func setupClients(appContext  *app.AppContext) {
 	credentialsInterceptor := auth.NewTokenCredentialsInterecptor(
 		appContext.Config.TokenIssuer,
 		appContext.VerificationKey,
-		map[string]bool{
-			pb.ProfileService_RegisterProfile_FullMethodName: true,
-			pb.ProfileService_Login_FullMethodName:           true,
-			pb.ProfileService_Refresh_FullMethodName:         true,
-		},
 		appContext.RootLogger.With(zap.String("module", "auth-interceptor")),
 	)
 
