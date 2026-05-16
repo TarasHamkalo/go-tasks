@@ -87,7 +87,12 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appContext.Session.UserId = msg.UserId
 		m.currentSubModel = m.pullDataModel 
 		return m, m.currentSubModel.Init()
+	case DataPullSucceededMsg:
+		m.logger.Info("user data sync completely succeeded")
+		m.currentSubModel = TodoSubModel{}
+		return m, nil
 	}
+
 
 	nextSubModel, cmd := m.currentSubModel.Update(msg)
 	m.currentSubModel, _ = nextSubModel.(SubModel)

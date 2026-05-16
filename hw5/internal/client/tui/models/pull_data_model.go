@@ -7,15 +7,23 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/status"
 
 	"gomessenger/internal/client/state"
 	"gomessenger/internal/client/storage"
+	"gomessenger/internal/client/tui"
+
+	pb "gomessenger/generated"
 )
 
+// messages
 type DatabaseInitializedMsg struct {
 	Repo storage.Repository
 }
 
+type DataPullSucceededMsg struct{}
+
+// states
 type PullDataSubState int
 
 const (
@@ -51,7 +59,6 @@ func (m *PullDataModel) Id() SubModelId {
 }
 
 func (m *PullDataModel) Init() tea.Cmd {
-	// return m.initDatabase()
 	return tea.Batch(m.spin.Tick, m.initDatabase())
 }
 
@@ -73,18 +80,29 @@ func (m *PullDataModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case DatabaseInitializedMsg:
 			m.logger.Info("local database initialized")
 			m.appContext.LocalRepo = msg.Repo
-			return TodoSubModel{}, nil
+			m.subState = PullUserData
+
+			return m, tea.Batch(m.spin.Tick, m.pullUserData())
 
 		case error:
-			m.logger.Debug("got error")
 			cmd := func() tea.Msg {
 				return RootHandleErrorMsg(
 					fmt.Errorf("could not initialize database: %w", msg),
 				)
 			}
+			return m, cmd
+		}
 
-			cmds := append(cmds, cmd)
-			return m, tea.Batch(cmds...)
+	case PullUserData:
+		switch msg := msg.(type) {
+		case error:
+			m.logger.Error("failed pulling user sync data", zap.Error(msg))
+			cmd := func() tea.Msg {
+				return RootHandleErrorMsg(
+					fmt.Errorf("failed synchronizing account data: %w", msg),
+				)
+			}
+			return m, cmd
 		}
 	}
 
@@ -96,9 +114,24 @@ func (m *PullDataModel) View() tea.View {
 }
 
 func (m *PullDataModel) ContentView(width, height int) tea.View {
-	return tea.NewView(
-		fmt.Sprintf("%s Initializing local database...", m.spin.View()),
+	var statusText string
+	switch m.subState {
+	case InitDatabase:
+		statusText = "Initializing local database..."
+	case PullUserData:
+		statusText = "Syncing chats and companion profiles..."
+	}
+
+	content := lipgloss.JoinHorizontal(
+		lipgloss.Center,
+		m.spin.View(),
+		" ",
+		statusText,
 	)
+
+	box := tui.DialogBoxStyle.Render(content)
+	centered := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, box)
+	return tea.NewView(centered)
 }
 
 func (m *PullDataModel) initDatabase() tea.Cmd {
@@ -107,6 +140,7 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 		repo, err := storage.NewSqliteRepository(
 			m.appContext.Config.LocalDataDir, m.appContext.Session.UserId,
 		)
+
 		if err != nil {
 			return err
 		}
@@ -117,137 +151,123 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 		}
 
 		m.logger.Debug("database initialized")
-		return DatabaseInitializedMsg{
-			Repo: repo,
-		}
+		return DatabaseInitializedMsg{Repo: repo}
 	}
 }
 
-// func (m OnboardingSubModel) submitLogin() tea.Cmd {
-// 	id := strings.TrimSpace(m.userId.Value())
-// 	pass := []byte(m.password.Value())
-//
-// 	return func() tea.Msg {
-// 		res, err := m.profileClient.Login(m.ctx, &pb.LoginRequest{
-// 			UserId:   id,
-// 			Password: pass,
-// 		})
-//
-// 		if err != nil {
-// 			// extract gRPC status
-// 			if stat, ok := status.FromError(err); ok {
-// 				return errors.New(stat.Message())
-// 			}
-// 			return err
-// 		}
-//
-// 		return AuthSucceededMsg{
-// 			UserId:       id,
-// 			AccessToken:  res.Tokens.AccessToken,
-// 			RefreshToken: res.Tokens.RefreshToken,
-// 		}
-// 	}
-// }
-//
-// func (m OnboardingSubModel) submitRegister() tea.Cmd {
-// 	uname := strings.TrimSpace(m.username.Value())
-// 	pass := []byte(m.password.Value())
-//
-// 	return func() tea.Msg {
-// 		regRes, err := m.profileClient.RegisterProfile(
-// 			m.ctx,
-// 			&pb.RegisterProfileRequest{
-// 				Username: uname,
-// 				Password: pass,
-// 			})
-//
-// 		if err != nil {
-// 			if stat, ok := status.FromError(err); ok {
-// 				return errors.New(stat.Message())
-// 			}
-// 			return err
-// 		}
-//
-// 		// login to get tokens
-// 		logRes, err := m.profileClient.Login(m.ctx, &pb.LoginRequest{
-// 			UserId:   regRes.UserId,
-// 			Password: pass,
-// 		})
-//
-// 		if err != nil {
-// 			return fmt.Errorf(
-// 				"account created (ID: %s), but login failed: %v", regRes.UserId, err,
-// 			)
-// 		}
-//
-// 		return AuthSucceededMsg{
-// 			UserId:       regRes.UserId,
-// 			AccessToken:  logRes.Tokens.AccessToken,
-// 			RefreshToken: logRes.Tokens.RefreshToken,
-// 		}
-// 	}
-// }
-//
-// func (m OnboardingSubModel) ContentView(width, height int) tea.View {
-// 	var content string
-//
-// 	switch m.subState {
-// 	case AuthPromptChoice:
-// 		content = lipgloss.JoinVertical(
-// 			lipgloss.Center,
-// 			lipgloss.NewStyle().Bold(true).Render("Go Messenger"),
-// 			"",
-// 			"1. Login   ",
-// 			"2. Register",
-// 		)
-// 	case AuthLoginForm:
-// 		content = m.formView("Login", "User ID (9 digits):", m.userId)
-// 	case AuthRegisterForm:
-// 		content = m.formView("Register", "Username:", m.username)
-// 	case AuthSubmitting:
-// 		content = lipgloss.JoinHorizontal(
-// 			lipgloss.Center,
-// 			m.spin.View(),
-// 			" Authenticating...",
-// 		)
-// 	}
-//
-// 	box := tui.DialogBoxStyle.Render(content)
-// 	centered := lipgloss.Place(
-// 		width, height, lipgloss.Center, lipgloss.Center, box,
-// 	)
-//
-// 	return tea.NewView(centered)
-// }
-//
-// func (m OnboardingSubModel) formView(
-// 	title, topLabel string, topInput textinput.Model,
-// ) string {
-// 	body := lipgloss.JoinVertical(
-// 		lipgloss.Left,
-// 		lipgloss.NewStyle().Bold(true).Render(title),
-// 		"",
-// 		topLabel,
-// 		topInput.View(),
-// 		"",
-// 		"Password:",
-// 		m.password.View(),
-// 	)
-//
-// 	// display validation errors
-// 	var errStr string
-// 	if topInput.Err != nil {
-// 		errStr = topInput.Err.Error()
-// 	} else if m.password.Err != nil {
-// 		errStr = m.password.Err.Error()
-// 	}
-//
-// 	if errStr != "" {
-// 		errorMsg := lipgloss.NewStyle().
-// 			Foreground(lipgloss.Color("#FF0000")).
-// 			Render(fmt.Sprintf("Error: %v", errStr))
-// 		body = lipgloss.JoinVertical(lipgloss.Left, body, "", errorMsg)
-// 	}
-//
-// 	return body
-// }
+func (m *PullDataModel) pullUserData() tea.Cmd {
+	return func() tea.Msg {
+		m.logger.Debug("starting to pull remote chat data")
+
+		// TODO: derive contexts with timeouts
+		ctx := m.appContext.Ctx
+		session := m.appContext.Session
+		// fetch all chats for the user from the remote server
+		chatsRes, err := m.appContext.MessagingClient.GetUserChats(
+			ctx, &pb.GetUserChatsRequest{},
+		)
+
+		if err != nil {
+			return cleanGrpcError(err)
+		}
+
+		// process each chat object returned
+		for _, remoteChat := range chatsRes.Chats {
+			chatId := remoteChat.Id
+
+			// Store member listings inside the in-memory session mapping
+			// TODO: this should not be done so eagerly but just let it be...
+			membersResp, err := m.appContext.MessagingClient.GetChatMembers(
+				ctx, &pb.GetChatMembersRequest{ChatId: chatId},
+			)
+			if err != nil {
+				return cleanGrpcError(err)
+			}
+
+			session.ChatMembers[chatId] = membersResp.MemberIds
+			if remoteChat.IsGroup {
+				// chat data is self-contained via server tracking names
+				session.Chats[chatId] = &state.GroupChat{
+					ChatId:    chatId,
+					GroupName: remoteChat.Name,
+				}
+			} else {
+				var companionId string
+				for _, uid := range membersResp.MemberIds {
+					if uid != session.UserId {
+						companionId = uid
+						break
+					}
+				}
+				if companionId == "" {
+					// should not occur
+					m.logger.Warn(
+						"companion id is empty for chat", zap.String("id", chatId),
+					)
+					continue
+				}
+
+				m.resolveDirectChat(chatId, companionId)
+			}
+		}
+
+		m.logger.Debug("finished pulling remote data")
+		return DataPullSucceededMsg{}
+	}
+}
+
+func cleanGrpcError(err error) error {
+	if s, ok := status.FromError(err); ok {
+		return fmt.Errorf("%s", s.Message())
+	}
+	return err
+}
+
+func (m *PullDataModel) resolveDirectChat(
+	chatId string,
+	companionId string,
+) {
+	// Direct chat: Identify the companion User ID
+	// fetch companion profile info from ProfileService
+	// TODO: timeout context
+	ctx := m.appContext.Ctx
+	session := m.appContext.Session
+
+	profRes, err := m.appContext.ProfileClient.GetUserProfile(
+		ctx,
+		&pb.GetUserProfileRequest{
+			UserId: companionId,
+		},
+	)
+
+	if err != nil {
+		m.logger.Warn("could not resolve direct chat profile",
+			zap.String("companionId", companionId),
+			zap.Error(err),
+		)
+
+		// Populate a placeholder profile so rendering doesn't crash
+		placeholder := &state.Profile{
+			Id:       companionId,
+			Username: fmt.Sprintf("User %s", companionId),
+		}
+
+		session.Profiles[companionId] = placeholder
+		session.Chats[chatId] = &state.DirectChat{
+			ChatId: chatId, 
+			OtherProfile: placeholder,
+		}
+	}
+
+	profile := &state.Profile{
+		Id:       profRes.UserId,
+		Username: profRes.Username,
+	}
+	session.Profiles[companionId] = profile
+
+	session.Chats[chatId] = &state.DirectChat{
+		ChatId:       chatId,
+		OtherProfile: profile,
+	}
+
+}

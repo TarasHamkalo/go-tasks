@@ -41,9 +41,13 @@ func main() {
  	defer appLogFile.Close()
 
  	logger := internal.LogInit(appLogFile, true)
+	// TODO: not sure how to handle properly, but app can not exit without user
+	// proper input
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	
 	appContext := &state.AppContext{
-		Ctx: context.Background(),
+		Ctx: ctx,
 
 		RootLogger: logger,
 
@@ -66,6 +70,7 @@ func main() {
 		logger.Info("error occurred BubbleTea run", zap.Error(err))
 		os.Exit(1)
 	}
+
 }
 
 func createLogFile() *os.File {
