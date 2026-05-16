@@ -24,8 +24,7 @@ import (
 
 const AppLogFilePath = "logs/tui.log"
 const Issuer = "hamkatar-gommessenger"
-// const ServerCertPath = "resources/certs/server.crt"
-const ServerCertPath = "resources/certs2/localhost-cert.pem"
+const ServerCertPath = "resources/certs/localhost-cert.pem"
 
 const JwtPublicKeyPath = "resources/jwt-keys/public.key"
 const	ProfilesApiAddr = "localhost:8081"

@@ -26,9 +26,9 @@ const ProfilesDbPath = "data/profiles.db"
 
 const PublicKeyPath = "resources/jwt-keys/public.key"
 const PrivateKeyPath = "resources/jwt-keys/private.key"
-
-const CertPath = "resources/certs/server.crt"
-const KeyPath = "resources/certs/server.key"
+//
+const CertPath = "resources/certs/localhost-cert.pem"
+const KeyPath = "resources/certs/localhost-privkey.pem"
 
 const Issuer = "hamkatar-gommessenger"
 
