@@ -37,8 +37,7 @@ type OnboardingSubModel struct {
 	password textinput.Model
 
 	logger *zap.Logger
-
-	err error
+	err    error
 }
 
 func NewOnboardingModel(appContext *app.AppContext) OnboardingSubModel {
@@ -48,13 +47,10 @@ func NewOnboardingModel(appContext *app.AppContext) OnboardingSubModel {
 	username.Validate = func(s string) error {
 		trimmed := strings.TrimSpace(s)
 		if len(trimmed) < 3 || len(trimmed) > 32 {
-			return errors.New(
-				"username has to have between 3 to 32 non white characters",
-			)
+			return errors.New("username has to have between 3 to 32 non white characters")
 		}
 		return nil
 	}
-
 	username.SetWidth(30)
 
 	password := textinput.New()
@@ -62,17 +58,14 @@ func NewOnboardingModel(appContext *app.AppContext) OnboardingSubModel {
 	password.Placeholder = "Password"
 	password.EchoMode = textinput.EchoPassword
 	password.SetWidth(30)
-
 	password.Validate = func(s string) error {
 		trimmed := strings.TrimSpace(s)
 		if strings.Contains(s, " ") {
 			return errors.New("password should not contain whitespaces")
 		}
-
 		if len(trimmed) < 8 {
 			return errors.New("min password length: 8")
 		}
-
 		return nil
 	}
 
@@ -84,9 +77,30 @@ func NewOnboardingModel(appContext *app.AppContext) OnboardingSubModel {
 	}
 }
 
+func (m OnboardingSubModel) Id() SubModelId {
+	return ScreenOnboarding
+}
+
 func (m OnboardingSubModel) Init() tea.Cmd {
-	// just proceed with rendering
-	return nil
+	return textinput.Blink
+}
+
+func (m OnboardingSubModel) ShortHelp() []Binding {
+	switch m.subState {
+	case AuthPromptChoice:
+		return []Binding{
+			{Key: "1", Description: "Login"},
+			{Key: "2", Description: "Register"},
+		}
+	case AuthLoginForm, AuthRegisterForm:
+		return []Binding{
+			{Key: "Tab", Description: "Switch field"},
+			{Key: "Enter", Description: "Submit"},
+			{Key: "Esc", Description: "Back"},
+		}
+	default:
+		return []Binding{}
+	}
 }
 
 func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -102,13 +116,10 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.subState = AuthLoginForm
 				m.username.Focus()
 				return m, textinput.Blink
-
 			case "2":
 				m.subState = AuthRegisterForm
 				m.username.Focus()
 				return m, textinput.Blink
-			case "esc":
-				return m, tea.Quit
 			}
 		}
 
@@ -125,11 +136,9 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.username.Focus()
 				}
 				return m, nil
-
 			case "enter":
 				m.subState = AuthSubmitting
 				return m, m.submit()
-
 			case "esc":
 				m.subState = AuthPromptChoice
 				m.err = nil
@@ -142,7 +151,6 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.password, cmd = m.password.Update(msg)
 		}
-
 		return m, cmd
 
 	case AuthSubmitting:
@@ -157,77 +165,73 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m OnboardingSubModel) submit() tea.Cmd {
-	username := m.username.Value()
-	password := m.password.Value()
-	mode := m.subState
-
-	return func() tea.Msg {
-		// TODO:
-		// if mode == AuthRegisterForm {
-		//     RegisterProfile(...)
-		// }
-		//
-		// Login(...)
-		//
-		_ = username
-		_ = password
-		_ = mode
-		// Temporary fake success for UI development.
-		return AuthSucceededMsg{
-			UserID:       "123456789",
-			AccessToken:  "access-token",
-			RefreshToken: "refresh-token",
-		}
-	}
-}
-
 func (m OnboardingSubModel) View() tea.View {
-	switch m.subState {
-	case AuthPromptChoice:
-		view := tea.NewView(
-			"Go Messenger\n\n" +
-				"1. Login\n" +
-				"2. Register\n\n" +
-				"[1|2] Select\n" +
-				"[Esc] Quit",
-		)
-		view.AltScreen = true
-		return view
-
-	case AuthLoginForm:
-		return m.formView("Login")
-
-	case AuthRegisterForm:
-		return m.formView("Register")
-
-	case AuthSubmitting:
-		return tea.NewView("Authenticating...\n")
-	}
-
 	return tea.NewView("")
 }
 
-func (m OnboardingSubModel) formView(title string) tea.View {
+func (m OnboardingSubModel) ContentView(width, height int) tea.View {
+	var content string
+
+	switch m.subState {
+	case AuthPromptChoice:
+		content = lipgloss.JoinVertical(
+			lipgloss.Center,
+			lipgloss.NewStyle().Bold(true).Render("Go Messenger"),
+			"",
+			"1. Login   ",
+			"2. Register",
+		)
+	case AuthLoginForm:
+		content = m.formView("Login")
+	case AuthRegisterForm:
+		content = m.formView("Register")
+	case AuthSubmitting:
+		content = lipgloss.NewStyle().Bold(true).Render("Authenticating...")
+	}
+
+	// Render the box and place it directly in the center of the available space
+	box := DialogBoxStyle.Render(content)
+	centered := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, box)
+
+	return tea.NewView(centered)
+}
+
+func (m OnboardingSubModel) formView(title string) string {
 	body := lipgloss.JoinVertical(
 		lipgloss.Left,
-		title,
+		lipgloss.NewStyle().Bold(true).Render(title),
 		"",
 		"Username:",
 		m.username.View(),
 		"",
 		"Password:",
 		m.password.View(),
-		"",
-		"[Tab] switch field",
-		"[Enter] submit",
-		"[Esc] back",
 	)
 
 	if m.err != nil {
-		body += fmt.Sprintf("\n\nError: %v", m.err)
+		errorMsg := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF0000")).
+			Render(fmt.Sprintf("Error: %v", m.err))
+
+		body = lipgloss.JoinVertical(lipgloss.Left, body, "", errorMsg)
 	}
 
-	view := tea.NewView(body)
-	return view
+	return body
+}
+
+func (m OnboardingSubModel) submit() tea.Cmd {
+	username := m.username.Value()
+	password := m.password.Value()
+	mode := m.subState
+
+	return func() tea.Msg {
+		_ = username
+		_ = password
+		_ = mode
+		return AuthSucceededMsg{
+			UserID:       "123456789",
+			AccessToken:  "access-token",
+			RefreshToken: "refresh-token",
+		}
+	}
 }

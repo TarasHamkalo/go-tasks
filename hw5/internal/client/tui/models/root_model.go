@@ -63,7 +63,7 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "ctrl+c", "ctrl+q":
+		case "ctrl+c", "ctrl+d":
 			return m, tea.Quit
 		}
 
@@ -76,14 +76,15 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg.UserID, msg.AccessToken, msg.RefreshToken,
 		)
 		if err != nil {
-			// TODO: show error to user
-			return m, tea.Quit
+			// TODO: show proper error to user
+			m.currentSubModel = NewErrorSubModel(err, m.onboardingSubModel)
+			return m, nil
 		}
 
 		m.session.UserId = msg.UserID
 		m.currentSubModel = TodoSubModel{}
 
-		return m, tea.Quit
+		return m, nil
 	}
 
 	nextSubModel, cmd := m.currentSubModel.Update(msg)
@@ -96,15 +97,11 @@ func (m *RootModel) View() tea.View {
 		return tea.NewView("")
 	}
 
-	// footer size
-	contentHeight := m.height - 2
-	if contentHeight < 1 {
-		contentHeight = 1
-	}
-
+	// allocate space for footer
+	contentHeight := max(m.height - 2, 1)
 	content := m.currentSubModel.ContentView(m.width, contentHeight)
 	footer := renderFooter(m.currentSubModel.ShortHelp())
-	return tea.NewView(appStyle.
+	view := tea.NewView(appStyle.
 		Width(m.width).
 		Height(m.height).
 		Render(lipgloss.JoinVertical(
@@ -112,16 +109,21 @@ func (m *RootModel) View() tea.View {
 			content.Content,
 			footer,
 		)))
+
+	view.AltScreen = true
+	return view
 }
 
-func renderFooter(bindings map[string]string) string {
+func renderFooter(bindings []Binding) string {
 	parts := make([]string, 0, len(bindings)+2)
-	for k, v := range bindings {
-		parts = append(parts, fmt.Sprintf("[%s] %s", k, v))
+	for _, b := range bindings {
+		parts = append(
+			parts,
+			fmt.Sprintf("[%s] %s", b.Key, b.Description),
+		)
 	}
 
 	parts = append(parts, fmt.Sprintf("[%s] %s", "Ctrl+C", "Quit"))
 	parts = append(parts, fmt.Sprintf("[%s] %s", "Ctrl+D", "Quit"))
-
 	return footerStyle.Render(strings.Join(parts, " • "))
 }
