@@ -15,11 +15,12 @@ import (
 	"google.golang.org/grpc/status"
 
 	pb "gomessenger/generated"
-	"gomessenger/internal/client/tui/app"
+	"gomessenger/internal/client/state"
+	"gomessenger/internal/client/tui"
 )
 
 type AuthSucceededMsg struct {
-	UserID       string
+	UserId       string
 	AccessToken  string
 	RefreshToken string
 }
@@ -50,7 +51,7 @@ type OnboardingSubModel struct {
 // Ensure 9 digits only
 var userIdRegex = regexp.MustCompile(`^\d{9}$`)
 
-func NewOnboardingModel(appContext *app.AppContext) OnboardingSubModel {
+func NewOnboardingModel(appContext *state.AppContext) OnboardingSubModel {
 	// Username Field (For Registration)
 	username := textinput.New()
 	username.CharLimit = 33
@@ -276,7 +277,7 @@ func (m OnboardingSubModel) submitLogin() tea.Cmd {
 		}
 
 		return AuthSucceededMsg{
-			UserID:       id,
+			UserId:       id,
 			AccessToken:  res.Tokens.AccessToken,
 			RefreshToken: res.Tokens.RefreshToken,
 		}
@@ -315,7 +316,7 @@ func (m OnboardingSubModel) submitRegister() tea.Cmd {
 		}
 
 		return AuthSucceededMsg{
-			UserID:       regRes.UserId,
+			UserId:       regRes.UserId,
 			AccessToken:  logRes.Tokens.AccessToken,
 			RefreshToken: logRes.Tokens.RefreshToken,
 		}
@@ -346,7 +347,7 @@ func (m OnboardingSubModel) ContentView(width, height int) tea.View {
 		)
 	}
 
-	box := DialogBoxStyle.Render(content)
+	box := tui.DialogBoxStyle.Render(content)
 	centered := lipgloss.Place(
 		width, height, lipgloss.Center, lipgloss.Center, box,
 	)

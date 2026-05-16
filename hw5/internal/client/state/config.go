@@ -1,4 +1,4 @@
-package app 
+package state 
 
 type Config struct {
 	ProfilesApiAddr  string

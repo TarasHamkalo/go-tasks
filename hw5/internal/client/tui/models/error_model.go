@@ -3,6 +3,8 @@ package models
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"gomessenger/internal/client/tui"
 )
 
 type ErrorSubModel struct {
@@ -48,9 +50,9 @@ func (m ErrorSubModel) View() tea.View {
 
 func (m ErrorSubModel) ContentView(width, height int) tea.View {
 	// Style the error specifically to look like an alert
-	alertStyle := DialogBoxStyle.BorderForeground(lipgloss.Color("#FF0000"))
+	alertStyle := tui.DialogBoxStyle.BorderForeground(lipgloss.Color("#FF0000"))
 
-	content := lipgloss.JoinHorizontal(
+	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		lipgloss.NewStyle().
 			Bold(true).
@@ -58,8 +60,6 @@ func (m ErrorSubModel) ContentView(width, height int) tea.View {
 			Render("ERROR"),
 		lipgloss.JoinVertical(
 			lipgloss.Center,
-			"",
-			"",
 			m.err.Error(),
 		),
 	)

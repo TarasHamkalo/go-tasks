@@ -8,17 +8,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"go.uber.org/zap"
 
-	"gomessenger/internal/client/tui/app"
-)
-
-var (
-	appStyle = lipgloss.NewStyle().
-			Padding(1, 2)
-
-	footerStyle = lipgloss.NewStyle().
-			BorderTop(true).
-			Padding(0, 1).
-			Faint(true)
+	"gomessenger/internal/client/state"
+	"gomessenger/internal/client/tui"
 )
 
 type RootModel struct {
@@ -27,20 +18,20 @@ type RootModel struct {
 	width  int
 	height int
 
-	appContext *app.AppContext
-	session    *app.SessionState
+	appContext *state.AppContext
+	session    *state.Session
 
 	logger *zap.Logger
 
 	onboardingSubModel OnboardingSubModel
 }
 
-func NewRootModel(appContext *app.AppContext) *RootModel {
+func NewRootModel(appContext *state.AppContext) *RootModel {
 	onboardingSubModel := NewOnboardingModel(appContext)
 	return &RootModel{
 		currentSubModel: onboardingSubModel,
 		appContext:      appContext,
-		session:         &app.SessionState{},
+		session:         &state.Session{},
 		logger:          appContext.RootLogger.With(zap.String("mvc", "root")),
 
 		// to reuse all
@@ -69,19 +60,20 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case AuthSucceededMsg:
-		m.logger.Info("authentication succeeded", zap.String("userId", msg.UserID))
+		m.logger.Info("authentication succeeded", zap.String("userId", msg.UserId))
 
 		// TODO: here you can store tokens to some keyring (or file ==))
+
 		// inject new tokens into the active gRPC Interceptor
 		err := m.appContext.CredentialsInterceptor.SetTokens(
-			msg.UserID, msg.AccessToken, msg.RefreshToken,
+			msg.UserId, msg.AccessToken, msg.RefreshToken,
 		)
 		if err != nil {
 			m.currentSubModel = NewErrorSubModel(err, m.onboardingSubModel)
 			return m, nil
 		}
 
-		m.session.UserId = msg.UserID
+		m.session.UserId = msg.UserId
 		m.currentSubModel = TodoSubModel{}
 
 		return m, nil
@@ -102,7 +94,7 @@ func (m *RootModel) View() tea.View {
 	contentHeight := max(m.height-2, 1)
 	content := m.currentSubModel.ContentView(m.width, contentHeight)
 	footer := renderFooter(m.currentSubModel.ShortHelp())
-	view := tea.NewView(appStyle.
+	view := tea.NewView(tui.AppStyle.
 		Width(m.width).
 		Height(m.height).
 		Render(lipgloss.JoinVertical(
@@ -126,5 +118,5 @@ func renderFooter(bindings []Binding) string {
 
 	parts = append(parts, fmt.Sprintf("[%s] %s", "Ctrl+C", "Quit"))
 	parts = append(parts, fmt.Sprintf("[%s] %s", "Ctrl+D", "Quit"))
-	return footerStyle.Render(strings.Join(parts, " • "))
+	return tui.FooterStyle.Render(strings.Join(parts, " • "))
 }

@@ -11,7 +11,8 @@ import (
 	pb "gomessenger/generated"
 
 	"gomessenger/internal"
-	"gomessenger/internal/client/tui/app"
+
+	"gomessenger/internal/client/state"
 	"gomessenger/internal/client/tui/models"
 
 	"gomessenger/internal/auth"
@@ -41,12 +42,12 @@ func main() {
 
  	logger := internal.LogInit(appLogFile, true)
 	
-	appContext := &app.AppContext{
+	appContext := &state.AppContext{
 		Ctx: context.Background(),
 
 		RootLogger: logger,
 
-		Config: &app.Config{
+		Config: &state.Config{
 			ProfilesApiAddr:  ProfilesApiAddr,
 			MessagingApiAddr: MessagingApiAddr,
 			TokenIssuer:      Issuer,
@@ -116,7 +117,7 @@ func loadSecurityAssets(
 	return publicKey, tlsCfg
 }
 
-func setupClients(appContext  *app.AppContext) {
+func setupClients(appContext  *state.AppContext) {
 	credentialsInterceptor := auth.NewTokenCredentialsInterecptor(
 		appContext.Config.TokenIssuer,
 		appContext.VerificationKey,
