@@ -27,11 +27,14 @@ type RootModel struct {
 	onboardingSubModel *OnboardingSubModel
 
 	pullDataModel *PullDataModel
+
+	chatModel *ChatModel
 }
 
 func NewRootModel(appContext *state.AppContext) *RootModel {
 	onboardingSubModel := NewOnboardingModel(appContext)
 	pullDataModel := NewPullDataModel(appContext)
+	chatModel := NewChatModel(appContext)
 
 	appContext.Session = &state.Session{} // empty state
 
@@ -43,6 +46,7 @@ func NewRootModel(appContext *state.AppContext) *RootModel {
 		// to reuse all
 		onboardingSubModel: onboardingSubModel,
 		pullDataModel:      pullDataModel,
+		chatModel:          chatModel,
 	}
 }
 
@@ -85,14 +89,13 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.appContext.Session.UserId = msg.UserId
-		m.currentSubModel = m.pullDataModel 
+		m.currentSubModel = m.pullDataModel
 		return m, m.currentSubModel.Init()
 	case DataPullSucceededMsg:
 		m.logger.Info("user data sync completely succeeded")
-		m.currentSubModel = TodoSubModel{}
-		return m, nil
+		m.currentSubModel = m.chatModel
+		return m, m.currentSubModel.Init() 
 	}
-
 
 	nextSubModel, cmd := m.currentSubModel.Update(msg)
 	m.currentSubModel, _ = nextSubModel.(SubModel)
@@ -106,7 +109,7 @@ func (m *RootModel) View() tea.View {
 	}
 
 	// allocate space for footer
-	contentHeight := max(m.height-2, 1)
+	contentHeight := max(m.height-5, 1)
 	content := m.currentSubModel.ContentView(m.width, contentHeight)
 	footer := renderFooter(m.currentSubModel.ShortHelp())
 	view := tea.NewView(tui.AppStyle.

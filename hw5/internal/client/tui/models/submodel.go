@@ -9,8 +9,8 @@ type SubModelId int
 const (
 	ScreenOnboarding SubModelId = iota
 	ScreenError      SubModelId = iota
-	ScreenPullData       SubModelId = iota
-
+	ScreenPullData   SubModelId = iota
+	ScreenActiveChat SubModelId = iota
 	TODOScreen SubModelId = iota
 )
 
