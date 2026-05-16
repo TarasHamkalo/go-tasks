@@ -257,60 +257,6 @@ func (m OnboardingSubModel) View() tea.View {
 	return tea.NewView("")
 }
 
-func (m OnboardingSubModel) ContentView(width, height int) tea.View {
-	var content string
-
-	switch m.subState {
-	case AuthPromptChoice:
-		content = lipgloss.JoinVertical(
-			lipgloss.Center,
-			lipgloss.NewStyle().Bold(true).Render("Go Messenger"),
-			"",
-			"1. Login   ",
-			"2. Register",
-		)
-	case AuthLoginForm:
-		content = m.formView("Login")
-	case AuthRegisterForm:
-		content = m.formView("Register")
-	case AuthSubmitting:
-		content = lipgloss.NewStyle().Bold(true).Render("Authenticating...")
-	}
-
-	// Render the box and place it directly in the center of the available space
-	box := DialogBoxStyle.Render(content)
-	centered := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, box)
-
-	return tea.NewView(centered)
-}
-
-func (m OnboardingSubModel) formView(title string) string {
-	body := lipgloss.JoinVertical(
-		lipgloss.Left,
-		lipgloss.NewStyle().Bold(true).Render(title),
-		"",
-		"Username:",
-		m.username.View(),
-		"",
-		"Password:",
-		m.password.View(),
-	)
-	err := m.username.Err
-	if err == nil {
-		err = m.password.Err
-	}
-
-	if err != nil {
-		errorMsg := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF0000")).
-			Render(fmt.Sprintf("Error: %v", err))
-
-		body = lipgloss.JoinVertical(lipgloss.Left, body, "", errorMsg)
-	}
-
-	return body
-}
-
 func (m OnboardingSubModel) submitLogin() tea.Cmd {
 	id := strings.TrimSpace(m.userId.Value())
 	pass := []byte(m.password.Value())
@@ -374,4 +320,68 @@ func (m OnboardingSubModel) submitRegister() tea.Cmd {
 			RefreshToken: logRes.Tokens.RefreshToken,
 		}
 	}
+}
+
+func (m OnboardingSubModel) ContentView(width, height int) tea.View {
+	var content string
+
+	switch m.subState {
+	case AuthPromptChoice:
+		content = lipgloss.JoinVertical(
+			lipgloss.Center,
+			lipgloss.NewStyle().Bold(true).Render("Go Messenger"),
+			"",
+			"1. Login   ",
+			"2. Register",
+		)
+	case AuthLoginForm:
+		content = m.formView("Login", "User ID (9 digits):", m.userId)
+	case AuthRegisterForm:
+		content = m.formView("Register", "Username:", m.username)
+	case AuthSubmitting:
+		content = lipgloss.JoinHorizontal(
+			lipgloss.Center,
+			m.spin.View(), 
+			" Authenticating...",
+		)
+	}
+
+	box := DialogBoxStyle.Render(content)
+	centered := lipgloss.Place(
+		width, height, lipgloss.Center, lipgloss.Center, box,
+	)
+
+	return tea.NewView(centered)
+}
+
+func (m OnboardingSubModel) formView(
+	title, topLabel string, topInput textinput.Model,
+) string {
+	body := lipgloss.JoinVertical(
+		lipgloss.Left,
+		lipgloss.NewStyle().Bold(true).Render(title),
+		"",
+		topLabel,
+		topInput.View(),
+		"",
+		"Password:",
+		m.password.View(),
+	)
+
+	// display validation errors 
+	var errStr string
+	if topInput.Err != nil {
+		errStr = topInput.Err.Error()
+	} else if m.password.Err != nil {
+		errStr = m.password.Err.Error()
+	}
+
+	if errStr != "" {
+		errorMsg := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF0000")).
+			Render(fmt.Sprintf("Error: %v", errStr))
+		body = lipgloss.JoinVertical(lipgloss.Left, body, "", errorMsg)
+	}
+
+	return body
 }
