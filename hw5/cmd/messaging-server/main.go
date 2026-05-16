@@ -26,8 +26,8 @@ const MessagingDbPath = "data/messaging.db"
 
 const PublicKeyPath = "resources/jwt-keys/public.key"
 
-const CertPath = "resources/certs/server.crt"
-const KeyPath = "resources/certs/server.key"
+const CertPath = "resources/certs/localhost-cert.pem"
+const KeyPath = "resources/certs/localhost-privkey.pem"
 
 const Issuer = "hamkatar-gommessenger"
 
