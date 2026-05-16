@@ -251,7 +251,7 @@ func (m *OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, func() tea.Msg { return msg }
 		}
 	}
-
+	
 	return m, tea.Batch(cmds...)
 }
 
