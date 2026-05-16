@@ -1,16 +1,21 @@
 package models
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	pb "gomessenger/generated"
-	"gomessenger/internal/client/tui/app"
+	"regexp"
 	"strings"
 
+	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/status"
+
+	pb "gomessenger/generated"
+	"gomessenger/internal/client/tui/app"
 )
 
 type AuthSucceededMsg struct {
@@ -30,50 +35,78 @@ const (
 
 type OnboardingSubModel struct {
 	profileClient pb.ProfileServiceClient
+	ctx           context.Context
 
 	subState AuthSubState
 
 	username textinput.Model
+	userId   textinput.Model
 	password textinput.Model
+	spin     spinner.Model
 
 	logger *zap.Logger
-	err    error
 }
 
+// Ensure 9 digits only
+var userIdRegex = regexp.MustCompile(`^\d{9}$`)
+
 func NewOnboardingModel(appContext *app.AppContext) OnboardingSubModel {
+	// Username Field (For Registration)
 	username := textinput.New()
-	username.CharLimit = 32
+	username.CharLimit = 33
 	username.Placeholder = "Username"
+	username.SetWidth(30)
 	username.Validate = func(s string) error {
 		trimmed := strings.TrimSpace(s)
 		if len(trimmed) < 3 || len(trimmed) > 32 {
-			return errors.New("username has to have between 3 to 32 non white characters")
+			return errors.New("username must be 3-32 characters")
 		}
 		return nil
 	}
-	username.SetWidth(30)
 
+	// User ID Field (For Login)
+	userId := textinput.New()
+	userId.CharLimit = 9
+	userId.Placeholder = "9-Digit ID (e.g. 100000000)"
+	userId.SetWidth(30)
+	userId.Validate = func(s string) error {
+		trimmed := strings.TrimSpace(s)
+		if !userIdRegex.MatchString(trimmed) {
+			return errors.New("ID must be exactly 9 digits")
+		}
+		return nil
+	}
+
+	// Password Field (Shared)
 	password := textinput.New()
-	password.CharLimit = 72
+	password.CharLimit = 73
 	password.Placeholder = "Password"
 	password.EchoMode = textinput.EchoPassword
 	password.SetWidth(30)
 	password.Validate = func(s string) error {
 		trimmed := strings.TrimSpace(s)
 		if strings.Contains(s, " ") {
-			return errors.New("password should not contain whitespaces")
+			return errors.New("password cannot contain spaces")
 		}
-		if len(trimmed) < 8 {
-			return errors.New("min password length: 8")
+		if len(trimmed) < 8 || len(trimmed) > 72 {
+			return errors.New("password must be 8-72 characters")
 		}
 		return nil
 	}
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	return OnboardingSubModel{
-		subState: AuthPromptChoice,
-		username: username,
-		password: password,
-		logger:   appContext.RootLogger.With(zap.String("mvc", "onboarding")),
+		profileClient: appContext.ProfileClient,
+		ctx:           appContext.Ctx,
+		subState:      AuthPromptChoice,
+		username:      username,
+		userId:        userId,
+		password:      password,
+		spin:          s,
+		logger:        appContext.RootLogger.With(zap.String("mvc", "onboarding")),
 	}
 }
 
@@ -106,6 +139,14 @@ func (m OnboardingSubModel) ShortHelp() []Binding {
 func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.logger.Info("received message", zap.Any("msg", msg))
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
+
+	// always tick the spinner if we are submitting
+	if m.subState == AuthSubmitting {
+		var spinCmd tea.Cmd
+		m.spin, spinCmd = m.spin.Update(msg)
+		cmds = append(cmds, spinCmd)
+	}
 
 	switch m.subState {
 	case AuthPromptChoice:
@@ -114,7 +155,7 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "1":
 				m.subState = AuthLoginForm
-				m.username.Focus()
+				m.userId.Focus()
 				return m, textinput.Blink
 			case "2":
 				m.subState = AuthRegisterForm
@@ -123,7 +164,44 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case AuthLoginForm, AuthRegisterForm:
+	case AuthLoginForm:
+		switch msg := msg.(type) {
+		case tea.KeyPressMsg:
+			switch msg.String() {
+			case "tab":
+				if m.userId.Focused() {
+					m.userId.Blur()
+					m.password.Focus()
+				} else {
+					m.password.Blur()
+					m.userId.Focus()
+				}
+				return m, nil
+			case "enter":
+				if err := m.userId.Validate(m.userId.Value()); err != nil {
+					return m, nil // Don't submit if invalid
+				}
+				if err := m.password.Validate(m.password.Value()); err != nil {
+					return m, nil
+				}
+
+				m.subState = AuthSubmitting
+				return m, tea.Batch(m.spin.Tick, m.submitLogin())
+
+			case "esc":
+				m.subState = AuthPromptChoice
+				return m, nil
+			}
+		}
+
+		if m.userId.Focused() {
+			m.userId, cmd = m.userId.Update(msg)
+		} else {
+			m.password, cmd = m.password.Update(msg)
+		}
+		return m, cmd
+
+	case AuthRegisterForm:
 		switch msg := msg.(type) {
 		case tea.KeyPressMsg:
 			switch msg.String() {
@@ -137,11 +215,17 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			case "enter":
+				if err := m.username.Validate(m.username.Value()); err != nil {
+					return m, nil
+				}
+				if err := m.password.Validate(m.password.Value()); err != nil {
+					return m, nil
+				}
+
 				m.subState = AuthSubmitting
-				return m, m.submit()
+				return m, tea.Batch(m.spin.Tick, m.submitRegister())
 			case "esc":
 				m.subState = AuthPromptChoice
-				m.err = nil
 				return m, nil
 			}
 		}
@@ -156,13 +240,17 @@ func (m OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AuthSubmitting:
 		switch msg := msg.(type) {
 		case error:
-			m.err = msg
-			m.subState = AuthLoginForm
-			return m, nil
+			// If an error returns from the gRPC call, we return an ErrorSubModel!
+			// It will display the error and return us back to 'm' (the onboarding screen)
+			m.subState = AuthPromptChoice // Reset state for when they come back
+			return NewErrorSubModel(msg, m), nil
+
+		case AuthSucceededMsg:
+			return m, func() tea.Msg { return msg }
 		}
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 func (m OnboardingSubModel) View() tea.View {
@@ -207,11 +295,15 @@ func (m OnboardingSubModel) formView(title string) string {
 		"Password:",
 		m.password.View(),
 	)
+	err := m.username.Err
+	if err == nil {
+		err = m.password.Err
+	}
 
-	if m.err != nil {
+	if err != nil {
 		errorMsg := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF0000")).
-			Render(fmt.Sprintf("Error: %v", m.err))
+			Render(fmt.Sprintf("Error: %v", err))
 
 		body = lipgloss.JoinVertical(lipgloss.Left, body, "", errorMsg)
 	}
@@ -219,19 +311,67 @@ func (m OnboardingSubModel) formView(title string) string {
 	return body
 }
 
-func (m OnboardingSubModel) submit() tea.Cmd {
-	username := m.username.Value()
-	password := m.password.Value()
-	mode := m.subState
+func (m OnboardingSubModel) submitLogin() tea.Cmd {
+	id := strings.TrimSpace(m.userId.Value())
+	pass := []byte(m.password.Value())
 
 	return func() tea.Msg {
-		_ = username
-		_ = password
-		_ = mode
+		res, err := m.profileClient.Login(m.ctx, &pb.LoginRequest{
+			UserId:   id,
+			Password: pass,
+		})
+
+		if err != nil {
+			// extract gRPC status
+			if stat, ok := status.FromError(err); ok {
+				return errors.New(stat.Message())
+			}
+			return err
+		}
+
 		return AuthSucceededMsg{
-			UserID:       "123456789",
-			AccessToken:  "access-token",
-			RefreshToken: "refresh-token",
+			UserID:       id,
+			AccessToken:  res.Tokens.AccessToken,
+			RefreshToken: res.Tokens.RefreshToken,
+		}
+	}
+}
+
+func (m OnboardingSubModel) submitRegister() tea.Cmd {
+	uname := strings.TrimSpace(m.username.Value())
+	pass := []byte(m.password.Value())
+
+	return func() tea.Msg {
+		regRes, err := m.profileClient.RegisterProfile(
+			m.ctx,
+			&pb.RegisterProfileRequest{
+				Username: uname,
+				Password: pass,
+			})
+
+		if err != nil {
+			if stat, ok := status.FromError(err); ok {
+				return errors.New(stat.Message())
+			}
+			return err
+		}
+
+		// login to get tokens
+		logRes, err := m.profileClient.Login(m.ctx, &pb.LoginRequest{
+			UserId:   regRes.UserId,
+			Password: pass,
+		})
+
+		if err != nil {
+			return fmt.Errorf(
+				"account created (ID: %s), but login failed: %v", regRes.UserId, err,
+			)
+		}
+
+		return AuthSucceededMsg{
+			UserID:       regRes.UserId,
+			AccessToken:  logRes.Tokens.AccessToken,
+			RefreshToken: logRes.Tokens.RefreshToken,
 		}
 	}
 }

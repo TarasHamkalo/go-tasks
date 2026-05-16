@@ -53,6 +53,7 @@ func (m *RootModel) Init() tea.Cmd {
 }
 
 func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// TODO: remove as you now log tokens
 	m.logger.Info("received message", zap.Any("msg", msg))
 
 	switch msg := msg.(type) {
@@ -76,7 +77,6 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg.UserID, msg.AccessToken, msg.RefreshToken,
 		)
 		if err != nil {
-			// TODO: show proper error to user
 			m.currentSubModel = NewErrorSubModel(err, m.onboardingSubModel)
 			return m, nil
 		}
@@ -88,7 +88,8 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	nextSubModel, cmd := m.currentSubModel.Update(msg)
-	m.currentSubModel = nextSubModel.(SubModel)
+	m.currentSubModel, _ = nextSubModel.(SubModel)
+
 	return m, cmd
 }
 
@@ -98,7 +99,7 @@ func (m *RootModel) View() tea.View {
 	}
 
 	// allocate space for footer
-	contentHeight := max(m.height - 2, 1)
+	contentHeight := max(m.height-2, 1)
 	content := m.currentSubModel.ContentView(m.width, contentHeight)
 	footer := renderFooter(m.currentSubModel.ShortHelp())
 	view := tea.NewView(appStyle.
