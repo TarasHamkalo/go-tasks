@@ -34,6 +34,7 @@ const Issuer = "hamkatar-gommessenger"
 const Port = 8082
 
 func main() {
+
 	appLogFile := createLogFile()
 	defer appLogFile.Close()
 
