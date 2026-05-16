@@ -27,7 +27,7 @@ func AuthorizationInterceptor(
 		info *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (any, error) {
-		if publicMethods[info.FullMethod] {
+		if isPublicMethod(info.FullMethod, publicMethods) {
 			return handler(ctx, req)
 		}
 
@@ -65,7 +65,7 @@ func AuthorizationStreamInterceptor(
 		info *grpc.StreamServerInfo,
 		handler grpc.StreamHandler,
 	) error {
-		if publicMethods[info.FullMethod] {
+		if isPublicMethod(info.FullMethod, publicMethods) {
 			return handler(srv, ss)
 		}
 
@@ -123,4 +123,27 @@ func ContextWithClaims(
 func ClaimsFromContext(ctx context.Context) (*MessengerClaims, bool) {
 	claims, ok := ctx.Value(claimsContextKey{}).(*MessengerClaims)
 	return claims, ok
+}
+
+func isPublicMethod(fullMethod string, publicMethods map[string]bool) bool {
+	if publicMethods[fullMethod] {
+		return true
+	}
+
+	// Allow grpcurl / reflection clients.
+	if strings.HasPrefix(
+		fullMethod,
+		"/grpc.reflection.v1alpha.ServerReflection/",
+	) {
+		return true
+	}
+
+	if strings.HasPrefix(
+		fullMethod,
+		"/grpc.reflection.v1.ServerReflection/",
+	) {
+		return true
+	}
+
+	return false
 }
