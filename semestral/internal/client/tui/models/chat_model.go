@@ -50,7 +50,7 @@ type ChatModel struct {
 	messageInputSection *MessagesInputModel
 
 	messagesListModel *MessagesListModel
-	chatListModel     *ChatsListModel
+	chatsListModel     *ChatsListModel
 }
 
 func NewChatModel(appContext *state.AppContext) *ChatModel {
@@ -61,7 +61,7 @@ func NewChatModel(appContext *state.AppContext) *ChatModel {
 
 		messageInputSection: NewMessageInputModel(),
 		messagesListModel:   NewMessagesListModel(appContext),
-		chatListModel:       NewChatsListModel(appContext),
+		chatsListModel:       NewChatsListModel(appContext),
 	}
 }
 
@@ -80,7 +80,7 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		errModel := NewErrorSubModel(msg.Err, m)
 		return errModel, errModel.Init()
 
-	// pass through
+	// MessagesListModel handles these messages.
 	case TriggerDeliveryMsg,
 		ChatSelectedMsg,
 		MessagesLoadedMsg,
@@ -97,13 +97,8 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.recvMessage()
 
 	case IncomingMessageMsg:
-		// Continue listening.
-		_ = msg
-		// here is failure already
-		// this handles message list model m.appContext.Session.IncrementUnread(msg.ChatId)
-		// TODO: delegate this message to chat list model (can pull new chat)
-		// TODO: delegate this message to message list model
-		return m, tea.Batch(m.ackMessage(0, msg.Message.Id), m.recvMessage())
+		// TODO: this handles message list model m.appContext.Session.IncrementUnread(msg.ChatId)
+		return m.handleIncommingMessage(msg)
 
 	case SubscriptionErrorMsg:
 		// Retry after delay.
@@ -126,12 +121,20 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// break current section
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if msg.String() == "esc" {
-			m.isEngaged = false
-			return m, nil
+	keyMsg, ok := msg.(tea.KeyPressMsg)
+	if ok && keyMsg.String() == "esc" {
+		m.isEngaged = false
+		// blur section if needed.
+		switch m.focusedArea {
+		case FocusChatsList:
+			m.chatsListModel.SetEngaged(false)
+		case FocusActiveChat:
+			m.messagesListModel.SetEngaged(false)
+		case FocusMessageInput:
+			m.messageInputSection.SetEngaged(false)
 		}
+
+		return m, nil
 	}
 
 	// forward to sections
@@ -142,17 +145,53 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case FocusProfile:
 		m.isEngaged = false
 		return NewErrorSubModel(errors.New("not impl"), m), nil
+
 	case FocusMessageInput:
 		model, cmd = m.messageInputSection.Update(msg)
 		m.messageInputSection = model.(*MessagesInputModel)
 
-		// case FocusChatsList:
-		// 	m.chatsListSection, cmd = m.chatsListSection.Update(msg)
-		// case FocusActiveChat:
-		// 	m.activeChatSection, cmd = m.activeChatSection.Update(msg, m.isEngaged)
+	case FocusChatsList:
+		model, cmd = m.chatsListModel.Update(msg)
+		m.chatsListModel = model.(*ChatsListModel)
+
+	case FocusActiveChat:
+		model, cmd = m.messagesListModel.Update(msg)
+		m.messagesListModel = model.(*MessagesListModel)
 	}
 
 	return m, cmd
+}
+
+// Forward the incoming message to:
+//  1. Chats list (may fetch metadata for a new chat).
+//  2. Messages list (append to currently opened chat).
+//  3. ACK sender.
+//  4. Next stream receive.
+func (m *ChatModel) handleIncommingMessage(
+	msg IncomingMessageMsg,
+) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	// Update chats list.
+	chatListModel, chatListCmd := m.chatsListModel.Update(msg)
+	m.chatsListModel = chatListModel.(*ChatsListModel)
+	if chatListCmd != nil {
+		cmds = append(cmds, chatListCmd)
+	}
+
+	// Update messages list.
+	msgListModel, msgListCmd := m.messagesListModel.Update(msg)
+	m.messagesListModel = msgListModel.(*MessagesListModel)
+	if msgListCmd != nil {
+		cmds = append(cmds, msgListCmd)
+	}
+
+	// ack delivery to server.
+	cmds = append(cmds, m.ackMessage(0, msg.Message.Id))
+	// continue reading from stream.
+	cmds = append(cmds, m.recvMessage())
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
