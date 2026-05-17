@@ -41,7 +41,7 @@ type SqliteRepository struct {
 }
 
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
-	dsn := "file:" + dbPath + "?_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL"
+	dsn := "file:" + dbPath + "?_pragma=foreign_keys=1&_pragma=journal_mode=WAL&_pragma=busy_timeout=5000&_pragma=synchronous=NORMAL"
 	db, err := sqlx.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
