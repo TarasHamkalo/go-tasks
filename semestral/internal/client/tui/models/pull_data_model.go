@@ -150,7 +150,7 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 	return func() tea.Msg {
 		m.logger.Debug("attempting to init database")
 		repo, err := storage.NewSqliteRepository(
-			m.appContext.Config.LocalDataDir, m.appContext.Session.UserId,
+			m.appContext.Config.LocalDataDir, m.appContext.Session.GetUserId(),
 		)
 
 		if err != nil {
@@ -174,18 +174,41 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 		return DatabaseInitializedMsg{Repo: repo}
 	}
 }
-
 func (m *PullDataModel) pullUserData() tea.Cmd {
 	return func() tea.Msg {
 		m.logger.Debug("starting to pull remote chat data")
 
-		ctx, cancel := context.WithTimeout(
+		profCtx, cancelProf := context.WithTimeout(
 			m.appContext.Ctx,
 			5*time.Second,
 		)
-		defer cancel()
+		defer cancelProf()
+
+		profRes, err := m.appContext.ProfileClient.GetUserProfile(
+			profCtx,
+			&pb.GetUserProfileRequest{
+				UserId: m.appContext.Session.GetUserId(),
+			},
+		)
+
+		if err != nil {
+			return DataPullFailedMsg{
+				Err: fmt.Errorf("could not resolve user profile: %w", err),
+			}
+		}
+
+		m.appContext.Session.SetProfile(&state.Profile{
+			Id: profRes.UserId,
+			Username: profRes.Username,
+		})		
+
+		chatCtx, cancelChat := context.WithTimeout(
+			m.appContext.Ctx,
+			5*time.Second,
+		)
+		defer cancelChat()
 		chatsRes, err := m.appContext.MessagingClient.GetUserChats(
-			ctx, &pb.GetUserChatsRequest{},
+			chatCtx, &pb.GetUserChatsRequest{},
 		)
 
 		if err != nil {
@@ -197,10 +220,10 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 			if remoteChat.IsGroup {
 				// chat data is self-contained via server tracking names
 				// members for groups are pull when requested
-				m.appContext.Session.Chats[chatId] = &state.GroupChat{
+				m.appContext.Session.InsertChat(&state.GroupChat{
 					ChatId:    chatId,
 					GroupName: remoteChat.Name,
-				}
+				})
 			} else {
 				err := m.resolveDirectChat(chatId)
 				if err != nil {
@@ -218,7 +241,7 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 func (m *PullDataModel) resolveDirectChat(
 	chatId string,
 ) error {
-
+	session := m.appContext.Session
 	memCtx, cancelMem := context.WithTimeout(
 		m.appContext.Ctx,
 		5*time.Second,
@@ -233,10 +256,12 @@ func (m *PullDataModel) resolveDirectChat(
 		return cleanGrpcError(err)
 	}
 
-	m.appContext.Session.ChatMembers[chatId] = membersResp.MemberIds
+	session.SetChatMembers(chatId, membersResp.MemberIds)
+	userId := session.GetUserId()
+
 	var companionId string
 	for _, uid := range membersResp.MemberIds {
-		if uid != m.appContext.Session.UserId {
+		if uid != userId {
 			companionId = uid
 			break
 		}
@@ -250,7 +275,6 @@ func (m *PullDataModel) resolveDirectChat(
 		return nil
 	}
 
-	session := m.appContext.Session
 	profCtx, cancelProf := context.WithTimeout(
 		m.appContext.Ctx,
 		5*time.Second,
@@ -277,22 +301,23 @@ func (m *PullDataModel) resolveDirectChat(
 			Username: fmt.Sprintf("User %s", companionId),
 		}
 
-		session.Profiles[companionId] = placeholder
-		session.Chats[chatId] = &state.DirectChat{
+		session.SetProfile(placeholder)
+		session.InsertChat(&state.DirectChat{
 			ChatId:       chatId,
 			OtherProfile: placeholder,
-		}
+		})
 	}
 
 	profile := &state.Profile{
 		Id:       profRes.UserId,
 		Username: profRes.Username,
 	}
-	session.Profiles[companionId] = profile
-	session.Chats[chatId] = &state.DirectChat{
+
+	session.SetProfile(profile)
+	session.InsertChat(&state.DirectChat{
 		ChatId:       chatId,
 		OtherProfile: profile,
-	}
+	})
 
 	return nil
 }

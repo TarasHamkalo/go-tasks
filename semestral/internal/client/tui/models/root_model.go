@@ -102,7 +102,7 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.appContext.Session.UserId = msg.UserId
+		m.appContext.Session.SetUserId(msg.UserId)
 		m.currentSubModel = m.pullDataModel
 		return m, m.currentSubModel.Init()
 
