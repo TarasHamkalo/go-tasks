@@ -46,13 +46,18 @@ type MessagesListModel struct {
 	chatId   string
 	messages []storage.Message
 	engaged  bool
+
+	// track which messages are at flight already
+	sending map[string]bool
 }
 
+// TODO: scrolling
 func NewMessagesListModel(appContext *state.AppContext) *MessagesListModel {
 	return &MessagesListModel{
 		appContext: appContext,
 		logger:     appContext.RootLogger.With(zap.String("mvc", "msg-list")),
 		messages:   make([]storage.Message, 0, 10),
+		sending: make(map[string]bool),
 	}
 }
 
@@ -82,16 +87,27 @@ func (m *MessagesListModel) Update(msg tea.Msg) (*MessagesListModel, tea.Cmd) {
 
 			for _, locMsg := range m.messages {
 				if locMsg.IsPending {
+					if m.sending[locMsg.Id] {
+						continue
+					}
+
+					m.sending[locMsg.Id] = true
 					cmds = append(cmds, m.sendToServer(locMsg))
 				}
 			}
 		}
+
 		return m, tea.Batch(cmds...)
 
 	case IncomingMessageMsg:
+		if msg.Message.SenderId == m.appContext.Session.GetUserId() {
+			return m, nil
+		}
+
 		if msg.Message.ChatId == m.chatId {
 			m.messages = append(m.messages, msg.Message)
 		}
+
 		return m, nil
 
 	case MessageInputSubmittedMsg:
@@ -124,9 +140,14 @@ func (m *MessagesListModel) Update(msg tea.Msg) (*MessagesListModel, tea.Cmd) {
 		return m, m.sendToServer(msg.Message)
 
 	case DeliverySuccessMsg:
-		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
-		_ = m.appContext.LocalRepo.MarkMessageDelivered(ctx, msg.LocalId, msg.ServerId)
+
+		ctx, cancel := context.WithTimeout( m.appContext.Ctx, 2*time.Second)
+		_ = m.appContext.LocalRepo.MarkMessageDelivered(
+			ctx, msg.LocalId, msg.ServerId,
+		)
 		cancel()
+
+		delete(m.sending, msg.LocalId)
 
 		// Mutate tracking attributes accurately inside memory array maps
 		for i, locMsg := range m.messages {
@@ -154,11 +175,11 @@ func (m *MessagesListModel) View(width, height int, focused bool) string {
 	borderColor := "#3C3C3C"
 	if m.engaged {
 		borderColor = "#FF007F"
-	} 
+	}
 
 	style := lipgloss.NewStyle().
-		Width(width - 2).
-		Height(height - 2).
+		Width(width-2).
+		Height(height-2).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color(borderColor)).
 		Padding(0, 1)
@@ -177,7 +198,7 @@ func (m *MessagesListModel) View(width, height int, focused bool) string {
 
 	var renderedMsgs []string
 	userId := m.appContext.Session.GetUserId()
-	
+
 	for _, msg := range m.messages {
 		sender := "Them"
 		if msg.SenderId == userId {
