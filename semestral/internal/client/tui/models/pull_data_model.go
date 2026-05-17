@@ -1,7 +1,9 @@
 package models
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -84,10 +86,11 @@ func (m *PullDataModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case DatabaseInitializedMsg:
 			m.logger.Info("local database initialized")
 			m.appContext.LocalRepo = msg.Repo
-			// return m, tea.Batch(m.spin.Tick, m.pullUserData())
+			m.subState = PullUserData
 			cmds = append(cmds, m.pullUserData())
 
 		case DataPullFailedMsg:
+			m.subState = InitDatabase
 			cmds = append(cmds, func() tea.Msg {
 				return RootHandleErrorMsg{
 					Err: fmt.Errorf("could not initialize database: %w", msg.Err),
@@ -98,6 +101,7 @@ func (m *PullDataModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case PullUserData:
 		switch msg := msg.(type) {
 		case DataPullFailedMsg:
+			m.subState = InitDatabase
 			cmd := func() tea.Msg {
 				return RootHandleErrorMsg{
 					Err: fmt.Errorf("failed synchronizing account data: %w", msg.Err),
@@ -138,7 +142,6 @@ func (m *PullDataModel) ContentView(width, height int) tea.View {
 }
 
 func (m *PullDataModel) initDatabase() tea.Cmd {
-	m.subState = InitDatabase
 	return func() tea.Msg {
 		m.logger.Debug("attempting to init database")
 		repo, err := storage.NewSqliteRepository(
@@ -151,7 +154,13 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 			}
 		}
 
-		err = repo.InitializeSchema(m.appContext.Ctx)
+		ctx, cancel := context.WithTimeout(
+			m.appContext.Ctx,
+			5*time.Second,
+		)
+		defer cancel()
+
+		err = repo.InitializeSchema(ctx)
 		if err != nil {
 			return DataPullFailedMsg{Err: err}
 		}
@@ -162,12 +171,14 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 }
 
 func (m *PullDataModel) pullUserData() tea.Cmd {
-	m.subState = PullUserData
 	return func() tea.Msg {
 		m.logger.Debug("starting to pull remote chat data")
 
-		// TODO: derive contexts with timeouts
-		ctx := m.appContext.Ctx
+		ctx, cancel := context.WithTimeout(
+			m.appContext.Ctx,
+			5*time.Second,
+		)
+		defer cancel()
 		chatsRes, err := m.appContext.MessagingClient.GetUserChats(
 			ctx, &pb.GetUserChatsRequest{},
 		)
@@ -202,10 +213,17 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 func (m *PullDataModel) resolveDirectChat(
 	chatId string,
 ) error {
-	ctx := m.appContext.Ctx
-	membersResp, err := m.appContext.MessagingClient.GetChatMembers(
-		ctx, &pb.GetChatMembersRequest{ChatId: chatId},
+
+	memCtx, cancelMem := context.WithTimeout(
+		m.appContext.Ctx,
+		5*time.Second,
 	)
+	defer cancelMem()
+
+	membersResp, err := m.appContext.MessagingClient.GetChatMembers(
+		memCtx, &pb.GetChatMembersRequest{ChatId: chatId},
+	)
+
 	if err != nil {
 		return cleanGrpcError(err)
 	}
@@ -227,12 +245,16 @@ func (m *PullDataModel) resolveDirectChat(
 		return nil
 	}
 
-	// TODO: timeout context
-	ctx = m.appContext.Ctx
 	session := m.appContext.Session
+	profCtx, cancelProf := context.WithTimeout(
+		m.appContext.Ctx,
+		5*time.Second,
+	)
+
+	defer cancelProf()
 
 	profRes, err := m.appContext.ProfileClient.GetUserProfile(
-		ctx,
+		profCtx,
 		&pb.GetUserProfileRequest{
 			UserId: companionId,
 		},

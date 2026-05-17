@@ -16,6 +16,12 @@ type RootHandleErrorMsg struct {
 	Err error
 }
 
+type RootClientAuthenticatedMsg struct {
+	UserId       string
+	AccessToken  string
+	RefreshToken string
+}
+
 type RootModel struct {
 	currentSubModel SubModel
 
@@ -77,7 +83,7 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentSubModel = NewErrorSubModel(msg.Err, m.onboardingSubModel)
 		return m, m.currentSubModel.Init() 
 
-	case AuthSucceededMsg:
+	case RootClientAuthenticatedMsg:
 		m.logger.Info("authentication succeeded", zap.String("userId", msg.UserId))
 
 		// TODO: here you can store tokens to some keyring (or file ==))
@@ -94,6 +100,7 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.appContext.Session.UserId = msg.UserId
 		m.currentSubModel = m.pullDataModel
 		return m, m.currentSubModel.Init()
+
 	case DataPullSucceededMsg:
 		m.logger.Info("user data sync completely succeeded")
 		// m.currentSubModel = m.chatModel

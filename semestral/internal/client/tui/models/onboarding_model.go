@@ -256,7 +256,12 @@ func (m *OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return NewErrorSubModel(msg.Err, m), nil
 
 		case AuthSucceededMsg:
-			return m, func() tea.Msg { return msg }
+			m.subState = AuthPromptChoice
+			m.password.SetValue("")
+			m.password.Blur()
+			return m, func() tea.Msg { 
+				return RootClientAuthenticatedMsg(msg)
+			}
 		}
 	}
 
@@ -293,9 +298,6 @@ func (m *OnboardingSubModel) submitLogin() tea.Cmd {
 			return AuthFailedMsg{Err: err}
 		}
 
-		m.subState = AuthPromptChoice
-		m.password.SetValue("")
-		m.password.Blur()
 		return AuthSucceededMsg{
 			UserId:       id,
 			AccessToken:  res.Tokens.AccessToken,
@@ -353,9 +355,6 @@ func (m *OnboardingSubModel) submitRegister() tea.Cmd {
 			}
 		}
 
-		m.subState = AuthPromptChoice
-		m.password.SetValue("")
-		m.password.Blur()
 		return AuthSucceededMsg{
 			UserId:       regRes.UserId,
 			AccessToken:  logRes.Tokens.AccessToken,
