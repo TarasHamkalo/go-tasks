@@ -10,10 +10,11 @@ type SubModelId int
 
 const (
 	ScreenOnboarding SubModelId = iota
-	ScreenError      SubModelId = iota
-	ScreenPullData   SubModelId = iota
-	ScreenActiveChat SubModelId = iota
-	TODOScreen SubModelId = iota
+	ScreenError
+	ScreenPullData
+	ScreenActiveChat
+	ScreenCreateChat
+	TODOScreen 
 )
 
 type SubModel interface {

@@ -153,7 +153,7 @@ func (m *ChatModel) handleNetworkEvents(msg tea.Msg) (tea.Model, tea.Cmd, bool) 
 			zap.Duration("delay", delay),
 			zap.Int("attempt", msg.RetryCount),
 		)
-		m.streamRetryCount++ 
+		m.streamRetryCount++
 		return m, m.subscribe(delay), true
 
 	// forward these specific messages down to the messages list
@@ -252,6 +252,12 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activeModel != nil {
 				return m, m.activeModel.SetEngaged(true)
 			}
+		case "d": // direct chat 
+			createModel := NewCreateChatSubModel(false, m)
+			return createModel, createModel.Init()
+		case "g": // group chat 
+			createModel := NewCreateChatSubModel(true, m)
+			return createModel, createModel.Init()
 		}
 	}
 	return m, nil
@@ -368,11 +374,11 @@ func (m *ChatModel) recvMessage() tea.Cmd {
 
 func ToStorageMessage(msg *pb.IncomingMessage) storage.Message {
 	return storage.Message{
-		Id:       msg.Id,
-		ChatId:   msg.ChatId,
-		SenderId: msg.SenderId,
-		Content:  msg.Content,
-		SentAt:   msg.SentAt.AsTime(),
+		Id:        msg.Id,
+		ChatId:    msg.ChatId,
+		SenderId:  msg.SenderId,
+		Content:   msg.Content,
+		SentAt:    msg.SentAt.AsTime(),
 		IsPending: false,
 	}
 }
