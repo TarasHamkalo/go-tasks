@@ -4,15 +4,19 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/caarlos0/env/v11"
 	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	pb "gomessenger/generated"
 	gomessenger "gomessenger/internal"
@@ -21,26 +25,41 @@ import (
 	"gomessenger/internal/messaging"
 )
 
-const AppLogFilePath = "logs/messaging-server.log"
-const MessagingDbPath = "data/messaging.db"
+type Config struct {
+	AppLogFilePath  string `env:"APP_LOG_FILE,required"`
+	MessagingDbPath string `env:"MESSAGING_DB,required"`
 
-const PublicKeyPath = "resources/jwt-keys/public.key"
+	// Address of the profile service used for cross-service calls
+	// (e.g. updating user presence).
+	ProfilesApiAddr string `env:"PROFILES_API_ADDR,required"`
 
-const CertPath = "resources/certs/localhost-cert.pem"
-const KeyPath = "resources/certs/localhost-privkey.pem"
+	PublicKeyPath string `env:"JWT_PUBLIC_KEY,required"`
 
-const Issuer = "hamkatar-gommessenger"
+	CertPath string `env:"TLS_CERT,required"`
+	KeyPath  string `env:"TLS_KEY,required"`
 
-const Port = 8082
+	Issuer string `env:"JWT_ISSUER,required"`
+
+	Port int `env:"PORT,required"`
+}
+
+var cfg Config
+
+func init() {
+	if err := env.Parse(&cfg); err != nil {
+		panic(fmt.Errorf("failed to load configuration: %w", err))
+	}
+}
 
 func main() {
-
 	appLogFile := createLogFile()
 	defer appLogFile.Close()
 
 	appLogger := gomessenger.LogInitWithConsole(appLogFile, true)
 
 	publicKey, tlsCfg := loadSecurityAssets(appLogger)
+
+	profileServiceConn, porfileServiceClient := buildProfileClient(appLogger)
 
 	repo := initDatabase(appLogger)
 	defer repo.Close()
@@ -49,7 +68,7 @@ func main() {
 		appLogger, tlsCfg, publicKey, repo,
 	)
 
-	if err := grpcServer.Serve(Port); err != nil {
+	if err := grpcServer.Serve(cfg.Port); err != nil {
 		appLogger.Fatal("failed to start gRPC server", zap.Error(err))
 	}
 
@@ -60,12 +79,12 @@ func main() {
 func loadSecurityAssets(
 	logger *zap.Logger,
 ) (*rsa.PublicKey, *tls.Config) {
-	publicKey, err := auth.LoadPublicKey(PublicKeyPath)
+	publicKey, err := auth.LoadPublicKey(cfg.PublicKeyPath)
 	if err != nil {
 		logger.Fatal("could not load public key", zap.Error(err))
 	}
 
-	cert, err := tls.LoadX509KeyPair(CertPath, KeyPath)
+	cert, err := tls.LoadX509KeyPair(cfg.CertPath, cfg.KeyPath)
 	if err != nil {
 		logger.Fatal("could not load server certs", zap.Error(err))
 	}
@@ -76,7 +95,7 @@ func loadSecurityAssets(
 
 // initDatabase prepares SQLite database
 func initDatabase(logger *zap.Logger) messaging.Repository {
-	repo, err := messaging.NewSqliteRepository(MessagingDbPath)
+	repo, err := messaging.NewSqliteRepository(cfg.MessagingDbPath)
 	if err != nil {
 		logger.Fatal("could not open sqlite db", zap.Error(err))
 	}
@@ -86,7 +105,10 @@ func initDatabase(logger *zap.Logger) messaging.Repository {
 		logger.Fatal("could not initialize schema", zap.Error(err))
 	}
 
-	logger.Info("database and schema initialized", zap.String("path", MessagingDbPath))
+	logger.Info(
+		"database and schema initialized",
+		zap.String("path", cfg.MessagingDbPath),
+	)
 	return repo
 }
 
@@ -104,8 +126,8 @@ func initGrpcServer(
 	grpcServer := gomessenger.NewGrpcServerWithStreams(
 		tlsCfg,
 		logger,
-		auth.AuthorizationInterceptor(publicKey, Issuer, publicRoutes),
-		auth.AuthorizationStreamInterceptor(publicKey, Issuer, publicRoutes),
+		auth.AuthorizationInterceptor(publicKey, cfg.Issuer, publicRoutes),
+		auth.AuthorizationStreamInterceptor(publicKey, cfg.Issuer, publicRoutes),
 	)
 
 	grpcServer.WithServer(func(srv *grpc.Server) {
@@ -141,15 +163,54 @@ func createLogFile() *os.File {
 	}
 
 	appLogFile, err := os.OpenFile(
-		AppLogFilePath,
+		cfg.AppLogFilePath,
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
 		0600,
 	)
 	if err != nil {
 		log.Fatalf(
-			"Failed to create app server log, file=%s, err=%v", AppLogFilePath, err,
+			"Failed to create app server log, file=%s, err=%v",
+			cfg.AppLogFilePath,
+			err,
 		)
 	}
 
 	return appLogFile
+}
+
+// buildProfileClient creates a TLS-secured gRPC client for the ProfileService.
+// The same certificate authority file is used as a trust store to validate
+// the profile server certificate.
+func buildProfileClient(
+	logger *zap.Logger,
+) (*grpc.ClientConn, pb.ProfileServiceClient) {
+	// Load the certificate that signed the profile server certificate.
+	pem, err := os.ReadFile(cfg.CertPath)
+	if err != nil {
+		logger.Fatal("could not read CA certificate", zap.Error(err))
+	}
+
+	// Create trust store.
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pem) {
+		logger.Fatal("could not parse CA certificate")
+	}
+
+	// TLS configuration for outbound client connection.
+	clientTLSConfig := &tls.Config{
+		RootCAs:    pool,
+		ServerName: "localhost", // must match certificate SAN/CN
+	}
+
+	conn, err := grpc.NewClient(
+		cfg.ProfilesApiAddr,
+		grpc.WithTransportCredentials(
+			credentials.NewTLS(clientTLSConfig),
+		),
+	)
+	if err != nil {
+		logger.Fatal("failed to connect to profile service", zap.Error(err))
+	}
+
+	return conn, pb.NewProfileServiceClient(conn)
 }
