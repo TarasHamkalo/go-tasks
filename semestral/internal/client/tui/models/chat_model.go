@@ -51,6 +51,8 @@ type ChatModel struct {
 
 	messageStream grpc.ServerStreamingClient[pb.ServerEvent]
 
+	chatId string
+
 	focusedArea FocusArea
 	isEngaged   bool
 
@@ -101,7 +103,7 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// handle network / stream events
-	if model, cmd, handled := m.handleNetworkEvents(msg); handled {
+	if model, cmd, handled := m.handleNetworkAndSelections(msg); handled {
 		return model, cmd
 	}
 
@@ -113,7 +115,9 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m.handleComponentRouting(msg)
 }
 
-func (m *ChatModel) handleNetworkEvents(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+func (m *ChatModel) handleNetworkAndSelections(
+	msg tea.Msg,
+) (tea.Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
 	case SubscriptionStartedMsg:
 		m.logger.Info("subscription stream started")
@@ -156,9 +160,14 @@ func (m *ChatModel) handleNetworkEvents(msg tea.Msg) (tea.Model, tea.Cmd, bool) 
 		m.streamRetryCount++
 		return m, m.subscribe(delay), true
 
+	case ChatSelectedMsg:
+		m.chatId = msg.ChatId
+		model, cmd := m.messagesListModel.Update(msg)
+		m.messagesListModel = model.(*MessagesListModel)
+		return m, cmd, true
+
 	// forward these specific messages down to the messages list
 	case TriggerDeliveryMsg,
-		ChatSelectedMsg,
 		MessagesLoadedMsg,
 		DeliverySuccessMsg,
 		DeliveryRetryMsg,
@@ -252,12 +261,20 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activeModel != nil {
 				return m, m.activeModel.SetEngaged(true)
 			}
-		case "d": // direct chat 
+		case "d": // direct chat
 			createModel := NewCreateChatSubModel(m.appContext, false, m)
 			return createModel, createModel.Init()
-		case "g": // group chat 
+		case "g": // group chat
 			createModel := NewCreateChatSubModel(m.appContext, true, m)
 			return createModel, createModel.Init()
+		case "i":
+			if m.chatId == "" {
+				errModel := NewErrorSubModel(errors.New("not chat selected"), m)
+				return errModel, errModel.Init()
+			}
+
+			inviteModel := NewInviteUserSubModel(m.appContext, m.chatId, m)
+			return inviteModel, inviteModel.Init()
 		}
 	}
 	return m, nil

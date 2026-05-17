@@ -14,6 +14,7 @@ const (
 	ScreenPullData
 	ScreenActiveChat
 	ScreenCreateChat
+	ScreenInviteUser
 	TODOScreen 
 )
 
