@@ -344,7 +344,7 @@ func (m *MessagesListModel) renderMessage(
 		statusIndicator = "[pending...]"
 	}
 
-	timestamp := msg.SentAt.Format("01/02 15:04")
+	timestamp := msg.SentAt.Local().Format("01/02 15:04")
 	header := fmt.Sprintf("%s | %s %s", msg.SenderId, timestamp, statusIndicator)
 
 	headerStyle := lipgloss.NewStyle().

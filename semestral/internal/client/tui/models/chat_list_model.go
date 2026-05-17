@@ -17,6 +17,10 @@ type ChatSelectedMsg struct {
 	ChatId string
 }
 
+type ChatInfoPulledMsg struct {
+	ChatId string
+}
+
 type ChatsListModel struct {
 	appContext *state.AppContext
 
@@ -67,14 +71,16 @@ func (m *ChatsListModel) ShortHelp() []tui.Binding {
 }
 
 func (m *ChatsListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-
 	switch msg := msg.(type) {
+	case ChatInfoPulledMsg:
+		return m, nil
 	case IncomingMessageMsg:
 		chatId := msg.Message.ChatId
 		_, ok := m.appContext.Session.GetChat(chatId)
 		if !ok {
 			return m, m.pullChatInfo(chatId)
-		} 		
+		}
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "j", "down":
@@ -130,7 +136,7 @@ func (m *ChatsListModel) pullChatInfo(chatId string) tea.Cmd {
 				return ChatModelHandleErrorMsg{Err: err}
 			}
 		}
-		return nil
+		return ChatInfoPulledMsg{ChatId: chatId}
 	}
 }
 
@@ -195,6 +201,7 @@ func (m *ChatsListModel) refreshRows() {
 	if version == m.lastVersion {
 		return
 	}
+
 	chats := m.appContext.Session.GetChatsSnapshot()
 
 	rows := make([]chatRow, 0, len(chats))

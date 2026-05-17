@@ -12,8 +12,8 @@ const (
 	// not sure whether to add foreign keys at all, we can not bound
 	// sender id still, so...
 	// Just leaving constraints that are possible to verify (inside single db)
+	// PRAGMA foreign_keys = ON;
 	SCHEMA_QUERY = `
-	PRAGMA foreign_keys = ON;
 
 	CREATE TABLE IF NOT EXISTS
 		chats(
@@ -163,12 +163,14 @@ type SqliteRepository struct {
 }
 
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
-	dsn := "file:" + dbPath + "?_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL"
-	db, err := sqlx.Open("sqlite", dsn)
+	// dsn := "file:" + dbPath + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)"
+	// dsn := "file:" + dbPath + "?_journal_mode=WAL&_busy_timeout=5000&_synchronous=NORMAL"
+	db, err := sqlx.Open("sqlite", dbPath)
 
 	if err != nil {
 		return nil, err
 	}
+
 
 	db.SetMaxOpenConns(4)
 	db.SetMaxIdleConns(2)
