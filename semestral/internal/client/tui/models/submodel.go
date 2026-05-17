@@ -15,6 +15,7 @@ const (
 	ScreenActiveChat
 	ScreenCreateChat
 	ScreenInviteUser
+	ScreenProfile
 	TODOScreen 
 )
 

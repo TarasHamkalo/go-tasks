@@ -197,7 +197,7 @@ func (m *ChatModel) handleComponentRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case FocusProfile:
 		if ok && keyMsg.String() == "enter" {
 			m.isEngaged = false
-			return NewErrorSubModel(errors.New("not impl"), m), nil
+			return NewProfileSubModel(m.appContext, true, m), nil
 		}
 
 	case FocusMessageInput:

@@ -17,9 +17,6 @@ import (
 
 type ChatCreationSuccessMsg struct{}
 
-const (
-)
-
 type CreateChatSubModel struct {
 	appContext *state.AppContext
 	returnTo   SubModel

@@ -4,6 +4,7 @@ package state
 type Profile struct {
 	Id       string
 	Username string
+	Bio string
 }
 
 // Chat interface abstracts the display logic from the TUI renderer
