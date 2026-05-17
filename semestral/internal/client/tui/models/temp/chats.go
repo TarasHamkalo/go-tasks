@@ -32,10 +32,6 @@ package temp
 // 			if cl.SelectedIndex < len(cl.Chats)-1 {
 // 				cl.SelectedIndex++
 // 			}
-// 		case "d":
-// 			return cl, func() tea.Msg { return OpenCreateChatMsg{IsGroup: false} }
-// 		case "g":
-// 			return cl, func() tea.Msg { return OpenCreateChatMsg{IsGroup: true} }
 // 		}
 // 	}
 // 	return cl, nil

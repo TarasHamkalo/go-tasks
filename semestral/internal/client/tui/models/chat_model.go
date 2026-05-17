@@ -47,6 +47,7 @@ type ChatModel struct {
 	messageInputSection *MessagesInputModel
 
 	messagesListModel *MessagesListModel
+	chatListModel     *ChatsListModel
 }
 
 func NewChatModel(appContext *state.AppContext) *ChatModel {
@@ -56,7 +57,8 @@ func NewChatModel(appContext *state.AppContext) *ChatModel {
 		isEngaged:   false,
 
 		messageInputSection: NewMessageInputModel(),
-		messagesListModel: NewMessagesListModel(appContext),
+		messagesListModel:   NewMessagesListModel(appContext),
+		chatListModel:       NewChatsListModel(appContext),
 	}
 }
 
@@ -93,7 +95,6 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// m.appContext.Session.IncrementUnread(msg.ChatId)
 		// TODO: delegate this message to chat list model (can pull new chat)
 		// TODO: delegate this message to message list model
-		// TODO: send ack message
 		return m, tea.Batch(m.ackMessage(0, msg.Message.Id), m.recvMessage())
 
 	case SubscriptionErrorMsg:

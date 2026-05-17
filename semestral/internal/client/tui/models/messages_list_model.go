@@ -17,10 +17,6 @@ import (
 	"gomessenger/internal/client/tui"
 )
 
-type ChatSelectedMsg struct {
-	ChatId string
-}
-
 type MessagesLoadedMsg struct {
 	ChatId   string
 	Messages []storage.Message

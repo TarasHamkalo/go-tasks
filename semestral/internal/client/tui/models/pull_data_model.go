@@ -212,7 +212,7 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 		)
 
 		if err != nil {
-			return DataPullFailedMsg{Err: cleanGrpcError(err)}
+			return DataPullFailedMsg{Err: tui.CleanGrpcError(err)}
 		}
 
 		for _, remoteChat := range chatsRes.Chats {
@@ -225,7 +225,7 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 					GroupName: remoteChat.Name,
 				})
 			} else {
-				err := m.resolveDirectChat(chatId)
+				err := tui.ResolveDirectChat(m.appContext, chatId)
 				if err != nil {
 					return DataPullFailedMsg{Err: err}
 				}
@@ -235,96 +235,4 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 		m.logger.Debug("finished pulling remote data")
 		return DataPullSucceededMsg{}
 	}
-}
-
-// fetch companion profile info from ProfileService
-func (m *PullDataModel) resolveDirectChat(
-	chatId string,
-) error {
-	session := m.appContext.Session
-	memCtx, cancelMem := context.WithTimeout(
-		m.appContext.Ctx,
-		5*time.Second,
-	)
-	defer cancelMem()
-
-	membersResp, err := m.appContext.MessagingClient.GetChatMembers(
-		memCtx, &pb.GetChatMembersRequest{ChatId: chatId},
-	)
-
-	if err != nil {
-		return cleanGrpcError(err)
-	}
-
-	session.SetChatMembers(chatId, membersResp.MemberIds)
-	userId := session.GetUserId()
-
-	var companionId string
-	for _, uid := range membersResp.MemberIds {
-		if uid != userId {
-			companionId = uid
-			break
-		}
-	}
-
-	if companionId == "" {
-		// should not occur
-		m.logger.Warn(
-			"companion id is empty for chat", zap.String("id", chatId),
-		)
-		return nil
-	}
-
-	profCtx, cancelProf := context.WithTimeout(
-		m.appContext.Ctx,
-		5*time.Second,
-	)
-
-	defer cancelProf()
-
-	profRes, err := m.appContext.ProfileClient.GetUserProfile(
-		profCtx,
-		&pb.GetUserProfileRequest{
-			UserId: companionId,
-		},
-	)
-
-	if err != nil {
-		m.logger.Warn("could not resolve direct chat profile",
-			zap.String("companionId", companionId),
-			zap.Error(err),
-		)
-
-		// populate a placeholder profile so rendering doesn't crash
-		placeholder := &state.Profile{
-			Id:       companionId,
-			Username: fmt.Sprintf("User %s", companionId),
-		}
-
-		session.SetProfile(placeholder)
-		session.InsertChat(&state.DirectChat{
-			ChatId:       chatId,
-			OtherProfile: placeholder,
-		})
-	}
-
-	profile := &state.Profile{
-		Id:       profRes.UserId,
-		Username: profRes.Username,
-	}
-
-	session.SetProfile(profile)
-	session.InsertChat(&state.DirectChat{
-		ChatId:       chatId,
-		OtherProfile: profile,
-	})
-
-	return nil
-}
-
-func cleanGrpcError(err error) error {
-	if s, ok := status.FromError(err); ok {
-		return fmt.Errorf("%s", s.Message())
-	}
-	return err
 }
