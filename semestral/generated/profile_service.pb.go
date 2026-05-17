@@ -680,6 +680,94 @@ func (*UpdateUserProfileResponse) Descriptor() ([]byte, []int) {
 	return file_protos_profile_service_proto_rawDescGZIP(), []int{12}
 }
 
+type VerifyUsersRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserIds       []string               `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyUsersRequest) Reset() {
+	*x = VerifyUsersRequest{}
+	mi := &file_protos_profile_service_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyUsersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyUsersRequest) ProtoMessage() {}
+
+func (x *VerifyUsersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_profile_service_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyUsersRequest.ProtoReflect.Descriptor instead.
+func (*VerifyUsersRequest) Descriptor() ([]byte, []int) {
+	return file_protos_profile_service_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *VerifyUsersRequest) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+type VerifyUsersResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ExistingUserIds []string               `protobuf:"bytes,1,rep,name=existing_user_ids,json=existingUserIds,proto3" json:"existing_user_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *VerifyUsersResponse) Reset() {
+	*x = VerifyUsersResponse{}
+	mi := &file_protos_profile_service_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyUsersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyUsersResponse) ProtoMessage() {}
+
+func (x *VerifyUsersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_profile_service_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyUsersResponse.ProtoReflect.Descriptor instead.
+func (*VerifyUsersResponse) Descriptor() ([]byte, []int) {
+	return file_protos_profile_service_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *VerifyUsersResponse) GetExistingUserIds() []string {
+	if x != nil {
+		return x.ExistingUserIds
+	}
+	return nil
+}
+
 var File_protos_profile_service_proto protoreflect.FileDescriptor
 
 const file_protos_profile_service_proto_rawDesc = "" +
@@ -715,19 +803,24 @@ const file_protos_profile_service_proto_rawDesc = "" +
 	"\x18UpdateUserProfileRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x10\n" +
 	"\x03bio\x18\x02 \x01(\tR\x03bio\"\x1b\n" +
-	"\x19UpdateUserProfileResponse*%\n" +
+	"\x19UpdateUserProfileResponse\"/\n" +
+	"\x12VerifyUsersRequest\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\tR\auserIds\"A\n" +
+	"\x13VerifyUsersResponse\x12*\n" +
+	"\x11existing_user_ids\x18\x01 \x03(\tR\x0fexistingUserIds*%\n" +
 	"\n" +
 	"UserStatus\x12\v\n" +
 	"\aOFFLINE\x10\x00\x12\n" +
 	"\n" +
-	"\x06ONLINE\x10\x012\xd8\x03\n" +
+	"\x06ONLINE\x10\x012\xa2\x04\n" +
 	"\x0eProfileService\x12T\n" +
 	"\x0fRegisterProfile\x12\x1f.profile.RegisterProfileRequest\x1a .profile.RegisterProfileResponse\x126\n" +
 	"\x05Login\x12\x15.profile.LoginRequest\x1a\x16.profile.LoginResponse\x12<\n" +
 	"\aRefresh\x12\x17.profile.RefreshRequest\x1a\x18.profile.RefreshResponse\x12Q\n" +
 	"\x0eGetUserProfile\x12\x1e.profile.GetUserProfileRequest\x1a\x1f.profile.GetUserProfileResponse\x12K\n" +
 	"\fUpdateStatus\x12\x1c.profile.UpdateStatusRequest\x1a\x1d.profile.UpdateStatusResponse\x12Z\n" +
-	"\x11UpdateUserProfile\x12!.profile.UpdateUserProfileRequest\x1a\".profile.UpdateUserProfileResponseB\x10Z\x0e./generated;pbb\x06proto3"
+	"\x11UpdateUserProfile\x12!.profile.UpdateUserProfileRequest\x1a\".profile.UpdateUserProfileResponse\x12H\n" +
+	"\vVerifyUsers\x12\x1b.profile.VerifyUsersRequest\x1a\x1c.profile.VerifyUsersResponseB\x10Z\x0e./generated;pbb\x06proto3"
 
 var (
 	file_protos_profile_service_proto_rawDescOnce sync.Once
@@ -742,7 +835,7 @@ func file_protos_profile_service_proto_rawDescGZIP() []byte {
 }
 
 var file_protos_profile_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_protos_profile_service_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_protos_profile_service_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_protos_profile_service_proto_goTypes = []any{
 	(UserStatus)(0),                   // 0: profile.UserStatus
 	(*RegisterProfileRequest)(nil),    // 1: profile.RegisterProfileRequest
@@ -758,6 +851,8 @@ var file_protos_profile_service_proto_goTypes = []any{
 	(*UpdateStatusResponse)(nil),      // 11: profile.UpdateStatusResponse
 	(*UpdateUserProfileRequest)(nil),  // 12: profile.UpdateUserProfileRequest
 	(*UpdateUserProfileResponse)(nil), // 13: profile.UpdateUserProfileResponse
+	(*VerifyUsersRequest)(nil),        // 14: profile.VerifyUsersRequest
+	(*VerifyUsersResponse)(nil),       // 15: profile.VerifyUsersResponse
 }
 var file_protos_profile_service_proto_depIdxs = []int32{
 	3,  // 0: profile.LoginResponse.tokens:type_name -> profile.Tokens
@@ -770,14 +865,16 @@ var file_protos_profile_service_proto_depIdxs = []int32{
 	8,  // 7: profile.ProfileService.GetUserProfile:input_type -> profile.GetUserProfileRequest
 	10, // 8: profile.ProfileService.UpdateStatus:input_type -> profile.UpdateStatusRequest
 	12, // 9: profile.ProfileService.UpdateUserProfile:input_type -> profile.UpdateUserProfileRequest
-	2,  // 10: profile.ProfileService.RegisterProfile:output_type -> profile.RegisterProfileResponse
-	5,  // 11: profile.ProfileService.Login:output_type -> profile.LoginResponse
-	7,  // 12: profile.ProfileService.Refresh:output_type -> profile.RefreshResponse
-	9,  // 13: profile.ProfileService.GetUserProfile:output_type -> profile.GetUserProfileResponse
-	11, // 14: profile.ProfileService.UpdateStatus:output_type -> profile.UpdateStatusResponse
-	13, // 15: profile.ProfileService.UpdateUserProfile:output_type -> profile.UpdateUserProfileResponse
-	10, // [10:16] is the sub-list for method output_type
-	4,  // [4:10] is the sub-list for method input_type
+	14, // 10: profile.ProfileService.VerifyUsers:input_type -> profile.VerifyUsersRequest
+	2,  // 11: profile.ProfileService.RegisterProfile:output_type -> profile.RegisterProfileResponse
+	5,  // 12: profile.ProfileService.Login:output_type -> profile.LoginResponse
+	7,  // 13: profile.ProfileService.Refresh:output_type -> profile.RefreshResponse
+	9,  // 14: profile.ProfileService.GetUserProfile:output_type -> profile.GetUserProfileResponse
+	11, // 15: profile.ProfileService.UpdateStatus:output_type -> profile.UpdateStatusResponse
+	13, // 16: profile.ProfileService.UpdateUserProfile:output_type -> profile.UpdateUserProfileResponse
+	15, // 17: profile.ProfileService.VerifyUsers:output_type -> profile.VerifyUsersResponse
+	11, // [11:18] is the sub-list for method output_type
+	4,  // [4:11] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -794,7 +891,7 @@ func file_protos_profile_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protos_profile_service_proto_rawDesc), len(file_protos_profile_service_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

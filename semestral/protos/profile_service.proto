@@ -35,6 +35,9 @@ service ProfileService {
   // The target user is resolved from the JWT subject claim in the
   // Authorization: Bearer <token> header.
   rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse);
+  
+  // Verifies existence of batch of users, returning existing ids
+  rpc VerifyUsers(VerifyUsersRequest) returns (VerifyUsersResponse);
 }
 
 // UserStatus represents the current presence state of a user.
@@ -97,3 +100,11 @@ message UpdateUserProfileRequest {
 }
 
 message UpdateUserProfileResponse {}
+
+message VerifyUsersRequest {
+  repeated string user_ids = 1;
+}
+
+message VerifyUsersResponse {
+  repeated string existing_user_ids = 1;
+}

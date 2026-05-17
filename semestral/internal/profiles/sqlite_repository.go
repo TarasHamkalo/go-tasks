@@ -32,17 +32,23 @@ const (
 	`
 
 	GET_BY_USER_ID_QUERY = `
-	SELECT CAST(user_id AS TEXT) AS user_id, username, password, bio, status 
-	FROM profiles 
-	WHERE user_id = ?
+		SELECT CAST(user_id AS TEXT) AS user_id, username, password, bio, status 
+		FROM profiles 
+		WHERE user_id = ?
 	`
 
 	UPDATE_STATUS_QUERY = `
-	UPDATE profiles SET status = ? WHERE user_id = ?
+		UPDATE profiles SET status = ? WHERE user_id = ?
 	`
 
 	UPDATE_PROFILE_QUERY = `
-	UPDATE profiles SET username = ?, bio = ? WHERE user_id = ?
+		UPDATE profiles SET username = ?, bio = ? WHERE user_id = ?
+	`
+
+	GET_EXISTING_USERS = `
+		SELECT CAST(user_id AS TEXT) 
+		FROM profiles 
+		WHERE user_id IN (?)
 	`
 )
 
@@ -58,10 +64,10 @@ func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
 	// - busy_timeout=5000  waits up to 5 seconds if the database is locked
 	// - synchronous=NORMAL balances durability and performance
 	dsn := "file:" + dbPath +
-			"?_pragma=foreign_keys=1" +
-			"&_pragma=journal_mode=WAL" +
-			"&_pragma=busy_timeout=5000" +
-			"&_pragma=synchronous=NORMAL"
+		"?_pragma=foreign_keys=1" +
+		"&_pragma=journal_mode=WAL" +
+		"&_pragma=busy_timeout=5000" +
+		"&_pragma=synchronous=NORMAL"
 	db, err := sqlx.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
@@ -147,6 +153,33 @@ func (r SqliteRepository) UpdateProfile(
 		return err
 	}
 	return nil
+}
+
+func (r SqliteRepository) CheckUsersExist(
+	ctx context.Context, userIds []string,
+) ([]string, error) {
+	if len(userIds) == 0 {
+		return []string{}, nil
+	}
+
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
+
+	// sqlx.In expands the slice into the correct number of bindvars (?, ?, ?)
+	query, args, err := sqlx.In(GET_EXISTING_USERS, userIds)
+	if err != nil {
+		return nil, err
+	}
+
+	query = r.Db.Rebind(query)
+
+	var existingIds []string
+	err = r.Db.SelectContext(queryCtx, &existingIds, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return existingIds, nil
 }
 
 func isUniqueConstraint(err error) bool {

@@ -25,6 +25,7 @@ const (
 	ProfileService_GetUserProfile_FullMethodName    = "/profile.ProfileService/GetUserProfile"
 	ProfileService_UpdateStatus_FullMethodName      = "/profile.ProfileService/UpdateStatus"
 	ProfileService_UpdateUserProfile_FullMethodName = "/profile.ProfileService/UpdateUserProfile"
+	ProfileService_VerifyUsers_FullMethodName       = "/profile.ProfileService/VerifyUsers"
 )
 
 // ProfileServiceClient is the client API for ProfileService service.
@@ -57,6 +58,8 @@ type ProfileServiceClient interface {
 	// The target user is resolved from the JWT subject claim in the
 	// Authorization: Bearer <token> header.
 	UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error)
+	// Verifies existence of batch of users
+	VerifyUsers(ctx context.Context, in *VerifyUsersRequest, opts ...grpc.CallOption) (*VerifyUsersResponse, error)
 }
 
 type profileServiceClient struct {
@@ -127,6 +130,16 @@ func (c *profileServiceClient) UpdateUserProfile(ctx context.Context, in *Update
 	return out, nil
 }
 
+func (c *profileServiceClient) VerifyUsers(ctx context.Context, in *VerifyUsersRequest, opts ...grpc.CallOption) (*VerifyUsersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VerifyUsersResponse)
+	err := c.cc.Invoke(ctx, ProfileService_VerifyUsers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProfileServiceServer is the server API for ProfileService service.
 // All implementations must embed UnimplementedProfileServiceServer
 // for forward compatibility.
@@ -157,6 +170,8 @@ type ProfileServiceServer interface {
 	// The target user is resolved from the JWT subject claim in the
 	// Authorization: Bearer <token> header.
 	UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error)
+	// Verifies existence of batch of users
+	VerifyUsers(context.Context, *VerifyUsersRequest) (*VerifyUsersResponse, error)
 	mustEmbedUnimplementedProfileServiceServer()
 }
 
@@ -184,6 +199,9 @@ func (UnimplementedProfileServiceServer) UpdateStatus(context.Context, *UpdateSt
 }
 func (UnimplementedProfileServiceServer) UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateUserProfile not implemented")
+}
+func (UnimplementedProfileServiceServer) VerifyUsers(context.Context, *VerifyUsersRequest) (*VerifyUsersResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VerifyUsers not implemented")
 }
 func (UnimplementedProfileServiceServer) mustEmbedUnimplementedProfileServiceServer() {}
 func (UnimplementedProfileServiceServer) testEmbeddedByValue()                        {}
@@ -314,6 +332,24 @@ func _ProfileService_UpdateUserProfile_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProfileService_VerifyUsers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyUsersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProfileServiceServer).VerifyUsers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProfileService_VerifyUsers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProfileServiceServer).VerifyUsers(ctx, req.(*VerifyUsersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProfileService_ServiceDesc is the grpc.ServiceDesc for ProfileService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -344,6 +380,10 @@ var ProfileService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateUserProfile",
 			Handler:    _ProfileService_UpdateUserProfile_Handler,
+		},
+		{
+			MethodName: "VerifyUsers",
+			Handler:    _ProfileService_VerifyUsers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -354,6 +354,36 @@ func (s *ProfileService) UpdateUserProfile(
 	return &pb.UpdateUserProfileResponse{}, nil
 }
 
+func (s *ProfileService) VerifyUsers(
+	ctx context.Context, req *pb.VerifyUsersRequest,
+) (*pb.VerifyUsersResponse, error) {
+	_, ok := auth.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
+	}
+
+	uniqueIds := make(map[string]bool)
+	var cleanIds []string
+	for _, id := range req.UserIds {
+		if !uniqueIds[id] && id != "" {
+			uniqueIds[id] = true
+			cleanIds = append(cleanIds, id)
+		}
+	}
+
+	existing, err := s.repo.CheckUsersExist(ctx, cleanIds)
+	if err != nil {
+		s.logger.Error("could not verify user Ids", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to verify users")
+	}
+
+	return &pb.VerifyUsersResponse{
+		ExistingUserIds: existing,
+	}, nil
+}
+
 func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
 	access, refresh, jti, err := auth.BuildTokens(
 		p.UserId, s.issuer, s.signingKey,

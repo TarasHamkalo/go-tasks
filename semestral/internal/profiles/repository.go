@@ -33,6 +33,9 @@ type Repository interface {
 		bio string,
 	) error
 
+	// Returns the subset of provided user Ids that exist in the database.
+	CheckUsersExist(ctx context.Context, userIds []string) ([]string, error)
+
 	// Releases repository resources.
 	Close() error
 }
