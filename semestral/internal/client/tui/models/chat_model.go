@@ -25,8 +25,6 @@ type ChatModelHandleErrorMsg struct{ Err error }
 // Handle server stream connection
 type SubscriptionStartedMsg struct{}
 type SubscriptionErrorMsg struct{ Err error }
-
-// TODO: Reconnect retry count is not used at the moment
 type ReconnectMsg struct{ RetryCount int }
 
 type IncomingMessageMsg struct{ Message storage.Message }
@@ -62,6 +60,8 @@ type ChatModel struct {
 	messagesListModel   *MessagesListModel
 	chatsListModel      *ChatsListModel
 
+	streamRetryCount int
+
 	logger *zap.Logger
 }
 
@@ -71,6 +71,8 @@ func NewChatModel(appContext *state.AppContext) *ChatModel {
 
 		focusedArea: FocusProfile,
 		isEngaged:   false,
+
+		streamRetryCount: 0,
 
 		messageInputSection: NewMessageInputModel(),
 		messagesListModel:   NewMessagesListModel(appContext),
@@ -115,6 +117,7 @@ func (m *ChatModel) handleNetworkEvents(msg tea.Msg) (tea.Model, tea.Cmd, bool) 
 	switch msg := msg.(type) {
 	case SubscriptionStartedMsg:
 		m.logger.Info("subscription stream started")
+		m.streamRetryCount = 0 // Reset counter on successful stream establish
 		return m, m.recvMessage(), true
 
 	case IncomingMessageMsg:
@@ -122,8 +125,11 @@ func (m *ChatModel) handleNetworkEvents(msg tea.Msg) (tea.Model, tea.Cmd, bool) 
 		return model, cmd, true
 
 	case SubscriptionErrorMsg:
-		m.logger.Error("subscription error", zap.Error(msg.Err))
-		return m, func() tea.Msg { return ChatModelHandleErrorMsg(msg) }, true
+		m.logger.Error("subscription connection error", zap.Error(msg.Err))
+		if !tui.IsRetriable(msg.Err) {
+			return m, func() tea.Msg { return ChatModelHandleErrorMsg(msg) }, true
+		}
+		return m, func() tea.Msg { return ReconnectMsg{RetryCount: m.streamRetryCount} }, true
 
 	case RetryAckMsg:
 		return m, m.ackMessage(msg.MsgId, msg.RetryCount), true
@@ -147,9 +153,10 @@ func (m *ChatModel) handleNetworkEvents(msg tea.Msg) (tea.Model, tea.Cmd, bool) 
 			zap.Duration("delay", delay),
 			zap.Int("attempt", msg.RetryCount),
 		)
+		m.streamRetryCount++ 
 		return m, m.subscribe(delay), true
 
-	// Forward these specific messages down to the messages list
+	// forward these specific messages down to the messages list
 	case TriggerDeliveryMsg,
 		ChatSelectedMsg,
 		MessagesLoadedMsg,
@@ -211,7 +218,6 @@ func (m *ChatModel) handleIncomingMessage(
 		cmds = append(cmds, chatListCmd)
 	}
 
-	// TODO: increment unread
 	msgListModel, msgListCmd := m.messagesListModel.Update(msg)
 	m.messagesListModel = msgListModel.(*MessagesListModel)
 	if msgListCmd != nil {
@@ -307,7 +313,7 @@ func (m *ChatModel) ShortHelp() []tui.Binding {
 func (m *ChatModel) subscribe(delay time.Duration) tea.Cmd {
 	return func() tea.Msg {
 		if delay > 0 {
-			time.Sleep(delay) // tea.Cmd runs in goroutine, sleep is safe here
+			time.Sleep(delay)
 		}
 
 		m.logger.Info("attempting to subscribe to stream...")
@@ -334,7 +340,7 @@ func (m *ChatModel) recvMessage() tea.Cmd {
 		res, err := m.messageStream.Recv()
 		if err != nil {
 			if err == io.EOF {
-				return ReconnectMsg{RetryCount: 0}
+				return ReconnectMsg{RetryCount: m.streamRetryCount}
 			}
 			if errors.Is(err, context.Canceled) {
 				return nil
@@ -356,7 +362,7 @@ func (m *ChatModel) recvMessage() tea.Cmd {
 			return IncomingMessageMsg{Message: msg}
 		}
 
-		return ReconnectMsg{RetryCount: 0}
+		return ReconnectMsg{RetryCount: m.streamRetryCount}
 	}
 }
 
@@ -390,9 +396,9 @@ func (m *ChatModel) ackMessage(msgId string, retryCount int) tea.Cmd {
 		)
 
 		if err != nil {
-			if retryCount >= 5 {
+			if !tui.IsRetriable(err) || retryCount >= 5 {
 				return ChatModelHandleErrorMsg{
-					Err: fmt.Errorf("failed to ack message after 5 attempts: %w", err),
+					Err: fmt.Errorf("fatal ack error (aborted or max retries reached): %w", err),
 				}
 			}
 			return RetryAckMsg{MsgId: msgId, RetryCount: retryCount + 1}

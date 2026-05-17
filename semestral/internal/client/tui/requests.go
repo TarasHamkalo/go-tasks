@@ -7,6 +7,7 @@ import (
 	"gomessenger/internal/client/state"
 	"time"
 
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
@@ -98,4 +99,29 @@ func CalculateBackoff(retryCount int) time.Duration {
 		return 30 * time.Second
 	}
 	return delay
+}
+
+
+// Helper to strip out standard gRPC client failures that should never trigger automated retries
+func IsRetriable(err error) bool {
+	if err == nil {
+		return false
+	}
+	st, ok := status.FromError(err)
+	if !ok {
+		return true
+	}
+	switch st.Code() {
+	case codes.InvalidArgument,
+		codes.Unauthenticated,
+		codes.PermissionDenied,
+		codes.NotFound,
+		codes.AlreadyExists,
+		codes.FailedPrecondition,
+		codes.Unimplemented:
+		// Client errors / permanent structure failures cannot be fixed by trying again
+		return false
+	default:
+		return true
+	}
 }
