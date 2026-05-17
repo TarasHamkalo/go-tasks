@@ -224,7 +224,7 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 					GroupName: remoteChat.Name,
 				})
 			} else {
-				err := tui.ResolveDirectChat(m.appContext, chatId)
+				err := tui.ResolveDirectChatToSession(m.appContext, chatId)
 				if err != nil {
 					return DataPullFailedMsg{Err: err}
 				}

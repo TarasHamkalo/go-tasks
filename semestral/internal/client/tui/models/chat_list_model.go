@@ -125,7 +125,7 @@ func (m *ChatsListModel) pullChatInfo(chatId string) tea.Cmd {
 				GroupName: chatsRes.Chat.Name,
 			})
 		} else {
-			err := tui.ResolveDirectChat(m.appContext, chatId)
+			err := tui.ResolveDirectChatToSession(m.appContext, chatId)
 			if err != nil {
 				return ChatModelHandleErrorMsg{Err: err}
 			}

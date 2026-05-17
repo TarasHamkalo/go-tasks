@@ -253,10 +253,10 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.activeModel.SetEngaged(true)
 			}
 		case "d": // direct chat 
-			createModel := NewCreateChatSubModel(false, m)
+			createModel := NewCreateChatSubModel(m.appContext, false, m)
 			return createModel, createModel.Init()
 		case "g": // group chat 
-			createModel := NewCreateChatSubModel(true, m)
+			createModel := NewCreateChatSubModel(m.appContext, true, m)
 			return createModel, createModel.Init()
 		}
 	}

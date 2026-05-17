@@ -12,7 +12,7 @@ import (
 )
 
 // fetch companion profile info from ProfileService
-func ResolveDirectChat(appContext *state.AppContext, chatId string) error {
+func ResolveDirectChatToSession(appContext *state.AppContext, chatId string) error {
 	session := appContext.Session
 	memCtx, cancelMem := context.WithTimeout(
 		appContext.Ctx,
@@ -43,6 +43,29 @@ func ResolveDirectChat(appContext *state.AppContext, chatId string) error {
 		return nil
 	}
 
+	profile, err := ResolveProfileToSession(appContext, companionId)
+	if err != nil {
+		// populate a placeholder profile so rendering doesn't crash
+		profile = &state.Profile{
+			Id:       companionId,
+			Username: fmt.Sprintf("User %s", companionId),
+		}
+
+		session.SetProfile(profile)
+	}
+
+	session.InsertChat(&state.DirectChat{
+		ChatId:       chatId,
+		OtherProfile: profile,
+	})
+
+	return nil
+}
+
+func ResolveProfileToSession(
+	appContext *state.AppContext, profileId string,
+) (*state.Profile, error) {
+	session := appContext.Session
 	profCtx, cancelProf := context.WithTimeout(
 		appContext.Ctx,
 		5*time.Second,
@@ -53,22 +76,12 @@ func ResolveDirectChat(appContext *state.AppContext, chatId string) error {
 	profRes, err := appContext.ProfileClient.GetUserProfile(
 		profCtx,
 		&pb.GetUserProfileRequest{
-			UserId: companionId,
+			UserId: profileId,
 		},
 	)
 
 	if err != nil {
-		// populate a placeholder profile so rendering doesn't crash
-		placeholder := &state.Profile{
-			Id:       companionId,
-			Username: fmt.Sprintf("User %s", companionId),
-		}
-
-		session.SetProfile(placeholder)
-		session.InsertChat(&state.DirectChat{
-			ChatId:       chatId,
-			OtherProfile: placeholder,
-		})
+		return nil, err
 	}
 
 	profile := &state.Profile{
@@ -77,12 +90,8 @@ func ResolveDirectChat(appContext *state.AppContext, chatId string) error {
 	}
 
 	session.SetProfile(profile)
-	session.InsertChat(&state.DirectChat{
-		ChatId:       chatId,
-		OtherProfile: profile,
-	})
+	return profile, nil
 
-	return nil
 }
 
 func CleanGrpcError(err error) error {
@@ -100,7 +109,6 @@ func CalculateBackoff(retryCount int) time.Duration {
 	}
 	return delay
 }
-
 
 // Helper to strip out standard gRPC client failures that should never trigger automated retries
 func IsRetriable(err error) bool {

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -8,10 +9,15 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	pb "gomessenger/generated"
+	"gomessenger/internal/client/state"
 	"gomessenger/internal/client/tui"
 )
 
+type ChatCreationSuccessMsg struct{}
+
 type CreateChatSubModel struct {
+	appContext *state.AppContext
 	returnTo   SubModel
 	isGroup    bool
 	userIds    []string
@@ -20,8 +26,13 @@ type CreateChatSubModel struct {
 	focusInput bool // true = typing ID, false = navigating entries list
 }
 
-func NewCreateChatSubModel(isGroup bool, returnTo SubModel) *CreateChatSubModel {
+func NewCreateChatSubModel(
+	appContext *state.AppContext,
+	isGroup bool,
+	returnTo SubModel,
+) *CreateChatSubModel {
 	return &CreateChatSubModel{
+		appContext: appContext,
 		isGroup:    isGroup,
 		returnTo:   returnTo,
 		userIds:    []string{},
@@ -48,7 +59,7 @@ func (m *CreateChatSubModel) ShortHelp() []tui.Binding {
 	}
 	return []tui.Binding{
 		{Key: "k/j, up/down", Description: "Navigate entries"},
-		{Key: "x, backspace", Description: "Remove item"},
+		{Key: "x, backspace", Description: "Remove member"},
 		{Key: "Tab", Description: "Go back to typing"},
 		{Key: "Ctrl+s", Description: "Confirm and Create"},
 		{Key: "Esc", Description: "Cancel"},
@@ -57,6 +68,8 @@ func (m *CreateChatSubModel) ShortHelp() []tui.Binding {
 
 func (m *CreateChatSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case ChatCreationSuccessMsg:
+		return m.returnTo, nil
 	case tea.KeyPressMsg:
 		keyStr := msg.String()
 		switch keyStr {
@@ -88,7 +101,7 @@ func (m *CreateChatSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if !m.isGroup && len(m.userIds) >= 1 {
 						m.inputVal = ""
 						errModel := NewErrorSubModel(
-							fmt.Errorf("direct chats can only have exactly 1 recipient"),
+							fmt.Errorf("direct chats can only have exactly 1 member"),
 							m,
 						)
 						return errModel, errModel.Init()
@@ -135,74 +148,189 @@ func (m *CreateChatSubModel) View() tea.View {
 }
 
 func (m *CreateChatSubModel) ContentView(width, height int) tea.View {
-	title := "New direct chat"
+	title := "New Direct Chat"
 	if m.isGroup {
-		title = "New group chat"
+		title = "New Group Chat"
 	}
 
-	headerStyle := lipgloss.NewStyle().
+	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#00FF00")).
+		Foreground(lipgloss.Color("#E5E5E5")).
 		MarginBottom(1)
+
+	labelStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#A0A0A0")).
+		MarginTop(1)
+
 	listStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, true, false).
 		BorderForeground(lipgloss.Color("#3C3C3C")).
 		Padding(1, 0).
 		Width(34)
 
+	inputBorderColor := "#3C3C3C"
+	if m.focusInput {
+		inputBorderColor = "#FF007F"
+	}
+
+	inputBoxStyle := lipgloss.NewStyle().
+		Width(34).
+		Padding(0, 1).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color(inputBorderColor))
+
+	placeholderStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#666666")).
+		Italic(true)
+
+	// render recipients
 	var entries []string
 	if len(m.userIds) == 0 {
-		entries = append(entries,
-			lipgloss.NewStyle().
-				Italic(true).
-				Foreground(lipgloss.Color("#666666")).
-				Render("No recipients added yet"))
+		entries = append(
+			entries,
+			placeholderStyle.Render("No members added yet"),
+		)
 	} else {
 		for i, id := range m.userIds {
 			prefix := "  "
 			itemStyle := lipgloss.NewStyle()
+
 			if !m.focusInput && i == m.cursor {
 				prefix = "> "
-				itemStyle = itemStyle.Foreground(lipgloss.Color("#00FFFF")).Bold(true)
+				itemStyle = itemStyle.
+					Bold(true).
+					Foreground(lipgloss.Color("#00FFFF"))
 			}
-			entries = append(entries, itemStyle.Render(fmt.Sprintf("%sUser ID: %s", prefix, id)))
+
+			entries = append(
+				entries,
+				itemStyle.Render(fmt.Sprintf("%sUser ID: %s", prefix, id)),
+			)
 		}
 	}
-	listRendered := listStyle.Render(lipgloss.JoinVertical(lipgloss.Left, entries...))
 
-	inputLabelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#888888")).MarginTop(1)
-	inputBoxColor := "#3C3C3C"
-	if m.focusInput {
-		inputBoxColor = "#FF007F"
-	}
+	listRendered := listStyle.Render(
+		lipgloss.JoinVertical(lipgloss.Left, entries...),
+	)
 
-	inputBoxStyle := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(lipgloss.Color(inputBoxColor)).Width(34).Padding(0, 1)
-
+	// render input
 	displayInput := m.inputVal
-	if len(displayInput) == 0 {
-		displayInput = "Enter 9-digit ID..."
+	if displayInput == "" {
+		displayInput = placeholderStyle.Render("Enter 9-digit user ID...")
 	}
+
+	if m.isGroup {
+		displayInput = m.inputVal
+		if displayInput == "" {
+			displayInput = placeholderStyle.Render("Enter member user ID...")
+		}
+	}
+
 	inputRendered := inputBoxStyle.Render(displayInput)
 
-	// Combine inside standard dialog body box
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		headerStyle.Render(title),
+		titleStyle.Render(title),
 		listRendered,
-		inputLabelStyle.Render("Add Recipient (Press Tab to toggle):"),
+		labelStyle.Render("Add Members (Tab to switch focus)"),
 		inputRendered,
 	)
 
-	box := tui.DialogBoxStyle.BorderForeground(lipgloss.Color("#00FF00")).Render(content)
-	centered := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, box)
+	// Neutral outer dialog border.
+	dialog := tui.DialogBoxStyle.
+		BorderForeground(lipgloss.Color("#3C3C3C")).
+		Render(content)
+
+	centered := lipgloss.Place(
+		width,
+		height,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialog,
+	)
 
 	return tea.NewView(centered)
 }
 
 func (m *CreateChatSubModel) submitCreateChat() tea.Cmd {
 	return func() tea.Msg {
-		// TODO: create chat and send message
-		time.Sleep(100 * time.Millisecond)
-		return ChatSelectedMsg{ChatId: "created-chat-id"}
+		var chatId string
+		if m.isGroup {
+			return m.createGroup()
+		}
+
+		if len(m.userIds) != 1 {
+			return ChatModelHandleErrorMsg{
+				Err: fmt.Errorf("direct chat requires exactly one recipient"),
+			}
+		}
+
+		targetUserId := m.userIds[0]
+
+		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
+		defer cancel()
+		res, err := m.appContext.MessagingClient.CreateDirectChat(
+			ctx,
+			&pb.CreateDirectChatRequest{
+				TargetUserId: targetUserId,
+			},
+		)
+
+		if err != nil {
+			return ChatModelHandleErrorMsg{Err: err}
+		}
+
+		chatId = res.ChatId
+		otherProfile, ok := m.appContext.Session.GetProfile(targetUserId)
+
+		if !ok {
+			otherProfile, err = tui.ResolveProfileToSession(
+				m.appContext, targetUserId,
+			)
+			if err != nil {
+				return ChatModelHandleErrorMsg{Err: err}
+			}
+		}
+
+		m.appContext.Session.InsertChat(&state.DirectChat{
+			ChatId:       chatId,
+			OtherProfile: otherProfile,
+		})
+
+		m.appContext.Session.SetChatMembers(
+			chatId,
+			[]string{
+				m.appContext.Session.GetUserId(),
+				targetUserId,
+			},
+		)
+
+		return ChatCreationSuccessMsg{}
 	}
+}
+
+func (m *CreateChatSubModel) createGroup() tea.Msg {
+	groupName := fmt.Sprintf("Group %s", time.Now().Format("15:04:05"))
+	ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
+	defer cancel()
+
+	res, err := m.appContext.MessagingClient.CreateGroupChat(
+		ctx,
+		&pb.CreateGroupChatRequest{
+			Name:      groupName,
+			MemberIds: m.userIds,
+		},
+	)
+	if err != nil {
+		return ChatModelHandleErrorMsg{Err: err}
+	}
+
+	chatId := res.ChatId
+	m.appContext.Session.InsertChat(&state.GroupChat{
+		ChatId:    chatId,
+		GroupName: groupName,
+	})
+
+	m.appContext.Session.SetChatMembers(chatId, m.userIds)
+	return ChatCreationSuccessMsg{}
 }
