@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,14 +17,26 @@ import (
 
 type ChatCreationSuccessMsg struct{}
 
+const (
+)
+
 type CreateChatSubModel struct {
 	appContext *state.AppContext
 	returnTo   SubModel
 	isGroup    bool
-	userIds    []string
-	inputVal   string
+
+	userIds   []string
+	inputVal  string
+	groupName string // used only for groups, max 70 chars
+
+	// Focus order:
+	// Direct chat: recipient input <-> members list
+	// Group chat:  group name -> member input -> members list
+	focusIndex int
 	cursor     int
-	focusInput bool // true = typing ID, false = navigating entries list
+
+	maxUserIdLen    int
+	maxGroupNameLen int
 }
 
 func NewCreateChatSubModel(
@@ -36,7 +49,9 @@ func NewCreateChatSubModel(
 		isGroup:    isGroup,
 		returnTo:   returnTo,
 		userIds:    []string{},
-		focusInput: true,
+		focusIndex: 0,
+		maxUserIdLen: 9,
+		maxGroupNameLen: 100,
 	}
 }
 
@@ -48,15 +63,50 @@ func (m *CreateChatSubModel) Init() tea.Cmd {
 	return nil
 }
 
+func (m *CreateChatSubModel) isGroupNameFocused() bool {
+	return m.isGroup && m.focusIndex == 0
+}
+
+func (m *CreateChatSubModel) isMemberInputFocused() bool {
+	if m.isGroup {
+		return m.focusIndex == 1
+	}
+	return m.focusIndex == 0
+}
+
+func (m *CreateChatSubModel) isMembersListFocused() bool {
+	if m.isGroup {
+		return m.focusIndex == 2
+	}
+	return m.focusIndex == 1
+}
+
+func (m *CreateChatSubModel) nextFocus() {
+	if m.isGroup {
+		m.focusIndex = (m.focusIndex + 1) % 3
+	} else {
+		m.focusIndex = (m.focusIndex + 1) % 2
+	}
+}
+
 func (m *CreateChatSubModel) ShortHelp() []tui.Binding {
-	if m.focusInput {
+	if m.isGroupNameFocused() {
 		return []tui.Binding{
-			{Key: "0-9", Description: "Type User ID"},
-			{Key: "Tab", Description: "Go to list navigation"},
-			{Key: "Enter", Description: "Add user ID / Submit if empty"},
+			{Key: "Type", Description: "Enter group name"},
+			{Key: "Tab", Description: "Next field"},
 			{Key: "Esc", Description: "Cancel"},
 		}
 	}
+
+	if m.isMemberInputFocused() {
+		return []tui.Binding{
+			{Key: "0-9", Description: "Type User Id"},
+			{Key: "Enter", Description: "Add member"},
+			{Key: "Tab", Description: "Next field"},
+			{Key: "Esc", Description: "Cancel"},
+		}
+	}
+
 	return []tui.Binding{
 		{Key: "k/j, up/down", Description: "Navigate entries"},
 		{Key: "x, backspace", Description: "Remove member"},
@@ -72,32 +122,54 @@ func (m *CreateChatSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.returnTo, nil
 	case tea.KeyPressMsg:
 		keyStr := msg.String()
+
 		switch keyStr {
 		case "esc":
 			return m.returnTo, nil
 
 		case "tab":
-			m.focusInput = !m.focusInput
+			m.nextFocus()
 			return m, nil
+
 		case "ctrl+s":
 			if len(m.userIds) > 0 {
 				return m.returnTo, m.submitCreateChat()
 			}
 		}
 
-		if m.focusInput {
+		if m.isGroupNameFocused() {
+			switch keyStr {
+			case "backspace":
+				if len(m.groupName) > 0 {
+					runes := []rune(m.groupName)
+					m.groupName = string(runes[:len(runes)-1])
+				}
+			default:
+				if len([]rune(m.groupName)) < m.maxGroupNameLen {
+					m.groupName += msg.Text
+				}
+			}
+			return m, nil
+		}
+
+		if m.isMemberInputFocused() {
 			switch keyStr {
 			case "backspace":
 				if len(m.inputVal) > 0 {
 					m.inputVal = m.inputVal[:len(m.inputVal)-1]
 				}
+
 			case "enter":
-				if m.inputVal == "" && len(m.userIds) > 0 {
-					return m.returnTo, m.submitCreateChat()
+				if m.inputVal == "" {
+					if len(m.userIds) > 0 {
+						if !m.isGroup || strings.TrimSpace(m.groupName) != "" {
+							return m.returnTo, m.submitCreateChat()
+						}
+					}
+					return m, nil
 				}
 
-				// enforce 9 digit
-				if len(m.inputVal) == 9 {
+				if len(m.inputVal) == m.maxUserIdLen {
 					if !m.isGroup && len(m.userIds) >= 1 {
 						m.inputVal = ""
 						errModel := NewErrorSubModel(
@@ -111,14 +183,20 @@ func (m *CreateChatSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inputVal = ""
 					m.cursor = len(m.userIds) - 1
 				}
+
 			default:
-				if len(m.inputVal) < 9 {
+				if len(m.inputVal) < m.maxUserIdLen {
 					if _, err := strconv.Atoi(keyStr); err == nil {
-						m.inputVal += keyStr
+						m.inputVal += keyStr 
 					}
 				}
 			}
-		} else {
+
+			return m, nil
+		}
+
+
+		if m.isMembersListFocused() {
 			// Navigating current tracking entries
 			switch keyStr {
 			case "k", "up":
@@ -134,7 +212,7 @@ func (m *CreateChatSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.userIds = append(m.userIds[:m.cursor], m.userIds[m.cursor+1:]...)
 					m.cursor = max(0, m.cursor-1)
 					if len(m.userIds) == 0 {
-						m.focusInput = true
+						m.focusIndex = 0 
 					}
 				}
 			}
@@ -162,81 +240,93 @@ func (m *CreateChatSubModel) ContentView(width, height int) tea.View {
 		Foreground(lipgloss.Color("#A0A0A0")).
 		MarginTop(1)
 
+	placeholderStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#666666")).
+		Italic(true)
+
 	listStyle := lipgloss.NewStyle().
 		Border(lipgloss.NormalBorder(), false, false, true, false).
 		BorderForeground(lipgloss.Color("#3C3C3C")).
 		Padding(1, 0).
 		Width(34)
 
-	inputBorderColor := "#3C3C3C"
-	if m.focusInput {
-		inputBorderColor = "#FF007F"
+	makeInputStyle := func(focused bool) lipgloss.Style {
+		color := "#3C3C3C"
+		if focused {
+			color = "#FF007F"
+		}
+
+		return lipgloss.NewStyle().
+			Width(34).
+			Padding(0, 1).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color(color))
 	}
 
-	inputBoxStyle := lipgloss.NewStyle().
-		Width(34).
-		Padding(0, 1).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(inputBorderColor))
+	var sections []string
+	sections = append(sections, titleStyle.Render(title))
 
-	placeholderStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#666666")).
-		Italic(true)
+	// Group name input
+	if m.isGroup {
+		groupName := m.groupName
+		if groupName == "" {
+			groupName = placeholderStyle.Render("Enter group name...")
+		}
 
-	// render recipients
+		sections = append(
+			sections,
+			labelStyle.Render("Group Name"),
+			makeInputStyle(m.isGroupNameFocused()).Render(groupName),
+		)
+	}
+
+	// Members list
 	var entries []string
 	if len(m.userIds) == 0 {
-		entries = append(
-			entries,
-			placeholderStyle.Render("No members added yet"),
-		)
+		entries = append(entries, placeholderStyle.Render("No members added yet"))
 	} else {
 		for i, id := range m.userIds {
 			prefix := "  "
-			itemStyle := lipgloss.NewStyle()
+			style := lipgloss.NewStyle()
 
-			if !m.focusInput && i == m.cursor {
+			if m.isMembersListFocused() && i == m.cursor {
 				prefix = "> "
-				itemStyle = itemStyle.
+				style = style.
 					Bold(true).
 					Foreground(lipgloss.Color("#00FFFF"))
 			}
 
 			entries = append(
 				entries,
-				itemStyle.Render(fmt.Sprintf("%sUser ID: %s", prefix, id)),
+				style.Render(fmt.Sprintf("%sUser ID: %s", prefix, id)),
 			)
 		}
 	}
 
-	listRendered := listStyle.Render(
-		lipgloss.JoinVertical(lipgloss.Left, entries...),
+	sections = append(
+		sections,
+		listStyle.Render(lipgloss.JoinVertical(lipgloss.Left, entries...)),
 	)
 
-	// render input
-	displayInput := m.inputVal
-	if displayInput == "" {
-		displayInput = placeholderStyle.Render("Enter 9-digit user ID...")
-	}
-
+	// Member input
+	memberPlaceholder := "Enter 9-digit user ID..."
 	if m.isGroup {
-		displayInput = m.inputVal
-		if displayInput == "" {
-			displayInput = placeholderStyle.Render("Enter member user ID...")
-		}
+		memberPlaceholder = "Enter member user ID..."
 	}
 
-	inputRendered := inputBoxStyle.Render(displayInput)
+	memberInput := m.inputVal
+	if memberInput == "" {
+		memberInput = placeholderStyle.Render(memberPlaceholder)
+	}
 
-	content := lipgloss.JoinVertical(
-		lipgloss.Left,
-		titleStyle.Render(title),
-		listRendered,
+	sections = append(
+		sections,
 		labelStyle.Render("Add Members (Tab to switch focus)"),
-		inputRendered,
+		makeInputStyle(m.isMemberInputFocused()).Render(memberInput),
 	)
 
-	// Neutral outer dialog border.
+	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
+
 	dialog := tui.DialogBoxStyle.
 		BorderForeground(lipgloss.Color("#3C3C3C")).
 		Render(content)
@@ -310,7 +400,11 @@ func (m *CreateChatSubModel) submitCreateChat() tea.Cmd {
 }
 
 func (m *CreateChatSubModel) createGroup() tea.Msg {
-	groupName := fmt.Sprintf("Group %s", time.Now().Format("15:04:05"))
+	groupName := strings.TrimSpace(m.groupName)
+	if groupName == "" {
+		groupName = fmt.Sprintf("Group %s", time.Now().Format("15:04:05"))
+	}
+
 	ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
 	defer cancel()
 
