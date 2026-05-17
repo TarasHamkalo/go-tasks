@@ -47,7 +47,7 @@ func NewRootModel(appContext *state.AppContext) *RootModel {
 	pullDataModel := NewPullDataModel(appContext)
 	// chatModel := NewChatModel(appContext)
 
-	appContext.Session = &state.Session{} // empty state
+	appContext.Session = state.NewSession() // empty state
 
 	return &RootModel{
 		currentSubModel: onboardingSubModel,
@@ -78,11 +78,13 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c", "ctrl+d":
+			m.appContext.Session = state.NewSession() // empty state
 			return m, tea.Quit
 		}
 
 	case RootHandleErrorMsg:
 		m.logger.Info("root handling error")
+		m.appContext.Session = state.NewSession() // empty state
 		m.currentSubModel = NewErrorSubModel(msg.Err, m.onboardingSubModel)
 		return m, m.currentSubModel.Init() 
 

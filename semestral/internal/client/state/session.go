@@ -12,7 +12,7 @@ type Session struct {
 	UnreadCounts map[string]int // ChatId -> Count of new messages
 }
 
-func NewSessionState() *Session {
+func NewSession() *Session {
 	return &Session{
 		Profiles:     make(map[string]*Profile),
 		Chats:        make(map[string]Chat),
