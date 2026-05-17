@@ -25,18 +25,6 @@ func NewMessageInputModel() *MessagesInputModel {
 	ti.CharLimit = 500
 	ti.Prompt = ""
 
-	// Make placeholder visible.
-	// ti.Styles().Focused.Placeholder = lipgloss.NewStyle().
-	// 	Foreground(lipgloss.Color("#666666"))
-	//
-	// // Normal typed text.
-	// ti.TextStyle = lipgloss.NewStyle().
-	// 	Foreground(lipgloss.Color("#FFFFFF"))
-	//
-	// // Cursor style.
-	// ti.Cursor.Style = lipgloss.NewStyle().
-	// 	Foreground(lipgloss.Color("#FF007F"))
-
 	return &MessagesInputModel{
 		Input:   ti,
 		Engaged: false,
