@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -25,7 +26,7 @@ type MessagingService struct {
 
 	broker *Broker
 
-	profileServiceClient pb.ProfileServiceClient
+	profileClient pb.ProfileServiceClient
 
 	logger *zap.Logger
 
@@ -34,15 +35,15 @@ type MessagingService struct {
 
 func NewMessagingService(
 	repo Repository,
-	profileServiceClient pb.ProfileServiceClient,
+	profileClient pb.ProfileServiceClient,
 	logger *zap.Logger,
 ) *MessagingService {
 	broker := NewBroker(logger.With(zap.String("module", "broker")))
 	return &MessagingService{
-		repo:   repo,
-		broker: broker,
-		profileServiceClient: profileServiceClient,
-		logger: logger,
+		repo:          repo,
+		broker:        broker,
+		profileClient: profileClient,
+		logger:        logger,
 	}
 }
 
@@ -247,6 +248,28 @@ func (s *MessagingService) CreateDirectChat(
 		)
 	}
 
+	// should be present, already verified above
+	md, _ := metadata.FromIncomingContext(ctx)
+	outboundCtx := metadata.NewOutgoingContext(ctx, md)
+
+	verifyResp, err := s.profileClient.VerifyUsers(
+		outboundCtx,
+		&pb.VerifyUsersRequest{
+			UserIds: []string{targetId},
+		},
+	)
+
+	if err != nil {
+		s.logger.Error("failed call to verify users", zap.Error(err))
+		return nil, status.Error(codes.Internal, "could not verify chat members")
+	}
+
+	if len(verifyResp.ExistingUserIds) != 1 {
+		return nil, status.Error(
+			codes.InvalidArgument, "target user profile does not exist",
+		)
+	}
+
 	// validate whether direct chat already exists
 	// TODO: ideally should be under transaction.... (read-check-write)
 	chat, err := s.repo.GetDirectChatByUsers(ctx, userId, targetId)
@@ -294,6 +317,43 @@ func (s *MessagingService) CreateGroupChat(
 		)
 	}
 
+	// Use a map to filter out duplicate member IDs provided by the user
+	seen := make(map[string]bool)
+	seen[claims.Subject] = true // ensure creator isn't duplicated
+
+	memberIds := make([]string, 0, len(req.MemberIds)+1)
+	memberIds = append(memberIds, claims.Subject)
+
+	for _, mId := range req.MemberIds {
+		trimmedId := strings.TrimSpace(mId)
+		if trimmedId != "" && !seen[trimmedId] {
+			seen[trimmedId] = true
+			memberIds = append(memberIds, trimmedId)
+		}
+	}
+
+	// forward incoming authorization metadata to the outbound context
+	md, _ := metadata.FromIncomingContext(ctx)
+	outboundCtx := metadata.NewOutgoingContext(ctx, md)
+
+	// cross-service validation: batch verify all clean member IDs
+	verifyResp, err := s.profileClient.VerifyUsers(
+		outboundCtx,
+		&pb.VerifyUsersRequest{
+			UserIds: memberIds,
+		},
+	)
+	if err != nil {
+		s.logger.Error("failed call to verify users", zap.Error(err))
+		return nil, status.Error(codes.Internal, "could not verify chat members")
+	}
+
+	if len(verifyResp.ExistingUserIds) != len(memberIds) {
+		return nil, status.Error(
+			codes.InvalidArgument, "one or more provided user Ids do not exist",
+		)
+	}
+
 	chatId := uuid.New().String()
 	chat := Chat{
 		Id:      chatId,
@@ -301,16 +361,7 @@ func (s *MessagingService) CreateGroupChat(
 		Name:    groupName,
 	}
 
-	memberIds := make([]string, 0, len(req.MemberIds)+1)
-	memberIds = append(memberIds, claims.Subject)
-	// TODO: you have to verify all the users identity :)
-	for _, mId := range req.MemberIds {
-		if mId != claims.Subject && mId != "" {
-			memberIds = append(memberIds, mId)
-		}
-	}
-
-	err := s.repo.InsertChat(ctx, chat, memberIds)
+	err = s.repo.InsertChat(ctx, chat, memberIds)
 	if err != nil {
 		s.logger.Error("could not create group chat", zap.Error(err))
 		return nil, status.Error(codes.Internal, "could not create chat")
@@ -329,6 +380,13 @@ func (s *MessagingService) AddChatMember(
 		)
 	}
 
+	targetUserId := strings.TrimSpace(req.TargetUserId)
+	if targetUserId == "" {
+		return nil, status.Error(
+			codes.InvalidArgument, "target user id cannot be empty",
+		)
+	}
+
 	members, err := s.repo.GetChatMembers(ctx, req.ChatId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "could not verify chat metadata")
@@ -342,7 +400,7 @@ func (s *MessagingService) AddChatMember(
 	}
 
 	// target user is already a member
-	if slices.Contains(members, req.TargetUserId) {
+	if slices.Contains(members, targetUserId) {
 		return nil, status.Error(
 			codes.AlreadyExists, "target user is already a member of this chat",
 		)
@@ -359,7 +417,27 @@ func (s *MessagingService) AddChatMember(
 		)
 	}
 
-	err = s.repo.AddChatMember(ctx, req.ChatId, req.TargetUserId)
+	// forward incoming authorization metadata to the outbound context
+	md, _ := metadata.FromIncomingContext(ctx)
+	outboundCtx := metadata.NewOutgoingContext(ctx, md)
+
+	// verify the target user profile actually exists
+	verifyResp, err := s.profileClient.VerifyUsers(
+		outboundCtx,
+		&pb.VerifyUsersRequest{
+			UserIds: []string{targetUserId},
+		},
+	)
+	if err != nil {
+		s.logger.Error("failed call to verify target user", zap.Error(err))
+		return nil, status.Error(codes.Internal, "could not verify target user presence")
+	}
+
+	if len(verifyResp.ExistingUserIds) != 1 {
+		return nil, status.Error(codes.NotFound, "target user profile does not exist")
+	}
+
+	err = s.repo.AddChatMember(ctx, req.ChatId, targetUserId)
 	if err != nil {
 		s.logger.Error(
 			"could not add chat member",
@@ -466,7 +544,7 @@ func (s *MessagingService) SendMessage(
 
 	userId := claims.Subject
 	sentAt := time.Now().UTC()
-
+	// if chat exists then message is valid, no need to verify recepients
 	message := Message{
 		Id:       uuid.New().String(),
 		ChatId:   req.ChatId,
