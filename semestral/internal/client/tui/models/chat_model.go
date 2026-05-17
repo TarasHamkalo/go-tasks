@@ -11,6 +11,7 @@ import (
 type OpenProfileSettingsMsg struct{}
 type OpenCreateChatMsg struct{ IsGroup bool }
 type OpenMembersMsg struct{}
+
 type OpenInviteMsg struct{}
 type CloseDialogMsg struct{} // Used to return to the chat view
 
