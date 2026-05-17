@@ -72,7 +72,7 @@ func (r SqliteRepository) InitializeSchema(ctx context.Context) error {
 	return err
 }
 
-func (r SqliteRepository) InsertMessage(ctx context.Context, m Message) error {
+func (r SqliteRepository) InsertMessage(ctx context.Context, m *Message) error {
 	queryCtx, cancel := context.WithTimeout(ctx, time.Second*2)
 	defer cancel()
 
