@@ -14,6 +14,7 @@ import (
 	pb "gomessenger/generated"
 	"gomessenger/internal/client/state"
 	"gomessenger/internal/client/storage"
+	"gomessenger/internal/client/tui"
 )
 
 type ChatSelectedMsg struct {
@@ -69,7 +70,7 @@ func (m *MessagesListModel) SetEngaged(engaged bool) {
 	m.engaged = engaged
 }
 
-func (m *MessagesListModel) Update(msg tea.Msg) (*MessagesListModel, tea.Cmd) {
+func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -171,7 +172,11 @@ func (m *MessagesListModel) Update(msg tea.Msg) (*MessagesListModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *MessagesListModel) View(width, height int, focused bool) string {
+func (m *MessagesListModel) View() tea.View {
+	return tea.NewView(m.ContentView(500, 500))
+}
+
+func (m *MessagesListModel) ContentView(width, height int) string {
 	borderColor := "#3C3C3C"
 	if m.engaged {
 		borderColor = "#FF007F"
@@ -248,6 +253,7 @@ func (m *MessagesListModel) sendToServer(msg storage.Message) tea.Cmd {
 			},
 		)
 
+		// TODO: depends what happend
 		if err != nil {
 			return DeliveryRetryMsg{Message: msg, Err: err}
 		}
@@ -256,5 +262,12 @@ func (m *MessagesListModel) sendToServer(msg storage.Message) tea.Cmd {
 			LocalId:  msg.Id,
 			ServerId: res.MsgId,
 		}
+	}
+}
+
+func (m *MessagesListModel) ShortHelp() []tui.Binding {
+	return []tui.Binding{
+		{Key: "k, ^", Description: "Cursor up"},
+		{Key: "j, v", Description: "Cursor down"},
 	}
 }

@@ -6,6 +6,7 @@ import (
 	pb "gomessenger/generated"
 	"gomessenger/internal/client/state"
 	"gomessenger/internal/client/storage"
+	"gomessenger/internal/client/tui"
 	"gomessenger/internal/client/tui/components"
 	"io"
 	"time"
@@ -15,25 +16,16 @@ import (
 )
 
 // messages
-type IncomingMessageMsg struct {
-	Message storage.Message
-}
+type IncomingMessageMsg struct{ Message storage.Message }
 
 type SubscriptionStartedMsg struct{}
-
-type SubscriptionErrorMsg struct {
-	Err error
-}
+type SubscriptionErrorMsg struct{ Err error }
 
 type ReconnectMsg struct{}
 
-type RetryAckMsg struct {
-	MsgId string
-}
+type RetryAckMsg struct{ MsgId string }
 
-type AckSuccessMsg struct {
-	MsgId string
-}
+type AckSuccessMsg struct{ MsgId string }
 
 type FocusArea int
 
@@ -53,6 +45,8 @@ type ChatModel struct {
 	isEngaged   bool
 
 	messageInputSection *MessagesInputModel
+
+	messagesListModel *MessagesListModel
 }
 
 func NewChatModel(appContext *state.AppContext) *ChatModel {
@@ -62,6 +56,7 @@ func NewChatModel(appContext *state.AppContext) *ChatModel {
 		isEngaged:   false,
 
 		messageInputSection: NewMessageInputModel(),
+		messagesListModel: NewMessagesListModel(appContext),
 	}
 }
 
@@ -75,10 +70,22 @@ func (m *ChatModel) Init() tea.Cmd {
 
 func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	// pass through
+	case TriggerDeliveryMsg,
+		ChatSelectedMsg,
+		MessagesLoadedMsg,
+		DeliverySuccessMsg,
+		DeliveryRetryMsg,
+		MessageInputSubmittedMsg:
+
+		model, cmd := m.messagesListModel.Update(msg)
+		m.messagesListModel = model.(*MessagesListModel)
+		return m, cmd
+
 	case SubscriptionStartedMsg:
 		// start waiting for the first message
 		return m, m.recvMessage()
-	
+
 	case IncomingMessageMsg:
 		// Continue listening.
 		_ = msg
@@ -92,10 +99,10 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SubscriptionErrorMsg:
 		// Retry after delay.
 		return m, m.subscribe(5 * time.Second)
-	
+
 	case RetryAckMsg:
-		return m, m.ackMessage(5 * time.Second, msg.MsgId)
-	
+		return m, m.ackMessage(5*time.Second, msg.MsgId)
+
 	case AckSuccessMsg:
 		return m, nil
 
@@ -103,10 +110,6 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// stream closed cleanly by server, reconnect after delay.
 		// TODO: exponential delay up to max
 		return m, m.subscribe(5 * time.Second)
-
-	case MessageInputSubmittedMsg:
-		// TODO: here you should give message to current messages list model to handle
-
 	}
 
 	if !m.isEngaged {
@@ -192,24 +195,24 @@ func (m *ChatModel) ContentView(width, height int) tea.View {
 	// return tea.NewView(mainLayout)
 }
 
-func (m *ChatModel) ShortHelp() []Binding {
+func (m *ChatModel) ShortHelp() []tui.Binding {
 	if m.isEngaged {
-		bindings := []Binding{}
+		bindings := []tui.Binding{}
 		if m.activeSection != nil {
 			bindings = append(bindings, m.ShortHelp()...)
 		}
 
 		return append(
-			bindings, Binding{Key: "Esc", Description: "Unfocus Section"},
+			bindings, tui.Binding{Key: "Esc", Description: "Unfocus Section"},
 		)
 	}
 
-	return []Binding{
+	return []tui.Binding{
 		{Key: "Shift+Tab", Description: "Previous section"},
 		{Key: "Tab", Description: "Next section"},
 		{Key: "Enter", Description: "Interact"},
-		{Key: "d/g", Description: "New Direct/Group (in Chats)"},
-		{Key: "m/i", Description: "Members/Invite (in Chat)"},
+		{Key: "d/g", Description: "New Direct/Group"},
+		{Key: "m/i", Description: "Members/Invite"},
 	}
 }
 
@@ -321,7 +324,6 @@ func (m *ChatModel) ackMessage(delay time.Duration, msgId string) tea.Cmd {
 			return RetryAckMsg{MsgId: msgId}
 		}
 
-		return 
+		return
 	}
 }
-
