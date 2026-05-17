@@ -128,21 +128,21 @@ func (m *OnboardingSubModel) Init() tea.Cmd {
 	return textinput.Blink
 }
 
-func (m *OnboardingSubModel) ShortHelp() []Binding {
+func (m *OnboardingSubModel) ShortHelp() []tui.Binding {
 	switch m.subState {
 	case AuthPromptChoice:
-		return []Binding{
+		return []tui.Binding{
 			{Key: "1", Description: "Login"},
 			{Key: "2", Description: "Register"},
 		}
 	case AuthLoginForm, AuthRegisterForm:
-		return []Binding{
+		return []tui.Binding{
 			{Key: "Tab", Description: "Switch field"},
 			{Key: "Enter", Description: "Submit"},
 			{Key: "Esc", Description: "Back"},
 		}
 	default:
-		return []Binding{}
+		return []tui.Binding{}
 	}
 }
 

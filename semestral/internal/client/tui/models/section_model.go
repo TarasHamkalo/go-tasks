@@ -10,7 +10,7 @@ type SectionModel interface {
 	SetEngaged(engaged bool) 
 
 	// Main content area only.
-	ContentView(width int, height int) string
+	ContentView(width int, height int, focused bool) string
 
 	// Footer key hints.
 	ShortHelp() []tui.Binding

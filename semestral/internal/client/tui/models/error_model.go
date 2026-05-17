@@ -27,8 +27,8 @@ func (m *ErrorSubModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *ErrorSubModel) ShortHelp() []Binding {
-	return []Binding{
+func (m *ErrorSubModel) ShortHelp() []tui.Binding {
+	return []tui.Binding{
 		{Key: "Enter/Esc", Description: "Dismiss Error"},
 	}
 }

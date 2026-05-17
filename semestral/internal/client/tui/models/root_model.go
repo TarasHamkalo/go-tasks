@@ -39,13 +39,13 @@ type RootModel struct {
 
 	pullDataModel *PullDataModel
 
-	// chatModel *ChatModel
+	chatModel *ChatModel
 }
 
 func NewRootModel(appContext *state.AppContext) *RootModel {
 	onboardingSubModel := NewOnboardingModel(appContext)
 	pullDataModel := NewPullDataModel(appContext)
-	// chatModel := NewChatModel(appContext)
+	chatModel := NewChatModel(appContext)
 
 	appContext.Session = state.NewSession() // empty state
 
@@ -57,7 +57,7 @@ func NewRootModel(appContext *state.AppContext) *RootModel {
 		// to reuse all
 		onboardingSubModel: onboardingSubModel,
 		pullDataModel:      pullDataModel,
-		// chatModel:          chatModel,
+		chatModel:          chatModel,
 	}
 }
 
@@ -108,8 +108,8 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case RootUserDataInitializedMsg:
 		m.logger.Info("user data initialization complete")
-		// m.currentSubModel = m.chatModel
-		m.currentSubModel = TodoSubModel{}
+		m.currentSubModel = m.chatModel
+		// m.currentSubModel = TodoSubModel{}
 		return m, m.currentSubModel.Init() 
 	}
 
@@ -141,7 +141,7 @@ func (m *RootModel) View() tea.View {
 	return view
 }
 
-func renderFooter(bindings []Binding) string {
+func renderFooter(bindings []tui.Binding) string {
 	parts := make([]string, 0, len(bindings)+2)
 	for _, b := range bindings {
 		parts = append(

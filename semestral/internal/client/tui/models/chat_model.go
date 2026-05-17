@@ -12,6 +12,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"google.golang.org/grpc"
 )
 
@@ -20,22 +21,24 @@ type ChatModelHandleErrorMsg struct {
 	Err error
 }
 
-type IncomingMessageMsg struct{ Message storage.Message }
-
+// handle server stream connection
 type SubscriptionStartedMsg struct{}
 type SubscriptionErrorMsg struct{ Err error }
-
 type ReconnectMsg struct{}
 
+type IncomingMessageMsg struct{ Message storage.Message }
+
+// handle message acks
 type RetryAckMsg struct{ MsgId string }
 type AckSuccessMsg struct{ MsgId string }
 
+// handle which area takes input
 type FocusArea int
 
 const (
 	FocusProfile FocusArea = iota
 	FocusChatsList
-	FocusActiveChat
+	FocusMessageList
 	FocusMessageInput
 )
 
@@ -47,10 +50,11 @@ type ChatModel struct {
 	focusedArea FocusArea
 	isEngaged   bool
 
-	messageInputSection *MessagesInputModel
+	activeModel SectionModel
 
-	messagesListModel *MessagesListModel
-	chatsListModel     *ChatsListModel
+	messageInputSection *MessagesInputModel
+	messagesListModel   *MessagesListModel
+	chatsListModel      *ChatsListModel
 }
 
 func NewChatModel(appContext *state.AppContext) *ChatModel {
@@ -61,7 +65,7 @@ func NewChatModel(appContext *state.AppContext) *ChatModel {
 
 		messageInputSection: NewMessageInputModel(),
 		messagesListModel:   NewMessagesListModel(appContext),
-		chatsListModel:       NewChatsListModel(appContext),
+		chatsListModel:      NewChatsListModel(appContext),
 	}
 }
 
@@ -124,14 +128,8 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if ok && keyMsg.String() == "esc" {
 		m.isEngaged = false
-		// blur section if needed.
-		switch m.focusedArea {
-		case FocusChatsList:
-			m.chatsListModel.SetEngaged(false)
-		case FocusActiveChat:
-			m.messagesListModel.SetEngaged(false)
-		case FocusMessageInput:
-			m.messageInputSection.SetEngaged(false)
+		if m.activeModel != nil {
+			m.activeModel.SetEngaged(false)
 		}
 
 		return m, nil
@@ -143,8 +141,10 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.focusedArea {
 	case FocusProfile:
-		m.isEngaged = false
-		return NewErrorSubModel(errors.New("not impl"), m), nil
+		if ok && keyMsg.String() == "enter" {
+			m.isEngaged = false
+			return NewErrorSubModel(errors.New("not impl"), m), nil
+		}
 
 	case FocusMessageInput:
 		model, cmd = m.messageInputSection.Update(msg)
@@ -154,7 +154,7 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model, cmd = m.chatsListModel.Update(msg)
 		m.chatsListModel = model.(*ChatsListModel)
 
-	case FocusActiveChat:
+	case FocusMessageList:
 		model, cmd = m.messagesListModel.Update(msg)
 		m.messagesListModel = model.(*MessagesListModel)
 	}
@@ -207,8 +207,16 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.isEngaged = true
 			switch m.focusedArea {
+			case FocusChatsList:
+				m.activeModel = m.chatsListModel
+			case FocusMessageList:
+				m.activeModel = m.messagesListModel
 			case FocusMessageInput:
-				m.messageInputSection.SetEngaged(true)
+				m.activeModel = m.messageInputSection
+			}
+
+			if m.activeModel != nil {
+				m.activeModel.SetEngaged(true)
 			}
 			return m, nil
 		}
@@ -220,34 +228,59 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *ChatModel) View() tea.View { return m.ContentView(80, 24) }
 
 func (m *ChatModel) ContentView(width, height int) tea.View {
+	profileHeight := 5
+	messageInputHeight := 5
+
 	leftWidth := int(float64(width) * 0.30)
 	rightWidth := width - leftWidth
-	profileHeight := 5
+
 	chatsHeight := height - profileHeight
-
-	profileFocused := m.focusedArea == FocusProfile
-	chatsFocused := m.focusedArea == FocusChatsList
-	activeChatFocused := m.focusedArea == FocusActiveChat
-
+	messageListHeight := height - messageInputHeight
+		
+	// rendering handles nil profile
 	p, _ := m.appContext.Session.GetCurrentUserProfile()
-	// rendering handles nil
 	profileView := components.RenderProfileSection(
-		p, leftWidth, profileHeight, profileFocused, m.isEngaged,
+		p, leftWidth, profileHeight, m.focusedArea == FocusProfile, m.isEngaged,
 	)
-	// chatsListView := m.chatsListSection.View(leftWidth, chatsHeight, chatsFocused, m.isEngaged)
-	// activeChatView := m.activeChatSection.View(rightWidth, height, activeChatFocused, m.isEngaged)
-	//
-	// leftPanel := lipgloss.JoinVertical(lipgloss.Left, profileView, chatsListView)
-	// mainLayout := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, activeChatView)
 
-	// return tea.NewView(mainLayout)
+	chatListView := m.chatsListModel.ContentView(
+		leftWidth, chatsHeight, m.focusedArea == FocusChatsList, 
+	)
+
+	messageListView := m.messagesListModel.ContentView(
+		rightWidth, messageListHeight, m.focusedArea == FocusMessageList, 
+	)
+
+	messageInputView := m.messageInputSection.ContentView(
+		rightWidth, messageInputHeight, m.focusedArea == FocusMessageInput, 
+	)
+
+	leftPanel := lipgloss.JoinVertical(
+		lipgloss.Left, profileView, chatListView,
+	)
+	rightPanel := lipgloss.JoinVertical(
+		lipgloss.Left, messageListView, messageInputView,
+	)
+
+	mainLayout := lipgloss.JoinHorizontal(
+		lipgloss.Top, leftPanel, rightPanel,
+	)
+
+	return tea.NewView(mainLayout)
 }
 
 func (m *ChatModel) ShortHelp() []tui.Binding {
 	if m.isEngaged {
 		bindings := []tui.Binding{}
-		if m.activeSection != nil {
+		if m.activeModel != nil {
 			bindings = append(bindings, m.ShortHelp()...)
+		}
+
+		if m.focusedArea == FocusProfile {
+			bindings = append(
+				bindings,
+				tui.Binding{Key: "Enter", Description: "Open user profile"},
+			)
 		}
 
 		return append(
@@ -372,6 +405,6 @@ func (m *ChatModel) ackMessage(delay time.Duration, msgId string) tea.Cmd {
 			return RetryAckMsg{MsgId: msgId}
 		}
 
-		return
+		return AckSuccessMsg{MsgId: msgId}
 	}
 }

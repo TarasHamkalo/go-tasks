@@ -31,7 +31,7 @@ func NewMessageInputModel() *MessagesInputModel{
 }
 
 func (m *MessagesInputModel) View() tea.View {
-	return tea.NewView(m.ContentView(500, 500))
+	return tea.NewView(m.ContentView(500, 500, false))
 }
 
 func (m *MessagesInputModel) Init() tea.Cmd {
@@ -70,10 +70,12 @@ func (m *MessagesInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *MessagesInputModel) ContentView(width int, height int) string {
+func (m *MessagesInputModel) ContentView(width int, height int, focused bool) string {
 	borderColor := "#3C3C3C"
 	if m.Engaged {
 		borderColor = "#FF007F"
+	} else if focused {
+		borderColor = "#00FF00"
 	}
 
 	outerStyle := lipgloss.NewStyle().

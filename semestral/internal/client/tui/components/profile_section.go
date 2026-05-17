@@ -11,9 +11,13 @@ func RenderProfileSection(
 	profile *state.Profile, width, height int, focused, engaged bool,
 ) string {
 	borderColor := "#3C3C3C" // Dim gray default
-	if focused {
-		borderColor = "#00FF00" // Green when selected in nav ring
+
+	if engaged {
+		borderColor = "#FF007F"
+	} else if focused {
+		borderColor = "#00FF00"
 	}
+
 
 	style := lipgloss.NewStyle().
 		Width(width-2).   // borders
@@ -23,7 +27,7 @@ func RenderProfileSection(
 		Padding(0, 1)
 
 	content := fmt.Sprintf("U: %s\nID: %s", "Your name", "Your id")
-	if profile == nil {
+	if profile != nil {
 		content = fmt.Sprintf("U: %s\nID: %s", profile.Username, profile.Id)
 	}
 

@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/status"
 
 	"gomessenger/internal/client/state"
 	"gomessenger/internal/client/storage"
@@ -68,8 +67,8 @@ func (m *PullDataModel) Init() tea.Cmd {
 	return tea.Batch(m.spin.Tick, m.initDatabase())
 }
 
-func (m *PullDataModel) ShortHelp() []Binding {
-	return []Binding{}
+func (m *PullDataModel) ShortHelp() []tui.Binding {
+	return []tui.Binding{}
 }
 
 func (m *PullDataModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

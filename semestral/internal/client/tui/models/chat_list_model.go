@@ -50,7 +50,7 @@ func (m *ChatsListModel) Init() tea.Cmd {
 }
 
 func (m *ChatsListModel) View() tea.View {
-	return tea.NewView(m.ContentView(80, 24))
+	return tea.NewView(m.ContentView(80, 24, false))
 }
 
 func (m *ChatsListModel) SetEngaged(engaged bool) {
@@ -133,12 +133,14 @@ func (m *ChatsListModel) pullChatInfo(chatId string) tea.Cmd {
 	}
 }
 
-func (m *ChatsListModel) ContentView(width, height int) string {
+func (m *ChatsListModel) ContentView(width int, height int, focused bool) string {
 	m.refreshRows()
 
 	borderColor := "#3C3C3C"
 	if m.engaged {
 		borderColor = "#FF007F"
+	} else if focused {
+		borderColor = "#00FF00"
 	}
 
 	style := lipgloss.NewStyle().

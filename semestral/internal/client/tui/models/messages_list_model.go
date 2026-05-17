@@ -169,13 +169,15 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *MessagesListModel) View() tea.View {
-	return tea.NewView(m.ContentView(500, 500))
+	return tea.NewView(m.ContentView(500, 500, false))
 }
 
-func (m *MessagesListModel) ContentView(width, height int) string {
+func (m *MessagesListModel) ContentView(width int, height int, focused bool) string {
 	borderColor := "#3C3C3C"
 	if m.engaged {
 		borderColor = "#FF007F"
+	} else if focused {
+		borderColor = "#00FF00"
 	}
 
 	style := lipgloss.NewStyle().
