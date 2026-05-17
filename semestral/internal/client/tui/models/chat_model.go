@@ -176,7 +176,7 @@ func (m *ChatModel) handleComponentRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if ok && keyMsg.String() == "esc" {
 		m.isEngaged = false
 		if m.activeModel != nil {
-			m.activeModel.SetEngaged(false)
+			return m, m.activeModel.SetEngaged(false)
 		}
 		return m, nil
 	}
@@ -250,7 +250,7 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if m.activeModel != nil {
-				m.activeModel.SetEngaged(true)
+				return m, m.activeModel.SetEngaged(true)
 			}
 		}
 	}

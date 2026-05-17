@@ -7,7 +7,7 @@ import (
 )
 
 type SectionModel interface {
-	SetEngaged(engaged bool) 
+	SetEngaged(engaged bool) tea.Cmd
 
 	// Main content area only.
 	ContentView(width int, height int, focused bool) string

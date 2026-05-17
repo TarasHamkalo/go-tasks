@@ -58,7 +58,10 @@ func NewMessagesListModel(appContext *state.AppContext) *MessagesListModel {
 
 func (m *MessagesListModel) Init() tea.Cmd { return nil }
 
-func (m *MessagesListModel) SetEngaged(engaged bool) { m.engaged = engaged }
+func (m *MessagesListModel) SetEngaged(engaged bool) tea.Cmd { 
+	m.engaged = engaged 
+	return nil
+}
 
 func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd

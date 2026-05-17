@@ -19,13 +19,13 @@ type MessagesInputModel struct {
 	Engaged bool
 }
 
-func NewMessageInputModel() *MessagesInputModel{
+func NewMessageInputModel() *MessagesInputModel {
 	ti := textinput.New()
 	ti.Placeholder = "Type a message... (500 chars max)"
 	ti.CharLimit = 500
 
 	return &MessagesInputModel{
-		Input: ti,
+		Input:   ti,
 		Engaged: false,
 	}
 }
@@ -38,13 +38,15 @@ func (m *MessagesInputModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m *MessagesInputModel) SetEngaged(engaged bool) {
+func (m *MessagesInputModel) SetEngaged(engaged bool) tea.Cmd {
 	m.Engaged = engaged
 	if engaged {
 		m.Input.Focus()
-	} else {
-		m.Input.Blur()
+		return textinput.Blink
 	}
+
+	m.Input.Blur()
+	return nil
 }
 
 func (m *MessagesInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -61,13 +63,11 @@ func (m *MessagesInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-
-		var cmd tea.Cmd
-		m.Input, cmd = m.Input.Update(msg)
-		return m, cmd
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+	m.Input, cmd = m.Input.Update(msg)
+	return m, cmd
 }
 
 func (m *MessagesInputModel) ContentView(width int, height int, focused bool) string {
@@ -98,6 +98,6 @@ func (m *MessagesInputModel) ContentView(width int, height int, focused bool) st
 	)
 }
 
-func (m *MessagesInputModel)	ShortHelp() []tui.Binding {
+func (m *MessagesInputModel) ShortHelp() []tui.Binding {
 	return []tui.Binding{{Key: "Enter", Description: "Send message"}}
 }

@@ -53,8 +53,9 @@ func (m *ChatsListModel) View() tea.View {
 	return tea.NewView(m.ContentView(80, 24, false))
 }
 
-func (m *ChatsListModel) SetEngaged(engaged bool) {
+func (m *ChatsListModel) SetEngaged(engaged bool) tea.Cmd {
 	m.engaged = engaged
+	return nil
 }
 
 func (m *ChatsListModel) ShortHelp() []tui.Binding {
@@ -234,18 +235,4 @@ func truncate(s string, width int) string {
 	}
 
 	return string(runes[:width-3]) + "..."
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
