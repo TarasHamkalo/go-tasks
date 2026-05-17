@@ -168,7 +168,7 @@ func (m *ChatsListModel) ContentView(width int, height int, focused bool) string
 	for i := start; i < end; i++ {
 		row := m.rows[i]
 		prefix := "  "
-		if i == m.cursor {
+		if m.engaged && i == m.cursor {
 			prefix = "> "
 		}
 
