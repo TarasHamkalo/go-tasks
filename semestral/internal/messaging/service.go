@@ -367,6 +367,46 @@ func (s *MessagingService) AddChatMember(
 	return &pb.AddChatMemberResponse{}, nil
 }
 
+func (s *MessagingService) GetChatById(
+	ctx context.Context,
+	req *pb.GetChatByIdRequest,
+) (*pb.GetChatByIdResponse, error) {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
+	}
+
+	chat, err := s.repo.GetChatById(ctx, req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "chat %q not found", req.Id)
+	}
+
+	members, err := s.repo.GetChatMembers(ctx, req.Id)
+	if err != nil {
+		return nil, status.Error(
+			codes.Internal,
+			"failed to load chat members",
+		)
+	}
+
+	if !slices.Contains(members, claims.Subject) {
+		return nil, status.Error(
+			codes.PermissionDenied,
+			"user is not a member of this chat",
+		)
+	}
+
+	return &pb.GetChatByIdResponse{
+		Chat: &pb.ChatInfo{
+			Id:      chat.Id,
+			Name:    chat.Name,
+			IsGroup: chat.IsGroup,
+		},
+	}, nil
+}
+
 func (s *MessagingService) LeaveChat(
 	ctx context.Context, req *pb.LeaveChatRequest,
 ) (*pb.LeaveChatResponse, error) {

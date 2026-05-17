@@ -17,6 +17,8 @@ service MessagingService {
   rpc GetMessageAcks(GetMessageAcksRequest) returns (GetMessageAcksResponse);
   
   // chat management
+  rpc GetChatById(GetChatByIdRequest) returns (GetChatByIdResponse);
+
   rpc GetUserChats(GetUserChatsRequest) returns (GetUserChatsResponse);
   rpc GetChatMembers(GetChatMembersRequest) returns (GetChatMembersResponse);
   rpc CreateDirectChat(CreateDirectChatRequest) returns (CreateDirectChatResponse);
@@ -63,13 +65,21 @@ message SetMessageReadRequest {
 message SetMessageReadResponse {}
 
 // chat management 
-message GetUserChatsRequest {}
+message GetChatByIdRequest {
+  string id = 1;
+}
+
+message GetChatByIdResponse {
+  ChatInfo chat = 1;
+}
 
 message ChatInfo {
   string id = 1;
   string name = 2;
   bool is_group = 3;
 }
+
+message GetUserChatsRequest {}
 
 message GetUserChatsResponse {
   repeated ChatInfo chats = 1;
