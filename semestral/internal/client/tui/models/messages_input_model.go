@@ -23,6 +23,19 @@ func NewMessageInputModel() *MessagesInputModel {
 	ti := textinput.New()
 	ti.Placeholder = "Type a message... (500 chars max)"
 	ti.CharLimit = 500
+	ti.Prompt = ""
+
+	// Make placeholder visible.
+	// ti.Styles().Focused.Placeholder = lipgloss.NewStyle().
+	// 	Foreground(lipgloss.Color("#666666"))
+	//
+	// // Normal typed text.
+	// ti.TextStyle = lipgloss.NewStyle().
+	// 	Foreground(lipgloss.Color("#FFFFFF"))
+	//
+	// // Cursor style.
+	// ti.Cursor.Style = lipgloss.NewStyle().
+	// 	Foreground(lipgloss.Color("#FF007F"))
 
 	return &MessagesInputModel{
 		Input:   ti,
@@ -31,7 +44,7 @@ func NewMessageInputModel() *MessagesInputModel {
 }
 
 func (m *MessagesInputModel) View() tea.View {
-	return tea.NewView(m.ContentView(500, 500, false))
+	return tea.NewView(m.ContentView(80, 5, false))
 }
 
 func (m *MessagesInputModel) Init() tea.Cmd {
@@ -40,6 +53,7 @@ func (m *MessagesInputModel) Init() tea.Cmd {
 
 func (m *MessagesInputModel) SetEngaged(engaged bool) tea.Cmd {
 	m.Engaged = engaged
+
 	if engaged {
 		m.Input.Focus()
 		return textinput.Blink
@@ -54,7 +68,7 @@ func (m *MessagesInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if msg.String() == "enter" {
 			val := strings.TrimSpace(m.Input.Value())
-			if len(val) > 0 {
+			if val != "" {
 				m.Input.SetValue("")
 				return m, func() tea.Msg {
 					return MessageInputSubmittedMsg{
@@ -70,7 +84,9 @@ func (m *MessagesInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m *MessagesInputModel) ContentView(width int, height int, focused bool) string {
+func (m *MessagesInputModel) ContentView(
+	width int, height int, focused bool,
+) string {
 	borderColor := "#3C3C3C"
 	if m.Engaged && focused {
 		borderColor = "#FF007F"
@@ -78,22 +94,24 @@ func (m *MessagesInputModel) ContentView(width int, height int, focused bool) st
 		borderColor = "#00FF00"
 	}
 
+	// Outer box.
 	outerStyle := lipgloss.NewStyle().
-		Width(width - 2).
-		Height(height - 2).
+		Width(width-2).
+		Height(height-2).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color(borderColor))
+		BorderForeground(lipgloss.Color(borderColor)).
+		Padding(0, 1)
 
-	inputStyle := lipgloss.NewStyle().
-		Width(width-6).
-		Padding(1, 1).
-		Border(lipgloss.NormalBorder(), true, false, false, false).
-		BorderForeground(lipgloss.Color("#2B2B2B"))
+	innerWidth := max(1, width-6)
+	m.Input.SetWidth(innerWidth)
 
 	return outerStyle.Render(
-		lipgloss.JoinVertical(
+		lipgloss.Place(
+			innerWidth,
+			max(1, height-2),
 			lipgloss.Left,
-			inputStyle.Render(m.Input.View()),
+			lipgloss.Center,
+			m.Input.View(),
 		),
 	)
 }
