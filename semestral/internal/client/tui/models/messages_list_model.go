@@ -2,8 +2,8 @@ package models
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -17,9 +17,15 @@ import (
 	"gomessenger/internal/client/tui"
 )
 
+type MessageSelectedMsg struct {
+	MsgId string
+}
+
 type MessagesLoadedMsg struct {
 	ChatId   string
 	Messages []storage.Message
+	IsAppend bool
+	HasMore  bool
 }
 
 type TriggerDeliveryMsg struct {
@@ -40,26 +46,39 @@ type DeliveryRetryMsg struct {
 
 type MessagesListModel struct {
 	appContext *state.AppContext
-	logger     *zap.Logger
-	chatId     string
-	messages   []storage.Message
-	engaged    bool
-	sending    map[string]bool
+
+	chatId  string
+	engaged bool
+
+	sending map[string]bool
+
+	messages []storage.Message
+
+	limit      int
+	cursor     int
+	startIndex int
+
+	isLoading bool
+	hasMore   bool
+
+	logger *zap.Logger
 }
 
 func NewMessagesListModel(appContext *state.AppContext) *MessagesListModel {
 	return &MessagesListModel{
 		appContext: appContext,
 		logger:     appContext.RootLogger.With(zap.String("mvc", "msg-list")),
+		limit:      25, // how many messages to load
 		messages:   make([]storage.Message, 0, 10),
 		sending:    make(map[string]bool),
+		hasMore:    true,
 	}
 }
 
 func (m *MessagesListModel) Init() tea.Cmd { return nil }
 
-func (m *MessagesListModel) SetEngaged(engaged bool) tea.Cmd { 
-	m.engaged = engaged 
+func (m *MessagesListModel) SetEngaged(engaged bool) tea.Cmd {
+	m.engaged = engaged
 	return nil
 }
 
@@ -68,16 +87,35 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case ChatSelectedMsg:
+		// reset state
 		m.chatId = msg.ChatId
 		m.messages = []storage.Message{}
-		return m, m.loadMessagesFromDb(msg.ChatId)
-
+		m.cursor = 0
+		m.startIndex = 0
+		m.hasMore = true
+		m.isLoading = true
+		return m, m.loadMessagesFromDb(msg.ChatId, 0)
 	case MessagesLoadedMsg:
 		if m.chatId == msg.ChatId {
+			m.isLoading = false
+
+			// reverse array
+			var normalized []storage.Message
 			for i := len(msg.Messages) - 1; i >= 0; i-- {
-				m.messages = append(m.messages, msg.Messages[i])
+				normalized = append(normalized, msg.Messages[i])
 			}
 
+			if !msg.IsAppend {
+				m.messages = normalized
+				m.cursor = max(0, len(m.messages)-1)
+			} else {
+				m.messages = append(normalized, m.messages...)
+				m.cursor += len(normalized)
+			}
+
+			m.hasMore = msg.HasMore
+
+			// send all unsent
 			for _, locMsg := range m.messages {
 				if locMsg.IsPending {
 					if m.sending[locMsg.Id] {
@@ -96,6 +134,10 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.Message.ChatId == m.chatId {
 			m.messages = append(m.messages, msg.Message)
+			// tail -f
+			if m.cursor == len(m.messages)-2 {
+				m.cursor++
+			}
 		}
 		return m, nil
 
@@ -123,6 +165,10 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.messages = append(m.messages, newMsg)
+		// tail -f
+		if m.cursor == len(m.messages)-2 {
+			m.cursor++
+		}
 		m.sending[newMsg.Id] = true
 		return m, m.sendToServer(newMsg, 0)
 
@@ -171,6 +217,40 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, retryCmd
+	case tea.KeyPressMsg:
+		if m.chatId == "" {
+			return m, nil
+		}
+
+		switch msg.String() {
+		case "j", "down":
+			if m.cursor < len(m.messages)-1 {
+				m.cursor++
+			}
+		case "k", "up":
+			if m.cursor > 0 {
+				m.cursor--
+				if m.cursor == 0 && !m.isLoading && m.hasMore {
+					m.isLoading = true
+					return m, m.loadMessagesFromDb(m.chatId, len(m.messages))
+				}
+			}
+		case "enter":
+			if len(m.messages) > 0 {
+				selected := m.messages[m.cursor]
+				if selected.IsPending {
+					return m, func() tea.Msg {
+						return ChatModelHandleErrorMsg{
+							Err: errors.New("message is pending, no info available"),
+						}
+					}
+				}
+
+				return m, func() tea.Msg {
+					return MessageSelectedMsg{MsgId: selected.Id}
+				}
+			}
+		}
 	}
 
 	return m, tea.Batch(cmds...)
@@ -179,6 +259,7 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *MessagesListModel) View() tea.View {
 	return tea.NewView(m.ContentView(500, 500, false))
 }
+
 
 func (m *MessagesListModel) ContentView(
 	width int, height int, focused bool,
@@ -198,63 +279,135 @@ func (m *MessagesListModel) ContentView(
 		Padding(0, 1)
 
 	if m.chatId == "" {
-		return style.Render(
-			lipgloss.Place(
-				width-2,
-				height-2,
-				lipgloss.Center,
-				lipgloss.Center,
-				"Select a chat to start messaging",
-			),
-		)
+		return style.Render("Select a chat to start messaging")
 	}
 
-	visibleRows := max(1, height-2)
-
-	var renderedMsgs []string
-	userId := m.appContext.Session.GetUserId()
-
-	// Only iterate through the slice that fits on screen
-	startIdx := 0
-	if len(m.messages) > visibleRows {
-		startIdx = len(m.messages) - visibleRows
-	}
-
-	for _, msg := range m.messages[startIdx:] {
-		sender := "Them"
-		if msg.SenderId == userId {
-			sender = "You"
+	if len(m.messages) == 0 {
+		if m.isLoading {
+			return style.Render("Loading messages...")
 		}
-
-		statusMarker := ""
-		if msg.IsPending {
-			statusMarker = " [🕒 pending...]"
-		}
-
-		line := fmt.Sprintf("\033[1m%s:\033[0m %s%s", sender, string(msg.Content), statusMarker)
-		renderedMsgs = append(renderedMsgs, line)
+		return style.Render("No messages yet")
 	}
 
-	return style.Render(strings.Join(renderedMsgs, "\n"))
+	innerWidth := max(1, width-6)
+	innerHeight := max(1, height-2)
+
+	var rendered []string
+	for i, msg := range m.messages {
+		isFocused := m.engaged && focused && i == m.cursor
+		rendered = append(rendered, m.renderMessage(msg, innerWidth, isFocused))
+	}
+
+	if m.cursor < m.startIndex {
+		m.startIndex = m.cursor
+	}
+
+	for {
+		totalHeight := 0
+		for i := m.startIndex; i <= m.cursor; i++ {
+			totalHeight += lipgloss.Height(rendered[i])
+		}
+		if totalHeight > innerHeight && m.startIndex < m.cursor {
+			m.startIndex++
+		} else {
+			break
+		}
+	}
+
+	totalHeight := 0
+	var visible []string
+	for i := m.startIndex; i < len(rendered); i++ {
+		h := lipgloss.Height(rendered[i])
+		if totalHeight+h > innerHeight {
+			break
+		}
+		visible = append(visible, rendered[i])
+		totalHeight += h
+	}
+
+	return style.Render(lipgloss.JoinVertical(lipgloss.Left, visible...))
 }
 
-func (m *MessagesListModel) loadMessagesFromDb(chatId string) tea.Cmd {
+func (m *MessagesListModel) renderMessage(
+	msg storage.Message, width int, isFocused bool,
+) string {
+	isUser := msg.SenderId == m.appContext.Session.GetUserId()
+	msgBorderColor := lipgloss.Color("#555555")
+	if isFocused {
+		msgBorderColor = lipgloss.Color("#00FFFF")
+	} else if isUser {
+		msgBorderColor = lipgloss.Color("#FFFF00")
+	}
+
+	statusIndicator := "[OK]"
+	if msg.IsPending {
+		statusIndicator = "[pending...]"
+	}
+
+	timestamp := msg.SentAt.Format("01/02 15:04")
+	header := fmt.Sprintf("%s | %s %s", msg.SenderId, timestamp, statusIndicator)
+
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#888888")).
+		MarginBottom(1)
+
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(msgBorderColor).
+		Width(width-2).
+		Padding(0, 1)
+
+	contentWrap := lipgloss.NewStyle().
+		Width(width - 4).
+		Render(string(msg.Content))
+
+	fullBody := lipgloss.JoinVertical(
+		lipgloss.Left,
+		headerStyle.Render(header),
+		contentWrap,
+	)
+
+	return boxStyle.Render(fullBody)
+}
+
+func (m *MessagesListModel) loadMessagesFromDb(chatId string, offset int) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
 		defer cancel()
 
-		msgs, err := m.appContext.LocalRepo.GetMessagesByChatId(ctx, chatId, 50, 0)
+		msgs, err := m.appContext.LocalRepo.GetMessagesByChatId(ctx, chatId, m.limit, offset)
 		if err != nil {
-			m.logger.Error("failed loading messages", zap.Error(err))
+			m.logger.Error("failed loading messages from DB", zap.Error(err))
 			return ChatModelHandleErrorMsg{Err: err}
 		}
 
 		return MessagesLoadedMsg{
 			ChatId:   chatId,
 			Messages: msgs,
+			IsAppend: offset > 0,
+			HasMore:  len(msgs) == m.limit,
 		}
 	}
 }
+
+// func (m *MessagesListModel) loadMessagesFromDb(chatId string) tea.Cmd {
+// 	return func() tea.Msg {
+// 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
+// 		defer cancel()
+//
+// 		msgs, err := m.appContext.LocalRepo.GetMessagesByChatId(ctx, chatId, 50, 0)
+// 		if err != nil {
+// 			m.logger.Error("failed loading messages", zap.Error(err))
+// 			return ChatModelHandleErrorMsg{Err: err}
+// 		}
+//
+// 		return MessagesLoadedMsg{
+// 			ChatId:   chatId,
+// 			Messages: msgs,
+// 		}
+// 	}
+// }
 
 func (m *MessagesListModel) sendToServer(msg storage.Message, retryCount int) tea.Cmd {
 	return func() tea.Msg {
@@ -275,7 +428,7 @@ func (m *MessagesListModel) sendToServer(msg storage.Message, retryCount int) te
 			},
 		)
 
-		if err != nil {
+		if err != nil && tui.IsRetriable(err) {
 			return DeliveryRetryMsg{Message: msg, Err: err, RetryCount: retryCount}
 		}
 
@@ -288,6 +441,7 @@ func (m *MessagesListModel) sendToServer(msg storage.Message, retryCount int) te
 
 func (m *MessagesListModel) ShortHelp() []tui.Binding {
 	return []tui.Binding{
+		{Key: "Enter", Description: "Show info"},
 		{Key: "k, ^", Description: "Cursor up"},
 		{Key: "j, v", Description: "Cursor down"},
 	}
