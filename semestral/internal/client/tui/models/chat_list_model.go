@@ -67,15 +67,13 @@ func (m *ChatsListModel) ShortHelp() []tui.Binding {
 
 func (m *ChatsListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
-	// TODO: delegate this message to chat list model (can pull new chat)
 	switch msg := msg.(type) {
 	case IncomingMessageMsg:
 		chatId := msg.Message.ChatId
 		_, ok := m.appContext.Session.GetChat(chatId)
 		if !ok {
 			return m, m.pullChatInfo(chatId)
-		}
-
+		} 		
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "j", "down":
@@ -115,8 +113,7 @@ func (m *ChatsListModel) pullChatInfo(chatId string) tea.Cmd {
 			chatCtx, &pb.GetChatByIdRequest{Id: chatId},
 		)
 		if err != nil {
-			// TODO: resolve error
-			return nil
+			return ChatModelHandleErrorMsg{Err: err}
 		}
 
 		if chatsRes.Chat.IsGroup {
@@ -129,7 +126,7 @@ func (m *ChatsListModel) pullChatInfo(chatId string) tea.Cmd {
 		} else {
 			err := tui.ResolveDirectChat(m.appContext, chatId)
 			if err != nil {
-				return nil
+				return ChatModelHandleErrorMsg{Err: err}
 			}
 		}
 		return nil

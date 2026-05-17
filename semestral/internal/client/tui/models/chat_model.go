@@ -16,6 +16,10 @@ import (
 )
 
 // messages
+type ChatModelHandleErrorMsg struct {
+	Err error
+}
+
 type IncomingMessageMsg struct{ Message storage.Message }
 
 type SubscriptionStartedMsg struct{}
@@ -24,7 +28,6 @@ type SubscriptionErrorMsg struct{ Err error }
 type ReconnectMsg struct{}
 
 type RetryAckMsg struct{ MsgId string }
-
 type AckSuccessMsg struct{ MsgId string }
 
 type FocusArea int
@@ -72,6 +75,11 @@ func (m *ChatModel) Init() tea.Cmd {
 
 func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
+	case ChatModelHandleErrorMsg:
+		errModel := NewErrorSubModel(msg.Err, m)
+		return errModel, errModel.Init()
+
 	// pass through
 	case TriggerDeliveryMsg,
 		ChatSelectedMsg,
@@ -92,7 +100,7 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Continue listening.
 		_ = msg
 		// here is failure already
-		// m.appContext.Session.IncrementUnread(msg.ChatId)
+		// this handles message list model m.appContext.Session.IncrementUnread(msg.ChatId)
 		// TODO: delegate this message to chat list model (can pull new chat)
 		// TODO: delegate this message to message list model
 		return m, tea.Batch(m.ackMessage(0, msg.Message.Id), m.recvMessage())
