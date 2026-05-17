@@ -17,6 +17,10 @@ import (
 )
 
 // messages
+type DataPullFailedMsg struct {
+	Err error
+}
+
 type DatabaseInitializedMsg struct {
 	Repo storage.Repository
 }
@@ -80,27 +84,24 @@ func (m *PullDataModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case DatabaseInitializedMsg:
 			m.logger.Info("local database initialized")
 			m.appContext.LocalRepo = msg.Repo
-			m.subState = PullUserData
+			// return m, tea.Batch(m.spin.Tick, m.pullUserData())
+			cmds = append(cmds, m.pullUserData())
 
-			return m, tea.Batch(m.spin.Tick, m.pullUserData())
-
-		case error:
-			cmd := func() tea.Msg {
-				return RootHandleErrorMsg(
-					fmt.Errorf("could not initialize database: %w", msg),
-				)
-			}
-			return m, cmd
+		case DataPullFailedMsg:
+			cmds = append(cmds, func() tea.Msg {
+				return RootHandleErrorMsg{
+					Err: fmt.Errorf("could not initialize database: %w", msg.Err),
+				}
+			})
 		}
 
 	case PullUserData:
 		switch msg := msg.(type) {
-		case error:
-			m.logger.Error("failed pulling user sync data", zap.Error(msg))
+		case DataPullFailedMsg:
 			cmd := func() tea.Msg {
-				return RootHandleErrorMsg(
-					fmt.Errorf("failed synchronizing account data: %w", msg),
-				)
+				return RootHandleErrorMsg{
+					Err: fmt.Errorf("failed synchronizing account data: %w", msg.Err),
+				}
 			}
 			return m, cmd
 		}
@@ -130,11 +131,14 @@ func (m *PullDataModel) ContentView(width, height int) tea.View {
 	)
 
 	box := tui.DialogBoxStyle.Render(content)
-	centered := lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, box)
+	centered := lipgloss.Place(
+		width, height, lipgloss.Center, lipgloss.Center, box,
+	)
 	return tea.NewView(centered)
 }
 
 func (m *PullDataModel) initDatabase() tea.Cmd {
+	m.subState = InitDatabase
 	return func() tea.Msg {
 		m.logger.Debug("attempting to init database")
 		repo, err := storage.NewSqliteRepository(
@@ -142,12 +146,14 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 		)
 
 		if err != nil {
-			return err
+			return DataPullFailedMsg{
+				Err: err,
+			}
 		}
 
 		err = repo.InitializeSchema(m.appContext.Ctx)
 		if err != nil {
-			return err
+			return DataPullFailedMsg{Err: err}
 		}
 
 		m.logger.Debug("database initialized")
@@ -156,58 +162,34 @@ func (m *PullDataModel) initDatabase() tea.Cmd {
 }
 
 func (m *PullDataModel) pullUserData() tea.Cmd {
+	m.subState = PullUserData
 	return func() tea.Msg {
 		m.logger.Debug("starting to pull remote chat data")
 
 		// TODO: derive contexts with timeouts
 		ctx := m.appContext.Ctx
-		session := m.appContext.Session
-		// fetch all chats for the user from the remote server
 		chatsRes, err := m.appContext.MessagingClient.GetUserChats(
 			ctx, &pb.GetUserChatsRequest{},
 		)
 
 		if err != nil {
-			return cleanGrpcError(err)
+			return DataPullFailedMsg{Err: cleanGrpcError(err)}
 		}
 
-		// process each chat object returned
 		for _, remoteChat := range chatsRes.Chats {
 			chatId := remoteChat.Id
-
-			// Store member listings inside the in-memory session mapping
-			// TODO: this should not be done so eagerly but just let it be...
-			membersResp, err := m.appContext.MessagingClient.GetChatMembers(
-				ctx, &pb.GetChatMembersRequest{ChatId: chatId},
-			)
-			if err != nil {
-				return cleanGrpcError(err)
-			}
-
-			session.ChatMembers[chatId] = membersResp.MemberIds
 			if remoteChat.IsGroup {
 				// chat data is self-contained via server tracking names
-				session.Chats[chatId] = &state.GroupChat{
+				// members for groups are pull when requested
+				m.appContext.Session.Chats[chatId] = &state.GroupChat{
 					ChatId:    chatId,
 					GroupName: remoteChat.Name,
 				}
 			} else {
-				var companionId string
-				for _, uid := range membersResp.MemberIds {
-					if uid != session.UserId {
-						companionId = uid
-						break
-					}
+				err := m.resolveDirectChat(chatId)
+				if err != nil {
+					return DataPullFailedMsg{Err: err}
 				}
-				if companionId == "" {
-					// should not occur
-					m.logger.Warn(
-						"companion id is empty for chat", zap.String("id", chatId),
-					)
-					continue
-				}
-
-				m.resolveDirectChat(chatId, companionId)
 			}
 		}
 
@@ -216,21 +198,37 @@ func (m *PullDataModel) pullUserData() tea.Cmd {
 	}
 }
 
-func cleanGrpcError(err error) error {
-	if s, ok := status.FromError(err); ok {
-		return fmt.Errorf("%s", s.Message())
-	}
-	return err
-}
-
+// fetch companion profile info from ProfileService
 func (m *PullDataModel) resolveDirectChat(
 	chatId string,
-	companionId string,
-) {
-	// Direct chat: Identify the companion User ID
-	// fetch companion profile info from ProfileService
-	// TODO: timeout context
+) error {
 	ctx := m.appContext.Ctx
+	membersResp, err := m.appContext.MessagingClient.GetChatMembers(
+		ctx, &pb.GetChatMembersRequest{ChatId: chatId},
+	)
+	if err != nil {
+		return cleanGrpcError(err)
+	}
+
+	m.appContext.Session.ChatMembers[chatId] = membersResp.MemberIds
+	var companionId string
+	for _, uid := range membersResp.MemberIds {
+		if uid != m.appContext.Session.UserId {
+			companionId = uid
+			break
+		}
+	}
+
+	if companionId == "" {
+		// should not occur
+		m.logger.Warn(
+			"companion id is empty for chat", zap.String("id", chatId),
+		)
+		return nil
+	}
+
+	// TODO: timeout context
+	ctx = m.appContext.Ctx
 	session := m.appContext.Session
 
 	profRes, err := m.appContext.ProfileClient.GetUserProfile(
@@ -246,7 +244,7 @@ func (m *PullDataModel) resolveDirectChat(
 			zap.Error(err),
 		)
 
-		// Populate a placeholder profile so rendering doesn't crash
+		// populate a placeholder profile so rendering doesn't crash
 		placeholder := &state.Profile{
 			Id:       companionId,
 			Username: fmt.Sprintf("User %s", companionId),
@@ -254,7 +252,7 @@ func (m *PullDataModel) resolveDirectChat(
 
 		session.Profiles[companionId] = placeholder
 		session.Chats[chatId] = &state.DirectChat{
-			ChatId: chatId, 
+			ChatId:       chatId,
 			OtherProfile: placeholder,
 		}
 	}
@@ -264,10 +262,17 @@ func (m *PullDataModel) resolveDirectChat(
 		Username: profRes.Username,
 	}
 	session.Profiles[companionId] = profile
-
 	session.Chats[chatId] = &state.DirectChat{
 		ChatId:       chatId,
 		OtherProfile: profile,
 	}
 
+	return nil
+}
+
+func cleanGrpcError(err error) error {
+	if s, ok := status.FromError(err); ok {
+		return fmt.Errorf("%s", s.Message())
+	}
+	return err
 }

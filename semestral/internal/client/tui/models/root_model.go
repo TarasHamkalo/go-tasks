@@ -12,7 +12,9 @@ import (
 	"gomessenger/internal/client/tui"
 )
 
-type RootHandleErrorMsg error
+type RootHandleErrorMsg struct {
+	Err error
+}
 
 type RootModel struct {
 	currentSubModel SubModel
@@ -28,13 +30,13 @@ type RootModel struct {
 
 	pullDataModel *PullDataModel
 
-	chatModel *ChatModel
+	// chatModel *ChatModel
 }
 
 func NewRootModel(appContext *state.AppContext) *RootModel {
 	onboardingSubModel := NewOnboardingModel(appContext)
 	pullDataModel := NewPullDataModel(appContext)
-	chatModel := NewChatModel(appContext)
+	// chatModel := NewChatModel(appContext)
 
 	appContext.Session = &state.Session{} // empty state
 
@@ -46,7 +48,7 @@ func NewRootModel(appContext *state.AppContext) *RootModel {
 		// to reuse all
 		onboardingSubModel: onboardingSubModel,
 		pullDataModel:      pullDataModel,
-		chatModel:          chatModel,
+		// chatModel:          chatModel,
 	}
 }
 
@@ -71,8 +73,9 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case RootHandleErrorMsg:
-		m.currentSubModel = NewErrorSubModel(msg, m.onboardingSubModel)
-		return m, nil
+		m.logger.Info("root handling error")
+		m.currentSubModel = NewErrorSubModel(msg.Err, m.onboardingSubModel)
+		return m, m.currentSubModel.Init() 
 
 	case AuthSucceededMsg:
 		m.logger.Info("authentication succeeded", zap.String("userId", msg.UserId))
@@ -93,7 +96,8 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.currentSubModel.Init()
 	case DataPullSucceededMsg:
 		m.logger.Info("user data sync completely succeeded")
-		m.currentSubModel = m.chatModel
+		// m.currentSubModel = m.chatModel
+		m.currentSubModel = TodoSubModel{}
 		return m, m.currentSubModel.Init() 
 	}
 

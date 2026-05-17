@@ -19,6 +19,10 @@ import (
 	"gomessenger/internal/client/tui"
 )
 
+type AuthFailedMsg struct {
+	Err error
+}
+
 type AuthSucceededMsg struct {
 	UserId       string
 	AccessToken  string
@@ -77,7 +81,7 @@ func NewOnboardingModel(appContext *state.AppContext) *OnboardingSubModel {
 		}
 		return nil
 	}
-	
+
 	// Password Field (Shared)
 	password := textinput.New()
 	password.CharLimit = 73
@@ -119,6 +123,7 @@ func (m *OnboardingSubModel) Id() SubModelId {
 }
 
 func (m *OnboardingSubModel) Init() tea.Cmd {
+	m.subState = AuthPromptChoice
 	return textinput.Blink
 }
 
@@ -243,15 +248,17 @@ func (m *OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case AuthSubmitting:
 		switch msg := msg.(type) {
-		case error:
-			m.subState = AuthPromptChoice // Reset state for when they come back
-			return NewErrorSubModel(msg, m), nil
+		case AuthFailedMsg:
+			m.subState = AuthPromptChoice 
+			m.password.SetValue("")
+			m.password.Blur()
+			return NewErrorSubModel(msg.Err, m), nil
 
 		case AuthSucceededMsg:
 			return m, func() tea.Msg { return msg }
 		}
 	}
-	
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -272,11 +279,14 @@ func (m *OnboardingSubModel) submitLogin() tea.Cmd {
 		if err != nil {
 			// extract gRPC status
 			if stat, ok := status.FromError(err); ok {
-				return errors.New(stat.Message())
+				return AuthFailedMsg{Err: errors.New(stat.Message())}
 			}
-			return err
+			return AuthFailedMsg{Err: err}
 		}
 
+		m.subState = AuthPromptChoice
+		m.password.SetValue("")
+		m.password.Blur()
 		return AuthSucceededMsg{
 			UserId:       id,
 			AccessToken:  res.Tokens.AccessToken,
@@ -290,6 +300,7 @@ func (m *OnboardingSubModel) submitRegister() tea.Cmd {
 	pass := []byte(m.password.Value())
 
 	return func() tea.Msg {
+		// TODO: context with timeout
 		regRes, err := m.profileClient.RegisterProfile(
 			m.ctx,
 			&pb.RegisterProfileRequest{
@@ -299,23 +310,30 @@ func (m *OnboardingSubModel) submitRegister() tea.Cmd {
 
 		if err != nil {
 			if stat, ok := status.FromError(err); ok {
-				return errors.New(stat.Message())
+				return AuthFailedMsg{Err: errors.New(stat.Message())}
 			}
-			return err
+
+			return AuthFailedMsg{Err: err}
 		}
 
 		// login to get tokens
+		// TODO: context with timeout
 		logRes, err := m.profileClient.Login(m.ctx, &pb.LoginRequest{
 			UserId:   regRes.UserId,
 			Password: pass,
 		})
 
 		if err != nil {
-			return fmt.Errorf(
-				"account created (ID: %s), but login failed: %v", regRes.UserId, err,
-			)
+			return AuthFailedMsg{
+				Err: fmt.Errorf(
+					"account created (ID: %s), but login failed: %v", regRes.UserId, err,
+				),
+			}
 		}
 
+		m.subState = AuthPromptChoice
+		m.password.SetValue("")
+		m.password.Blur()
 		return AuthSucceededMsg{
 			UserId:       regRes.UserId,
 			AccessToken:  logRes.Tokens.AccessToken,
@@ -343,7 +361,7 @@ func (m *OnboardingSubModel) ContentView(width, height int) tea.View {
 	case AuthSubmitting:
 		content = lipgloss.JoinHorizontal(
 			lipgloss.Center,
-			m.spin.View(), 
+			m.spin.View(),
 			" Authenticating...",
 		)
 	}
@@ -370,7 +388,7 @@ func (m *OnboardingSubModel) formView(
 		m.password.View(),
 	)
 
-	// display validation errors 
+	// display validation errors
 	var errStr string
 	if topInput.Err != nil {
 		errStr = topInput.Err.Error()
