@@ -21,6 +21,52 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type UserStatus int32
+
+const (
+	UserStatus_OFFLINE UserStatus = 0
+	UserStatus_ONLINE  UserStatus = 1
+)
+
+// Enum value maps for UserStatus.
+var (
+	UserStatus_name = map[int32]string{
+		0: "OFFLINE",
+		1: "ONLINE",
+	}
+	UserStatus_value = map[string]int32{
+		"OFFLINE": 0,
+		"ONLINE":  1,
+	}
+)
+
+func (x UserStatus) Enum() *UserStatus {
+	p := new(UserStatus)
+	*p = x
+	return p
+}
+
+func (x UserStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (UserStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_protos_profile_service_proto_enumTypes[0].Descriptor()
+}
+
+func (UserStatus) Type() protoreflect.EnumType {
+	return &file_protos_profile_service_proto_enumTypes[0]
+}
+
+func (x UserStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use UserStatus.Descriptor instead.
+func (UserStatus) EnumDescriptor() ([]byte, []int) {
+	return file_protos_profile_service_proto_rawDescGZIP(), []int{0}
+}
+
 type RegisterProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
@@ -353,7 +399,6 @@ func (x *RefreshResponse) GetTokens() *Tokens {
 	return nil
 }
 
-// GetUserProfileRequest request has to be authenticated by bearer token
 type GetUserProfileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -402,6 +447,8 @@ type GetUserProfileResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	Bio           string                 `protobuf:"bytes,3,opt,name=bio,proto3" json:"bio,omitempty"`
+	Status        UserStatus             `protobuf:"varint,4,opt,name=status,proto3,enum=profile.UserStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -450,6 +497,188 @@ func (x *GetUserProfileResponse) GetUsername() string {
 	return ""
 }
 
+func (x *GetUserProfileResponse) GetBio() string {
+	if x != nil {
+		return x.Bio
+	}
+	return ""
+}
+
+func (x *GetUserProfileResponse) GetStatus() UserStatus {
+	if x != nil {
+		return x.Status
+	}
+	return UserStatus_OFFLINE
+}
+
+type UpdateStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        UserStatus             `protobuf:"varint,2,opt,name=status,proto3,enum=profile.UserStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateStatusRequest) Reset() {
+	*x = UpdateStatusRequest{}
+	mi := &file_protos_profile_service_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateStatusRequest) ProtoMessage() {}
+
+func (x *UpdateStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_profile_service_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateStatusRequest.ProtoReflect.Descriptor instead.
+func (*UpdateStatusRequest) Descriptor() ([]byte, []int) {
+	return file_protos_profile_service_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *UpdateStatusRequest) GetStatus() UserStatus {
+	if x != nil {
+		return x.Status
+	}
+	return UserStatus_OFFLINE
+}
+
+type UpdateStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateStatusResponse) Reset() {
+	*x = UpdateStatusResponse{}
+	mi := &file_protos_profile_service_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateStatusResponse) ProtoMessage() {}
+
+func (x *UpdateStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_profile_service_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateStatusResponse.ProtoReflect.Descriptor instead.
+func (*UpdateStatusResponse) Descriptor() ([]byte, []int) {
+	return file_protos_profile_service_proto_rawDescGZIP(), []int{10}
+}
+
+type UpdateUserProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Bio           string                 `protobuf:"bytes,2,opt,name=bio,proto3" json:"bio,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateUserProfileRequest) Reset() {
+	*x = UpdateUserProfileRequest{}
+	mi := &file_protos_profile_service_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateUserProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateUserProfileRequest) ProtoMessage() {}
+
+func (x *UpdateUserProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_profile_service_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateUserProfileRequest.ProtoReflect.Descriptor instead.
+func (*UpdateUserProfileRequest) Descriptor() ([]byte, []int) {
+	return file_protos_profile_service_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UpdateUserProfileRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *UpdateUserProfileRequest) GetBio() string {
+	if x != nil {
+		return x.Bio
+	}
+	return ""
+}
+
+type UpdateUserProfileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateUserProfileResponse) Reset() {
+	*x = UpdateUserProfileResponse{}
+	mi := &file_protos_profile_service_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateUserProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateUserProfileResponse) ProtoMessage() {}
+
+func (x *UpdateUserProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protos_profile_service_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateUserProfileResponse.ProtoReflect.Descriptor instead.
+func (*UpdateUserProfileResponse) Descriptor() ([]byte, []int) {
+	return file_protos_profile_service_proto_rawDescGZIP(), []int{12}
+}
+
 var File_protos_profile_service_proto protoreflect.FileDescriptor
 
 const file_protos_profile_service_proto_rawDesc = "" +
@@ -473,15 +702,31 @@ const file_protos_profile_service_proto_rawDesc = "" +
 	"\x0fRefreshResponse\x12'\n" +
 	"\x06tokens\x18\x01 \x01(\v2\x0f.profile.TokensR\x06tokens\"0\n" +
 	"\x15GetUserProfileRequest\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"M\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x8c\x01\n" +
 	"\x16GetUserProfileResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
-	"\busername\x18\x02 \x01(\tR\busername2\xaf\x02\n" +
+	"\busername\x18\x02 \x01(\tR\busername\x12\x10\n" +
+	"\x03bio\x18\x03 \x01(\tR\x03bio\x12+\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x13.profile.UserStatusR\x06status\"B\n" +
+	"\x13UpdateStatusRequest\x12+\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x13.profile.UserStatusR\x06status\"\x16\n" +
+	"\x14UpdateStatusResponse\"H\n" +
+	"\x18UpdateUserProfileRequest\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername\x12\x10\n" +
+	"\x03bio\x18\x02 \x01(\tR\x03bio\"\x1b\n" +
+	"\x19UpdateUserProfileResponse*%\n" +
+	"\n" +
+	"UserStatus\x12\v\n" +
+	"\aOFFLINE\x10\x00\x12\n" +
+	"\n" +
+	"\x06ONLINE\x10\x012\xd8\x03\n" +
 	"\x0eProfileService\x12T\n" +
 	"\x0fRegisterProfile\x12\x1f.profile.RegisterProfileRequest\x1a .profile.RegisterProfileResponse\x126\n" +
 	"\x05Login\x12\x15.profile.LoginRequest\x1a\x16.profile.LoginResponse\x12<\n" +
 	"\aRefresh\x12\x17.profile.RefreshRequest\x1a\x18.profile.RefreshResponse\x12Q\n" +
-	"\x0eGetUserProfile\x12\x1e.profile.GetUserProfileRequest\x1a\x1f.profile.GetUserProfileResponseB\x10Z\x0e./generated;pbb\x06proto3"
+	"\x0eGetUserProfile\x12\x1e.profile.GetUserProfileRequest\x1a\x1f.profile.GetUserProfileResponse\x12K\n" +
+	"\fUpdateStatus\x12\x1c.profile.UpdateStatusRequest\x1a\x1d.profile.UpdateStatusResponse\x12Z\n" +
+	"\x11UpdateUserProfile\x12!.profile.UpdateUserProfileRequest\x1a\".profile.UpdateUserProfileResponseB\x10Z\x0e./generated;pbb\x06proto3"
 
 var (
 	file_protos_profile_service_proto_rawDescOnce sync.Once
@@ -495,34 +740,46 @@ func file_protos_profile_service_proto_rawDescGZIP() []byte {
 	return file_protos_profile_service_proto_rawDescData
 }
 
-var file_protos_profile_service_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_protos_profile_service_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_protos_profile_service_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_protos_profile_service_proto_goTypes = []any{
-	(*RegisterProfileRequest)(nil),  // 0: profile.RegisterProfileRequest
-	(*RegisterProfileResponse)(nil), // 1: profile.RegisterProfileResponse
-	(*Tokens)(nil),                  // 2: profile.Tokens
-	(*LoginRequest)(nil),            // 3: profile.LoginRequest
-	(*LoginResponse)(nil),           // 4: profile.LoginResponse
-	(*RefreshRequest)(nil),          // 5: profile.RefreshRequest
-	(*RefreshResponse)(nil),         // 6: profile.RefreshResponse
-	(*GetUserProfileRequest)(nil),   // 7: profile.GetUserProfileRequest
-	(*GetUserProfileResponse)(nil),  // 8: profile.GetUserProfileResponse
+	(UserStatus)(0),                   // 0: profile.UserStatus
+	(*RegisterProfileRequest)(nil),    // 1: profile.RegisterProfileRequest
+	(*RegisterProfileResponse)(nil),   // 2: profile.RegisterProfileResponse
+	(*Tokens)(nil),                    // 3: profile.Tokens
+	(*LoginRequest)(nil),              // 4: profile.LoginRequest
+	(*LoginResponse)(nil),             // 5: profile.LoginResponse
+	(*RefreshRequest)(nil),            // 6: profile.RefreshRequest
+	(*RefreshResponse)(nil),           // 7: profile.RefreshResponse
+	(*GetUserProfileRequest)(nil),     // 8: profile.GetUserProfileRequest
+	(*GetUserProfileResponse)(nil),    // 9: profile.GetUserProfileResponse
+	(*UpdateStatusRequest)(nil),       // 10: profile.UpdateStatusRequest
+	(*UpdateStatusResponse)(nil),      // 11: profile.UpdateStatusResponse
+	(*UpdateUserProfileRequest)(nil),  // 12: profile.UpdateUserProfileRequest
+	(*UpdateUserProfileResponse)(nil), // 13: profile.UpdateUserProfileResponse
 }
 var file_protos_profile_service_proto_depIdxs = []int32{
-	2, // 0: profile.LoginResponse.tokens:type_name -> profile.Tokens
-	2, // 1: profile.RefreshResponse.tokens:type_name -> profile.Tokens
-	0, // 2: profile.ProfileService.RegisterProfile:input_type -> profile.RegisterProfileRequest
-	3, // 3: profile.ProfileService.Login:input_type -> profile.LoginRequest
-	5, // 4: profile.ProfileService.Refresh:input_type -> profile.RefreshRequest
-	7, // 5: profile.ProfileService.GetUserProfile:input_type -> profile.GetUserProfileRequest
-	1, // 6: profile.ProfileService.RegisterProfile:output_type -> profile.RegisterProfileResponse
-	4, // 7: profile.ProfileService.Login:output_type -> profile.LoginResponse
-	6, // 8: profile.ProfileService.Refresh:output_type -> profile.RefreshResponse
-	8, // 9: profile.ProfileService.GetUserProfile:output_type -> profile.GetUserProfileResponse
-	6, // [6:10] is the sub-list for method output_type
-	2, // [2:6] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3,  // 0: profile.LoginResponse.tokens:type_name -> profile.Tokens
+	3,  // 1: profile.RefreshResponse.tokens:type_name -> profile.Tokens
+	0,  // 2: profile.GetUserProfileResponse.status:type_name -> profile.UserStatus
+	0,  // 3: profile.UpdateStatusRequest.status:type_name -> profile.UserStatus
+	1,  // 4: profile.ProfileService.RegisterProfile:input_type -> profile.RegisterProfileRequest
+	4,  // 5: profile.ProfileService.Login:input_type -> profile.LoginRequest
+	6,  // 6: profile.ProfileService.Refresh:input_type -> profile.RefreshRequest
+	8,  // 7: profile.ProfileService.GetUserProfile:input_type -> profile.GetUserProfileRequest
+	10, // 8: profile.ProfileService.UpdateStatus:input_type -> profile.UpdateStatusRequest
+	12, // 9: profile.ProfileService.UpdateUserProfile:input_type -> profile.UpdateUserProfileRequest
+	2,  // 10: profile.ProfileService.RegisterProfile:output_type -> profile.RegisterProfileResponse
+	5,  // 11: profile.ProfileService.Login:output_type -> profile.LoginResponse
+	7,  // 12: profile.ProfileService.Refresh:output_type -> profile.RefreshResponse
+	9,  // 13: profile.ProfileService.GetUserProfile:output_type -> profile.GetUserProfileResponse
+	11, // 14: profile.ProfileService.UpdateStatus:output_type -> profile.UpdateStatusResponse
+	13, // 15: profile.ProfileService.UpdateUserProfile:output_type -> profile.UpdateUserProfileResponse
+	10, // [10:16] is the sub-list for method output_type
+	4,  // [4:10] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_protos_profile_service_proto_init() }
@@ -535,13 +792,14 @@ func file_protos_profile_service_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_protos_profile_service_proto_rawDesc), len(file_protos_profile_service_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   9,
+			NumEnums:      1,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_protos_profile_service_proto_goTypes,
 		DependencyIndexes: file_protos_profile_service_proto_depIdxs,
+		EnumInfos:         file_protos_profile_service_proto_enumTypes,
 		MessageInfos:      file_protos_profile_service_proto_msgTypes,
 	}.Build()
 	File_protos_profile_service_proto = out.File

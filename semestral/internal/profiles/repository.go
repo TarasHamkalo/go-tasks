@@ -17,5 +17,11 @@ type Repository interface {
 
 	GetProfileByUserId(ctx context.Context, userID string) (Profile, error)
 
+	UpdateStatus(ctx context.Context, userID string, status string) error
+
+	UpdateProfile(
+		ctx context.Context, userID string, username string, bio string,
+	) error
+
 	Close() error
 }

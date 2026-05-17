@@ -17,7 +17,9 @@ const (
 			profiles(
 					user_id INTEGER PRIMARY KEY AUTOINCREMENT,
 					username TEXT NOT NULL UNIQUE,
-					password BLOB NOT NULL
+					password BLOB NOT NULL,
+					bio TEXT NOT NULL DEFAULT '',
+					status TEXT NOT NULL DEFAULT 'offline'
 			);
 
 	-- shift id range (for all to have 9-digit IDs)
@@ -30,9 +32,17 @@ const (
 	`
 
 	GET_BY_USER_ID_QUERY = `
-    SELECT CAST(user_id AS TEXT) AS user_id, username, password 
-    FROM profiles 
-    WHERE user_id = ?
+	SELECT CAST(user_id AS TEXT) AS user_id, username, password, bio, status 
+	FROM profiles 
+	WHERE user_id = ?
+	`
+
+	UPDATE_STATUS_QUERY = `
+	UPDATE profiles SET status = ? WHERE user_id = ?
+	`
+
+	UPDATE_PROFILE_QUERY = `
+	UPDATE profiles SET username = ?, bio = ? WHERE user_id = ?
 	`
 )
 
@@ -99,6 +109,32 @@ func (r SqliteRepository) GetProfileByUserId(
 
 func (r SqliteRepository) Close() error {
 	return r.Db.Close()
+}
+
+func (r SqliteRepository) UpdateStatus(
+	ctx context.Context, userId string, status string,
+) error {
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
+
+	_, err := r.Db.ExecContext(queryCtx, UPDATE_STATUS_QUERY, status, userId)
+	return err
+}
+
+func (r SqliteRepository) UpdateProfile(
+	ctx context.Context, userId string, username string, bio string,
+) error {
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
+
+	_, err := r.Db.ExecContext(queryCtx, UPDATE_PROFILE_QUERY, username, bio, userId)
+	if err != nil {
+		if isUniqueConstraint(err) {
+			return ErrorUniqueConstraintViolated
+		}
+		return err
+	}
+	return nil
 }
 
 func isUniqueConstraint(err error) bool {

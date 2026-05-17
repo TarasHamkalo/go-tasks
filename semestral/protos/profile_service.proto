@@ -17,7 +17,15 @@ service ProfileService {
   rpc Refresh(RefreshRequest) returns (RefreshResponse);
 
   rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+  
+  rpc UpdateStatus(UpdateStatusRequest) returns (UpdateStatusResponse);
 
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse);
+}
+
+enum UserStatus {
+  OFFLINE = 0;
+  ONLINE = 1;
 }
 
 message RegisterProfileRequest {
@@ -51,7 +59,6 @@ message RefreshResponse {
   Tokens tokens = 1;
 }
 
-// GetUserProfileRequest request has to be authenticated by bearer token 
 message GetUserProfileRequest {
   string user_id = 1; 
 }
@@ -59,4 +66,19 @@ message GetUserProfileRequest {
 message GetUserProfileResponse {
   string user_id = 1;
   string username = 2;
+  string bio = 3;
+  UserStatus status = 4;
 }
+
+message UpdateStatusRequest {
+  UserStatus status = 2;
+}
+
+message UpdateStatusResponse {}
+
+message UpdateUserProfileRequest {
+  string username = 1;
+  string bio = 2;
+}
+
+message UpdateUserProfileResponse {}

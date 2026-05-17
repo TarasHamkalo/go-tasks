@@ -241,12 +241,10 @@ func (s *ProfileService) Refresh(
 func (s *ProfileService) GetUserProfile(
 	ctx context.Context, req *pb.GetUserProfileRequest,
 ) (*pb.GetUserProfileResponse, error) {
-	// we are not interested in which user requesting this information
 	_, ok := auth.ClaimsFromContext(ctx)
 	if !ok {
 		return nil, status.Error(
-			codes.Internal,
-			"missing authentication claims",
+			codes.Unauthenticated, "missing authentication claims",
 		)
 	}
 
@@ -261,10 +259,84 @@ func (s *ProfileService) GetUserProfile(
 		return nil, status.Error(codes.NotFound, "user profile not found")
 	}
 
+	statusEnum := pb.UserStatus_OFFLINE
+	if p.Status == "online" {
+		statusEnum = pb.UserStatus_ONLINE
+	}
+
 	return &pb.GetUserProfileResponse{
 		UserId:   p.UserId,
 		Username: p.Username,
+		Bio:      p.Bio,
+		Status:   statusEnum,
 	}, nil
+}
+
+func (s *ProfileService) UpdateStatus(
+	ctx context.Context, req *pb.UpdateStatusRequest,
+) (*pb.UpdateStatusResponse, error) {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
+	}
+
+	userId := claims.Subject
+
+	statusStr := "offline"
+	if req.Status == pb.UserStatus_ONLINE {
+		statusStr = "online"
+	}
+	
+	err := s.repo.UpdateStatus(ctx, userId, statusStr)
+	if err != nil {
+		s.logger.Error(
+			"could not update user status",
+			zap.Error(err),
+			zap.String("userId", userId),
+		)
+		return nil, status.Error(codes.Internal, "could not update user status")
+	}
+
+	return &pb.UpdateStatusResponse{}, nil
+}
+
+func (s *ProfileService) UpdateUserProfile(
+	ctx context.Context, req *pb.UpdateUserProfileRequest,
+) (*pb.UpdateUserProfileResponse, error) {
+	claims, ok := auth.ClaimsFromContext(ctx)
+	if !ok {
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
+	}
+
+	// Username Validation
+	trimmedUsername := strings.TrimSpace(req.Username)
+	if len(trimmedUsername) < 3 || len(trimmedUsername) > 32 {
+		return nil, status.Error(
+			codes.InvalidArgument,
+			"username has to have between 3 to 32 non empty characters",
+		)
+	}
+
+	err := s.repo.UpdateProfile(ctx, claims.Subject, trimmedUsername, req.Bio)
+	if err != nil {
+		if errors.Is(err, ErrorUniqueConstraintViolated) {
+			return nil, status.Error(codes.AlreadyExists, "username is already taken")
+		}
+		s.logger.Error(
+			"could not update user profile",
+			zap.Error(err),
+			zap.String("userId", claims.Subject),
+		)
+		return nil, status.Error(codes.Internal, "could not update user profile")
+	}
+
+	s.logger.Info("user profile updated", zap.String("userId", claims.Subject))
+
+	return &pb.UpdateUserProfileResponse{}, nil
 }
 
 func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
