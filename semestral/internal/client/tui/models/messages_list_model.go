@@ -54,7 +54,7 @@ func NewMessagesListModel(appContext *state.AppContext) *MessagesListModel {
 		appContext: appContext,
 		logger:     appContext.RootLogger.With(zap.String("mvc", "msg-list")),
 		messages:   make([]storage.Message, 0, 10),
-		sending: make(map[string]bool),
+		sending:    make(map[string]bool),
 	}
 }
 
@@ -138,7 +138,8 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case DeliverySuccessMsg:
 
-		ctx, cancel := context.WithTimeout( m.appContext.Ctx, 2*time.Second)
+		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
+		// ignore if message was not acked on local repo
 		_ = m.appContext.LocalRepo.MarkMessageDelivered(
 			ctx, msg.LocalId, msg.ServerId,
 		)
@@ -174,7 +175,7 @@ func (m *MessagesListModel) View() tea.View {
 
 func (m *MessagesListModel) ContentView(width int, height int, focused bool) string {
 	borderColor := "#3C3C3C"
-	if m.engaged {
+	if m.engaged && focused {
 		borderColor = "#FF007F"
 	} else if focused {
 		borderColor = "#00FF00"

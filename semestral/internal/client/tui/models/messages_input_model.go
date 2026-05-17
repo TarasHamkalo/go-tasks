@@ -72,7 +72,7 @@ func (m *MessagesInputModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *MessagesInputModel) ContentView(width int, height int, focused bool) string {
 	borderColor := "#3C3C3C"
-	if m.Engaged {
+	if m.Engaged && focused {
 		borderColor = "#FF007F"
 	} else if focused {
 		borderColor = "#00FF00"

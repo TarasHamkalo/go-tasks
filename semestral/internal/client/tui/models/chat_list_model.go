@@ -137,7 +137,7 @@ func (m *ChatsListModel) ContentView(width int, height int, focused bool) string
 	m.refreshRows()
 
 	borderColor := "#3C3C3C"
-	if m.engaged {
+	if m.engaged && focused {
 		borderColor = "#FF007F"
 	} else if focused {
 		borderColor = "#00FF00"

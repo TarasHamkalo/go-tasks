@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"errors"
+	"fmt"
 	pb "gomessenger/generated"
 	"gomessenger/internal/client/state"
 	"gomessenger/internal/client/storage"
@@ -13,6 +14,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -55,6 +57,8 @@ type ChatModel struct {
 	messageInputSection *MessagesInputModel
 	messagesListModel   *MessagesListModel
 	chatsListModel      *ChatsListModel
+
+	logger *zap.Logger
 }
 
 func NewChatModel(appContext *state.AppContext) *ChatModel {
@@ -66,6 +70,8 @@ func NewChatModel(appContext *state.AppContext) *ChatModel {
 		messageInputSection: NewMessageInputModel(),
 		messagesListModel:   NewMessagesListModel(appContext),
 		chatsListModel:      NewChatsListModel(appContext),
+
+		logger: appContext.RootLogger.With(zap.String("mvc", "chat")),
 	}
 }
 
@@ -78,6 +84,11 @@ func (m *ChatModel) Init() tea.Cmd {
 }
 
 func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.logger.Info(
+		"handling message",
+		zap.String("type", fmt.Sprintf("%T", msg)),
+		zap.Any("msg", msg),
+	)
 	switch msg := msg.(type) {
 
 	case ChatModelHandleErrorMsg:
@@ -158,6 +169,7 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model, cmd = m.messagesListModel.Update(msg)
 		m.messagesListModel = model.(*MessagesListModel)
 	}
+	// }
 
 	return m, cmd
 }
@@ -236,7 +248,7 @@ func (m *ChatModel) ContentView(width, height int) tea.View {
 
 	chatsHeight := height - profileHeight
 	messageListHeight := height - messageInputHeight
-		
+
 	// rendering handles nil profile
 	p, _ := m.appContext.Session.GetCurrentUserProfile()
 	profileView := components.RenderProfileSection(
@@ -244,15 +256,15 @@ func (m *ChatModel) ContentView(width, height int) tea.View {
 	)
 
 	chatListView := m.chatsListModel.ContentView(
-		leftWidth, chatsHeight, m.focusedArea == FocusChatsList, 
+		leftWidth, chatsHeight, m.focusedArea == FocusChatsList,
 	)
 
 	messageListView := m.messagesListModel.ContentView(
-		rightWidth, messageListHeight, m.focusedArea == FocusMessageList, 
+		rightWidth, messageListHeight, m.focusedArea == FocusMessageList,
 	)
 
 	messageInputView := m.messageInputSection.ContentView(
-		rightWidth, messageInputHeight, m.focusedArea == FocusMessageInput, 
+		rightWidth, messageInputHeight, m.focusedArea == FocusMessageInput,
 	)
 
 	leftPanel := lipgloss.JoinVertical(
@@ -273,7 +285,7 @@ func (m *ChatModel) ShortHelp() []tui.Binding {
 	if m.isEngaged {
 		bindings := []tui.Binding{}
 		if m.activeModel != nil {
-			bindings = append(bindings, m.ShortHelp()...)
+			bindings = append(bindings, m.activeModel.ShortHelp()...)
 		}
 
 		if m.focusedArea == FocusProfile {

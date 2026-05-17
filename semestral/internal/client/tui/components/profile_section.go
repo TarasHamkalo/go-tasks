@@ -11,8 +11,7 @@ func RenderProfileSection(
 	profile *state.Profile, width, height int, focused, engaged bool,
 ) string {
 	borderColor := "#3C3C3C" // Dim gray default
-
-	if engaged {
+	if engaged && focused {
 		borderColor = "#FF007F"
 	} else if focused {
 		borderColor = "#00FF00"
