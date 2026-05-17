@@ -44,6 +44,7 @@ require (
 
 require (
 	charm.land/bubbletea/v2 v2.0.6
+	github.com/caarlos0/env/v11 v11.4.1
 	github.com/jmoiron/sqlx v1.4.0
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/net v0.51.0 // indirect

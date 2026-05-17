@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/tls"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/caarlos0/env/v11"
 	"google.golang.org/grpc"
 
 	pb "gomessenger/generated"
@@ -21,16 +23,28 @@ import (
 	"gomessenger/internal/profiles"
 )
 
-const AppLogFilePath = "logs/profile-server.log"
-const ProfilesDbPath = "data/profiles.db"
+type Config struct {
+	AppLogFilePath string `env:"APP_LOG_FILE,required"`
+	ProfilesDbPath string `env:"PROFILES_DB,required"`
 
-const PublicKeyPath = "resources/jwt-keys/public.key"
-const PrivateKeyPath = "resources/jwt-keys/private.key"
-//
-const CertPath = "resources/certs/localhost-cert.pem"
-const KeyPath = "resources/certs/localhost-privkey.pem"
+	PublicKeyPath  string `env:"JWT_PUBLIC_KEY,required"`
+	PrivateKeyPath string `env:"JWT_PRIVATE_KEY,required"`
 
-const Issuer = "hamkatar-gommessenger"
+	CertPath string `env:"TLS_CERT,required"`
+	KeyPath  string `env:"TLS_KEY,required"`
+
+	Issuer string `env:"JWT_ISSUER,required"`
+
+	Port int `env:"PORT,required"`
+}
+
+var cfg Config
+
+func init() {
+	if err := env.Parse(&cfg); err != nil {
+		panic(fmt.Errorf("failed to load configuration: %w", err))
+	}
+}
 
 func main() {
 	appLogFile := createLogFile()
@@ -56,17 +70,17 @@ func main() {
 func loadSecurityAssets(
 	logger *zap.Logger,
 ) (*rsa.PrivateKey, *rsa.PublicKey, *tls.Config) {
-	privateKey, err := auth.LoadPrivateKey(PrivateKeyPath)
+	privateKey, err := auth.LoadPrivateKey(cfg.PrivateKeyPath)
 	if err != nil {
 		logger.Fatal("could not load private key", zap.Error(err))
 	}
 
-	publicKey, err := auth.LoadPublicKey(PublicKeyPath)
+	publicKey, err := auth.LoadPublicKey(cfg.PublicKeyPath)
 	if err != nil {
 		logger.Fatal("could not load public key", zap.Error(err))
 	}
 
-	cert, err := tls.LoadX509KeyPair(CertPath, KeyPath)
+	cert, err := tls.LoadX509KeyPair(cfg.CertPath, cfg.KeyPath)
 	if err != nil {
 		logger.Fatal("could not load server certs", zap.Error(err))
 	}
@@ -77,7 +91,7 @@ func loadSecurityAssets(
 
 // initDatabase prepares SQLite database
 func initDatabase(logger *zap.Logger) *profiles.SqliteRepository {
-	repo, err := profiles.NewSqliteRepository(ProfilesDbPath)
+	repo, err := profiles.NewSqliteRepository(cfg.ProfilesDbPath)
 	if err != nil {
 		logger.Fatal("could not open sqlite db", zap.Error(err))
 	}
@@ -87,7 +101,10 @@ func initDatabase(logger *zap.Logger) *profiles.SqliteRepository {
 		logger.Fatal("could not initialize schema", zap.Error(err))
 	}
 
-	logger.Info("database and schema initialized", zap.String("path", ProfilesDbPath))
+	logger.Info(
+		"database and schema initialized",
+		zap.String("path", cfg.ProfilesDbPath),
+	)
 	return repo
 }
 
@@ -105,20 +122,26 @@ func initGrpcServer(
 	// define unprotected routes
 	publicRoutes := map[string]bool{
 		pb.ProfileService_RegisterProfile_FullMethodName: true,
-		pb.ProfileService_Login_FullMethodName: true,
-		pb.ProfileService_Refresh_FullMethodName: true,
+		pb.ProfileService_Login_FullMethodName:           true,
+		pb.ProfileService_Refresh_FullMethodName:         true,
 	}
 
 	grpcServer := gomessenger.NewGrpcServer(
 		tlsCfg,
 		logger,
-		auth.AuthorizationInterceptor(publicKey, Issuer, publicRoutes),
+		auth.AuthorizationInterceptor(publicKey, cfg.Issuer, publicRoutes),
 	)
 
 	grpcServer.WithServer(func(srv *grpc.Server) {
 		pb.RegisterProfileServiceServer(
 			srv,
-			profiles.NewProfileService(repo, Issuer, publicKey, privateKey, logger),
+			profiles.NewProfileService(
+				repo,
+				cfg.Issuer,
+				publicKey,
+				privateKey,
+				logger,
+			),
 		)
 	})
 
@@ -148,13 +171,15 @@ func createLogFile() *os.File {
 	}
 
 	appLogFile, err := os.OpenFile(
-		AppLogFilePath,
+		cfg.AppLogFilePath,
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
 		0600,
 	)
 	if err != nil {
 		log.Fatalf(
-			"Failed to create app server log, file=%s, err=%v", AppLogFilePath, err,
+			"Failed to create app server log, file=%s, err=%v",
+			cfg.AppLogFilePath,
+			err,
 		)
 	}
 
