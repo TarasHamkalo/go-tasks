@@ -1,6 +1,8 @@
 package models
 
 import (
+	"gomessenger/internal/client/tui"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -14,11 +16,6 @@ const (
 	TODOScreen SubModelId = iota
 )
 
-type Binding struct {
-	Key         string
-	Description string
-}
-
 type SubModel interface {
 	Id() SubModelId
 
@@ -26,7 +23,7 @@ type SubModel interface {
 	ContentView(width, height int) tea.View
 
 	// Footer key hints.
-	ShortHelp() []Binding
+	ShortHelp() []tui.Binding
 
 	tea.Model
 }
@@ -50,6 +47,6 @@ func (t TodoSubModel) ContentView(width, height int) tea.View {
 	return tea.NewView("Todo screen\n")
 }
 
-func (t TodoSubModel) ShortHelp() []Binding {
-	return []Binding{}
+func (t TodoSubModel) ShortHelp() []tui.Binding {
+	return []tui.Binding{}
 }

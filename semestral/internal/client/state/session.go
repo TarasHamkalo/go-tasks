@@ -87,6 +87,14 @@ func (s *Session) SetProfile(profile *Profile) {
 	s.touch()
 }
 
+func (s *Session) GetCurrentUserProfile() (*Profile, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	profile, ok := s.profiles[s.userId]
+	return profile, ok
+}
+
 func (s *Session) GetProfile(userId string) (*Profile, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
