@@ -299,6 +299,7 @@ func (s *MessagingService) CreateGroupChat(
 
 	memberIds := make([]string, 0, len(req.MemberIds)+1)
 	memberIds = append(memberIds, claims.Subject)
+	// TODO: you have to verify all the users identity :)
 	for _, mId := range req.MemberIds {
 		if mId != claims.Subject && mId != "" {
 			memberIds = append(memberIds, mId)
