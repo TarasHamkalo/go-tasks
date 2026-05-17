@@ -35,12 +35,27 @@ const (
 //	  --go_out=. \
 //	  --go-grpc_out=. \
 //	  protos/profile_service.proto
+//
+// ProfileService provides user registration, authentication,
+// token refresh, and profile management operations.
 type ProfileServiceClient interface {
+	// Creates a new user profile and returns the generated user ID
+	//
+	// NOTE: Response contains generated 9-digit user ID.
 	RegisterProfile(ctx context.Context, in *RegisterProfileRequest, opts ...grpc.CallOption) (*RegisterProfileResponse, error)
+	// Authenticates the user and returns a new access/refresh token pair.
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
+	// Exchanges a valid refresh token for a new access/refresh token pair.
 	Refresh(ctx context.Context, in *RefreshRequest, opts ...grpc.CallOption) (*RefreshResponse, error)
+	// Retrieves a public profile by user ID.
 	GetUserProfile(ctx context.Context, in *GetUserProfileRequest, opts ...grpc.CallOption) (*GetUserProfileResponse, error)
+	// Updates the authenticated user's online status.
+	// The target user is resolved from the JWT subject claim in the
+	// Authorization: Bearer <token> header.
 	UpdateStatus(ctx context.Context, in *UpdateStatusRequest, opts ...grpc.CallOption) (*UpdateStatusResponse, error)
+	// Updates the authenticated user's profile fields.
+	// The target user is resolved from the JWT subject claim in the
+	// Authorization: Bearer <token> header.
 	UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error)
 }
 
@@ -120,12 +135,27 @@ func (c *profileServiceClient) UpdateUserProfile(ctx context.Context, in *Update
 //	  --go_out=. \
 //	  --go-grpc_out=. \
 //	  protos/profile_service.proto
+//
+// ProfileService provides user registration, authentication,
+// token refresh, and profile management operations.
 type ProfileServiceServer interface {
+	// Creates a new user profile and returns the generated user ID
+	//
+	// NOTE: Response contains generated 9-digit user ID.
 	RegisterProfile(context.Context, *RegisterProfileRequest) (*RegisterProfileResponse, error)
+	// Authenticates the user and returns a new access/refresh token pair.
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
+	// Exchanges a valid refresh token for a new access/refresh token pair.
 	Refresh(context.Context, *RefreshRequest) (*RefreshResponse, error)
+	// Retrieves a public profile by user ID.
 	GetUserProfile(context.Context, *GetUserProfileRequest) (*GetUserProfileResponse, error)
+	// Updates the authenticated user's online status.
+	// The target user is resolved from the JWT subject claim in the
+	// Authorization: Bearer <token> header.
 	UpdateStatus(context.Context, *UpdateStatusRequest) (*UpdateStatusResponse, error)
+	// Updates the authenticated user's profile fields.
+	// The target user is resolved from the JWT subject claim in the
+	// Authorization: Bearer <token> header.
 	UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error)
 	mustEmbedUnimplementedProfileServiceServer()
 }
