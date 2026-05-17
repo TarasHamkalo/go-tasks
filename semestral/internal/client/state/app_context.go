@@ -10,6 +10,7 @@ import (
 	"gomessenger/internal/client/storage"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 type AppContext struct {
@@ -25,8 +26,25 @@ type AppContext struct {
 
 	CredentialsInterceptor *auth.TokenCredentialsInterecptor
 
+	ProfileConn   *grpc.ClientConn
+	MessagingConn *grpc.ClientConn
+
 	ProfileClient   pb.ProfileServiceClient
 	MessagingClient pb.MessagingServiceClient
 
 	LocalRepo storage.Repository
+}
+
+func (a *AppContext) Close() {
+	if a.LocalRepo != nil {
+		_ = a.LocalRepo.Close()
+	}
+
+	if a.ProfileConn != nil {
+		_ = a.ProfileConn.Close()
+	}
+
+	if a.MessagingConn != nil {
+		_ = a.MessagingConn.Close()
+	}
 }

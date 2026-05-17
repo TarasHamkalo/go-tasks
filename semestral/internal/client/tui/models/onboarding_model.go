@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
@@ -249,7 +250,7 @@ func (m *OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case AuthSubmitting:
 		switch msg := msg.(type) {
 		case AuthFailedMsg:
-			m.subState = AuthPromptChoice 
+			m.subState = AuthPromptChoice
 			m.password.SetValue("")
 			m.password.Blur()
 			return NewErrorSubModel(msg.Err, m), nil
@@ -271,10 +272,18 @@ func (m *OnboardingSubModel) submitLogin() tea.Cmd {
 	pass := []byte(m.password.Value())
 
 	return func() tea.Msg {
-		res, err := m.profileClient.Login(m.ctx, &pb.LoginRequest{
-			UserId:   id,
-			Password: pass,
-		})
+		logCtx, cancelLog := context.WithTimeout(
+			m.ctx,
+			5*time.Second,
+		)
+		defer cancelLog()
+		res, err := m.profileClient.Login(
+			logCtx,
+			&pb.LoginRequest{
+				UserId:   id,
+				Password: pass,
+			},
+		)
 
 		if err != nil {
 			// extract gRPC status
@@ -300,13 +309,19 @@ func (m *OnboardingSubModel) submitRegister() tea.Cmd {
 	pass := []byte(m.password.Value())
 
 	return func() tea.Msg {
-		// TODO: context with timeout
-		regRes, err := m.profileClient.RegisterProfile(
+		regCtx, cancelReg := context.WithTimeout(
 			m.ctx,
+			5*time.Second,
+		)
+		defer cancelReg()
+
+		regRes, err := m.profileClient.RegisterProfile(
+			regCtx,
 			&pb.RegisterProfileRequest{
 				Username: uname,
 				Password: pass,
-			})
+			},
+		)
 
 		if err != nil {
 			if stat, ok := status.FromError(err); ok {
@@ -316,12 +331,19 @@ func (m *OnboardingSubModel) submitRegister() tea.Cmd {
 			return AuthFailedMsg{Err: err}
 		}
 
-		// login to get tokens
-		// TODO: context with timeout
-		logRes, err := m.profileClient.Login(m.ctx, &pb.LoginRequest{
-			UserId:   regRes.UserId,
-			Password: pass,
-		})
+		logCtx, cancelLog := context.WithTimeout(
+			m.ctx,
+			5*time.Second,
+		)
+		defer cancelLog()
+
+		logRes, err := m.profileClient.Login(
+			logCtx,
+			&pb.LoginRequest{
+				UserId:   regRes.UserId,
+				Password: pass,
+			},
+		)
 
 		if err != nil {
 			return AuthFailedMsg{

@@ -41,8 +41,8 @@ func main() {
  	defer appLogFile.Close()
 
  	logger := internal.LogInit(appLogFile, true)
-	// TODO: not sure how to handle properly, but app can not exit without user
-	// proper input
+
+	// cancel global context when framework loop exits 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	
@@ -61,8 +61,12 @@ func main() {
 		VerificationKey: verificationKey,
 		TlsConfig:       tlsCfg,
 	}
+	
+	// close context it is everything that was initialized (repo, connection)
+	defer appContext.Close()
 
 	setupClients(appContext)
+
 	model := models.NewRootModel(appContext)
 
 	p := tea.NewProgram(model, tea.WithContext(appContext.Ctx))
@@ -70,7 +74,6 @@ func main() {
 		logger.Info("error occurred BubbleTea run", zap.Error(err))
 		os.Exit(1)
 	}
-
 }
 
 func createLogFile() *os.File {
@@ -148,6 +151,7 @@ func setupClients(appContext  *state.AppContext) {
 	messagingConn, err := grpc.NewClient(
 		appContext.Config.MessagingApiAddr, opts...
 	)
+
 	if err != nil {
 		appContext.RootLogger.Fatal(
 			"failed to connect to messaging server", zap.Error(err),
@@ -158,6 +162,10 @@ func setupClients(appContext  *state.AppContext) {
 	credentialsInterceptor.SetProfileClient(profileClient)
 
 	appContext.CredentialsInterceptor = credentialsInterceptor
+
+	appContext.ProfileConn = profileConn
+	appContext.MessagingConn = messagingConn
+
 	appContext.MessagingClient = messagingClient
 	appContext.ProfileClient = profileClient
 	
