@@ -4,11 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	pb "gomessenger/generated"
-	"gomessenger/internal/client/state"
-	"gomessenger/internal/client/storage"
-	"gomessenger/internal/client/tui"
-	"gomessenger/internal/client/tui/components"
 	"io"
 	"time"
 
@@ -16,25 +11,34 @@ import (
 	"charm.land/lipgloss/v2"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+
+	pb "gomessenger/generated"
+	"gomessenger/internal/client/state"
+	"gomessenger/internal/client/storage"
+	"gomessenger/internal/client/tui"
+	"gomessenger/internal/client/tui/components"
 )
 
-// messages
-type ChatModelHandleErrorMsg struct {
-	Err error
-}
+// Messages
+type ChatModelHandleErrorMsg struct{ Err error }
 
-// handle server stream connection
+// Handle server stream connection
 type SubscriptionStartedMsg struct{}
 type SubscriptionErrorMsg struct{ Err error }
-type ReconnectMsg struct{}
+
+// TODO: Reconnect retry count is not used at the moment
+type ReconnectMsg struct{ RetryCount int }
 
 type IncomingMessageMsg struct{ Message storage.Message }
 
-// handle message acks
-type RetryAckMsg struct{ MsgId string }
+// Handle message acks
+type RetryAckMsg struct {
+	MsgId      string
+	RetryCount int
+}
+
 type AckSuccessMsg struct{ MsgId string }
 
-// handle which area takes input
 type FocusArea int
 
 const (
@@ -63,7 +67,8 @@ type ChatModel struct {
 
 func NewChatModel(appContext *state.AppContext) *ChatModel {
 	return &ChatModel{
-		appContext:  appContext,
+		appContext: appContext,
+
 		focusedArea: FocusProfile,
 		isEngaged:   false,
 
@@ -84,69 +89,91 @@ func (m *ChatModel) Init() tea.Cmd {
 }
 
 func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.logger.Info(
-		"handling message",
-		zap.String("type", fmt.Sprintf("%T", msg)),
-		zap.Any("msg", msg),
-	)
-	switch msg := msg.(type) {
+	m.logger.Info("handling message", zap.String("type", fmt.Sprintf("%T", msg)))
 
-	case ChatModelHandleErrorMsg:
-		errModel := NewErrorSubModel(msg.Err, m)
+	// handle global errors
+	if errMsg, ok := msg.(ChatModelHandleErrorMsg); ok {
+		m.logger.Error("chat model encountered fatal error", zap.Error(errMsg.Err))
+		errModel := NewErrorSubModel(errMsg.Err, m)
 		return errModel, errModel.Init()
+	}
 
-	// MessagesListModel handles these messages.
+	// handle network / stream events
+	if model, cmd, handled := m.handleNetworkEvents(msg); handled {
+		return model, cmd
+	}
+
+	// handle keyboard routing
+	if !m.isEngaged {
+		return m.handleOwnKeys(msg)
+	}
+
+	return m.handleComponentRouting(msg)
+}
+
+func (m *ChatModel) handleNetworkEvents(msg tea.Msg) (tea.Model, tea.Cmd, bool) {
+	switch msg := msg.(type) {
+	case SubscriptionStartedMsg:
+		m.logger.Info("subscription stream started")
+		return m, m.recvMessage(), true
+
+	case IncomingMessageMsg:
+		model, cmd := m.handleIncomingMessage(msg)
+		return model, cmd, true
+
+	case SubscriptionErrorMsg:
+		m.logger.Error("subscription error", zap.Error(msg.Err))
+		return m, func() tea.Msg { return ChatModelHandleErrorMsg(msg) }, true
+
+	case RetryAckMsg:
+		return m, m.ackMessage(msg.MsgId, msg.RetryCount), true
+
+	case AckSuccessMsg:
+		m.logger.Debug("message acked successfully", zap.String("msgId", msg.MsgId))
+		return m, nil, true
+
+	case ReconnectMsg:
+		if msg.RetryCount >= 5 {
+			return m, func() tea.Msg {
+				return ChatModelHandleErrorMsg{
+					Err: errors.New("max reconnect attempts reached, restart program or continue offline"),
+				}
+			}, true
+		}
+
+		delay := tui.CalculateBackoff(msg.RetryCount)
+		m.logger.Warn(
+			"reconnecting stream",
+			zap.Duration("delay", delay),
+			zap.Int("attempt", msg.RetryCount),
+		)
+		return m, m.subscribe(delay), true
+
+	// Forward these specific messages down to the messages list
 	case TriggerDeliveryMsg,
 		ChatSelectedMsg,
 		MessagesLoadedMsg,
 		DeliverySuccessMsg,
 		DeliveryRetryMsg,
 		MessageInputSubmittedMsg:
-
 		model, cmd := m.messagesListModel.Update(msg)
 		m.messagesListModel = model.(*MessagesListModel)
-		return m, cmd
-
-	case SubscriptionStartedMsg:
-		// start waiting for the first message
-		return m, m.recvMessage()
-
-	case IncomingMessageMsg:
-		// TODO: this handles message list model m.appContext.Session.IncrementUnread(msg.ChatId)
-		return m.handleIncommingMessage(msg)
-
-	case SubscriptionErrorMsg:
-		// Retry after delay.
-		return m, m.subscribe(5 * time.Second)
-
-	case RetryAckMsg:
-		return m, m.ackMessage(5*time.Second, msg.MsgId)
-
-	case AckSuccessMsg:
-		return m, nil
-
-	case ReconnectMsg:
-		// stream closed cleanly by server, reconnect after delay.
-		// TODO: exponential delay up to max
-		return m, m.subscribe(5 * time.Second)
+		return m, cmd, true
 	}
 
-	if !m.isEngaged {
-		return m.handleOwnKeys(msg)
-	}
+	return m, nil, false
+}
 
-	// break current section
+func (m *ChatModel) handleComponentRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if ok && keyMsg.String() == "esc" {
 		m.isEngaged = false
 		if m.activeModel != nil {
 			m.activeModel.SetEngaged(false)
 		}
-
 		return m, nil
 	}
 
-	// forward to sections
 	var model tea.Model
 	var cmd tea.Cmd
 
@@ -169,55 +196,44 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model, cmd = m.messagesListModel.Update(msg)
 		m.messagesListModel = model.(*MessagesListModel)
 	}
-	// }
 
 	return m, cmd
 }
 
-// Forward the incoming message to:
-//  1. Chats list (may fetch metadata for a new chat).
-//  2. Messages list (append to currently opened chat).
-//  3. ACK sender.
-//  4. Next stream receive.
-func (m *ChatModel) handleIncommingMessage(
+func (m *ChatModel) handleIncomingMessage(
 	msg IncomingMessageMsg,
 ) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	// Update chats list.
 	chatListModel, chatListCmd := m.chatsListModel.Update(msg)
 	m.chatsListModel = chatListModel.(*ChatsListModel)
 	if chatListCmd != nil {
 		cmds = append(cmds, chatListCmd)
 	}
 
-	// Update messages list.
+	// TODO: increment unread
 	msgListModel, msgListCmd := m.messagesListModel.Update(msg)
 	m.messagesListModel = msgListModel.(*MessagesListModel)
 	if msgListCmd != nil {
 		cmds = append(cmds, msgListCmd)
 	}
 
-	// ack delivery to server.
-	cmds = append(cmds, m.ackMessage(0, msg.Message.Id))
-	// continue reading from stream.
+	cmds = append(cmds, m.ackMessage(msg.Message.Id, 0))
 	cmds = append(cmds, m.recvMessage())
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
 		case "shift+tab":
 			m.focusedArea = (m.focusedArea + 3) % 4
-			return m, nil
 		case "tab":
 			m.focusedArea = (m.focusedArea + 1) % 4
-			return m, nil
 		case "enter":
 			m.isEngaged = true
+
 			switch m.focusedArea {
 			case FocusChatsList:
 				m.activeModel = m.chatsListModel
@@ -230,10 +246,8 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.activeModel != nil {
 				m.activeModel.SetEngaged(true)
 			}
-			return m, nil
 		}
 	}
-
 	return m, nil
 }
 
@@ -249,34 +263,15 @@ func (m *ChatModel) ContentView(width, height int) tea.View {
 	chatsHeight := height - profileHeight
 	messageListHeight := height - messageInputHeight
 
-	// rendering handles nil profile
 	p, _ := m.appContext.Session.GetCurrentUserProfile()
-	profileView := components.RenderProfileSection(
-		p, leftWidth, profileHeight, m.focusedArea == FocusProfile, m.isEngaged,
-	)
+	profileView := components.RenderProfileSection(p, leftWidth, profileHeight, m.focusedArea == FocusProfile, m.isEngaged)
+	chatListView := m.chatsListModel.ContentView(leftWidth, chatsHeight, m.focusedArea == FocusChatsList)
+	messageListView := m.messagesListModel.ContentView(rightWidth, messageListHeight, m.focusedArea == FocusMessageList)
+	messageInputView := m.messageInputSection.ContentView(rightWidth, messageInputHeight, m.focusedArea == FocusMessageInput)
 
-	chatListView := m.chatsListModel.ContentView(
-		leftWidth, chatsHeight, m.focusedArea == FocusChatsList,
-	)
-
-	messageListView := m.messagesListModel.ContentView(
-		rightWidth, messageListHeight, m.focusedArea == FocusMessageList,
-	)
-
-	messageInputView := m.messageInputSection.ContentView(
-		rightWidth, messageInputHeight, m.focusedArea == FocusMessageInput,
-	)
-
-	leftPanel := lipgloss.JoinVertical(
-		lipgloss.Left, profileView, chatListView,
-	)
-	rightPanel := lipgloss.JoinVertical(
-		lipgloss.Left, messageListView, messageInputView,
-	)
-
-	mainLayout := lipgloss.JoinHorizontal(
-		lipgloss.Top, leftPanel, rightPanel,
-	)
+	leftPanel := lipgloss.JoinVertical(lipgloss.Left, profileView, chatListView)
+	rightPanel := lipgloss.JoinVertical(lipgloss.Left, messageListView, messageInputView)
+	mainLayout := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
 
 	return tea.NewView(mainLayout)
 }
@@ -309,21 +304,15 @@ func (m *ChatModel) ShortHelp() []tui.Binding {
 	}
 }
 
-// subscribe optionally waits, then opens the gRPC stream.
 func (m *ChatModel) subscribe(delay time.Duration) tea.Cmd {
 	return func() tea.Msg {
 		if delay > 0 {
-			select {
-			case <-time.After(delay):
-			case <-m.appContext.Ctx.Done():
-				return nil
-			}
+			time.Sleep(delay) // tea.Cmd runs in goroutine, sleep is safe here
 		}
 
-		// long running, use app context
+		m.logger.Info("attempting to subscribe to stream...")
 		stream, err := m.appContext.MessagingClient.Subscribe(
-			m.appContext.Ctx,
-			&pb.SubscribeRequest{},
+			m.appContext.Ctx, &pb.SubscribeRequest{},
 		)
 		if err != nil {
 			return SubscriptionErrorMsg{Err: err}
@@ -334,13 +323,8 @@ func (m *ChatModel) subscribe(delay time.Duration) tea.Cmd {
 	}
 }
 
-// recvMessage blocks until:
-//   - one message arrives,
-//   - stream closes,
-//   - or an error occurs.
 func (m *ChatModel) recvMessage() tea.Cmd {
 	return func() tea.Msg {
-
 		if m.messageStream == nil {
 			return SubscriptionErrorMsg{
 				Err: errors.New("subscription stream is nil"),
@@ -350,37 +334,29 @@ func (m *ChatModel) recvMessage() tea.Cmd {
 		res, err := m.messageStream.Recv()
 		if err != nil {
 			if err == io.EOF {
-				// possibly client can not keep up with messages and server force
-				// killed session
-				return ReconnectMsg{}
+				return ReconnectMsg{RetryCount: 0}
 			}
-
-			// context canceled during shutdown
 			if errors.Is(err, context.Canceled) {
 				return nil
 			}
-
 			return SubscriptionErrorMsg{Err: err}
 		}
 
 		switch event := res.Event.(type) {
 		case *pb.ServerEvent_IncomingMessage:
 			msg := ToStorageMessage(event.IncomingMessage)
-
 			ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
 			defer cancel()
-			err := m.appContext.LocalRepo.InsertMessage(ctx, &msg)
 
-			if err != nil {
-				return SubscriptionErrorMsg{Err: err}
+			if err := m.appContext.LocalRepo.InsertMessage(ctx, &msg); err != nil {
+				return ChatModelHandleErrorMsg{
+					Err: fmt.Errorf("failed to save incoming message: %w", err),
+				}
 			}
-
-			return IncomingMessageMsg{
-				Message: msg,
-			}
+			return IncomingMessageMsg{Message: msg}
 		}
 
-		return ReconnectMsg{}
+		return ReconnectMsg{RetryCount: 0}
 	}
 }
 
@@ -394,27 +370,32 @@ func ToStorageMessage(msg *pb.IncomingMessage) storage.Message {
 	}
 }
 
-func (m *ChatModel) ackMessage(delay time.Duration, msgId string) tea.Cmd {
+func (m *ChatModel) ackMessage(msgId string, retryCount int) tea.Cmd {
 	return func() tea.Msg {
-		if delay > 0 {
-			select {
-			case <-time.After(delay):
-			case <-m.appContext.Ctx.Done():
-				return nil
-			}
+		if retryCount > 0 {
+			time.Sleep(tui.CalculateBackoff(retryCount))
 		}
+
+		m.logger.Debug(
+			"sending ack",
+			zap.String("msgId", msgId),
+			zap.Int("attempt", retryCount),
+		)
 
 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
 		defer cancel()
+
 		_, err := m.appContext.MessagingClient.AckMessage(
-			ctx,
-			&pb.AckMessageRequest{
-				MsgId: msgId,
-			},
+			ctx, &pb.AckMessageRequest{MsgId: msgId},
 		)
 
 		if err != nil {
-			return RetryAckMsg{MsgId: msgId}
+			if retryCount >= 5 {
+				return ChatModelHandleErrorMsg{
+					Err: fmt.Errorf("failed to ack message after 5 attempts: %w", err),
+				}
+			}
+			return RetryAckMsg{MsgId: msgId, RetryCount: retryCount + 1}
 		}
 
 		return AckSuccessMsg{MsgId: msgId}

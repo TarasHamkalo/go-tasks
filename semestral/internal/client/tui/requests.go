@@ -90,3 +90,12 @@ func CleanGrpcError(err error) error {
 	}
 	return err
 }
+
+// CalculateBackoff provides exponential backoff: 1s, 2s, 4s, 8s, 16s... capped at 30s.
+func CalculateBackoff(retryCount int) time.Duration {
+	delay := time.Duration(1<<retryCount) * time.Second
+	if delay > 30*time.Second {
+		return 30 * time.Second
+	}
+	return delay
+}

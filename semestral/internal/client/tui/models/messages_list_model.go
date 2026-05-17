@@ -23,7 +23,8 @@ type MessagesLoadedMsg struct {
 }
 
 type TriggerDeliveryMsg struct {
-	Message storage.Message
+	Message    storage.Message
+	RetryCount int
 }
 
 type DeliverySuccessMsg struct {
@@ -32,23 +33,20 @@ type DeliverySuccessMsg struct {
 }
 
 type DeliveryRetryMsg struct {
-	Message storage.Message
-	Err     error
+	Message    storage.Message
+	Err        error
+	RetryCount int
 }
 
 type MessagesListModel struct {
 	appContext *state.AppContext
 	logger     *zap.Logger
-
-	chatId   string
-	messages []storage.Message
-	engaged  bool
-
-	// track which messages are at flight already
-	sending map[string]bool
+	chatId     string
+	messages   []storage.Message
+	engaged    bool
+	sending    map[string]bool
 }
 
-// TODO: scrolling
 func NewMessagesListModel(appContext *state.AppContext) *MessagesListModel {
 	return &MessagesListModel{
 		appContext: appContext,
@@ -58,19 +56,14 @@ func NewMessagesListModel(appContext *state.AppContext) *MessagesListModel {
 	}
 }
 
-func (m *MessagesListModel) Init() tea.Cmd {
-	return nil
-}
+func (m *MessagesListModel) Init() tea.Cmd { return nil }
 
-func (m *MessagesListModel) SetEngaged(engaged bool) {
-	m.engaged = engaged
-}
+func (m *MessagesListModel) SetEngaged(engaged bool) { m.engaged = engaged }
 
 func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-
 	case ChatSelectedMsg:
 		m.chatId = msg.ChatId
 		m.messages = []storage.Message{}
@@ -87,24 +80,20 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if m.sending[locMsg.Id] {
 						continue
 					}
-
 					m.sending[locMsg.Id] = true
-					cmds = append(cmds, m.sendToServer(locMsg))
+					cmds = append(cmds, m.sendToServer(locMsg, 0))
 				}
 			}
 		}
-
 		return m, tea.Batch(cmds...)
 
 	case IncomingMessageMsg:
 		if msg.Message.SenderId == m.appContext.Session.GetUserId() {
 			return m, nil
 		}
-
 		if msg.Message.ChatId == m.chatId {
 			m.messages = append(m.messages, msg.Message)
 		}
-
 		return m, nil
 
 	case MessageInputSubmittedMsg:
@@ -127,41 +116,56 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if err != nil {
 			m.logger.Error("failed to save local message", zap.Error(err))
-			return m, nil
+			return m, func() tea.Msg { return ChatModelHandleErrorMsg{Err: err} }
 		}
 
 		m.messages = append(m.messages, newMsg)
-		return m, m.sendToServer(newMsg)
+		m.sending[newMsg.Id] = true
+		return m, m.sendToServer(newMsg, 0)
 
 	case TriggerDeliveryMsg:
-		return m, m.sendToServer(msg.Message)
+		return m, m.sendToServer(msg.Message, msg.RetryCount)
 
 	case DeliverySuccessMsg:
-
 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
+		defer cancel()
 		// ignore if message was not acked on local repo
 		_ = m.appContext.LocalRepo.MarkMessageDelivered(
 			ctx, msg.LocalId, msg.ServerId,
 		)
-		cancel()
 
 		delete(m.sending, msg.LocalId)
 
-		// Mutate tracking attributes accurately inside memory array maps
 		for i, locMsg := range m.messages {
 			if locMsg.Id == msg.LocalId {
 				m.messages[i].IsPending = false
-				m.messages[i].Id = msg.ServerId // key replacement match
+				m.messages[i].Id = msg.ServerId
 				break
 			}
 		}
 		return m, nil
 
 	case DeliveryRetryMsg:
-		m.logger.Warn("message delivery failed, retrying...", zap.Error(msg.Err))
+		m.logger.Warn(
+			"message delivery failed",
+			zap.Int("attempt", msg.RetryCount),
+			zap.Error(msg.Err),
+		)
+
+		if msg.RetryCount >= 5 {
+			delete(m.sending, msg.Message.Id)
+			return m, func() tea.Msg {
+				return ChatModelHandleErrorMsg{
+					Err: fmt.Errorf("failed to send message after 5 attempts: %w", msg.Err),
+				}
+			}
+		}
+
 		retryCmd := func() tea.Msg {
-			time.Sleep(5 * time.Second)
-			return TriggerDeliveryMsg{Message: msg.Message}
+			time.Sleep(tui.CalculateBackoff(msg.RetryCount))
+			return TriggerDeliveryMsg{
+				Message: msg.Message, RetryCount: msg.RetryCount + 1,
+			}
 		}
 		return m, retryCmd
 	}
@@ -173,7 +177,9 @@ func (m *MessagesListModel) View() tea.View {
 	return tea.NewView(m.ContentView(500, 500, false))
 }
 
-func (m *MessagesListModel) ContentView(width int, height int, focused bool) string {
+func (m *MessagesListModel) ContentView(
+	width int, height int, focused bool,
+) string {
 	borderColor := "#3C3C3C"
 	if m.engaged && focused {
 		borderColor = "#FF007F"
@@ -200,10 +206,18 @@ func (m *MessagesListModel) ContentView(width int, height int, focused bool) str
 		)
 	}
 
+	visibleRows := max(1, height-2)
+
 	var renderedMsgs []string
 	userId := m.appContext.Session.GetUserId()
 
-	for _, msg := range m.messages {
+	// Only iterate through the slice that fits on screen
+	startIdx := 0
+	if len(m.messages) > visibleRows {
+		startIdx = len(m.messages) - visibleRows
+	}
+
+	for _, msg := range m.messages[startIdx:] {
 		sender := "Them"
 		if msg.SenderId == userId {
 			sender = "You"
@@ -229,7 +243,7 @@ func (m *MessagesListModel) loadMessagesFromDb(chatId string) tea.Cmd {
 		msgs, err := m.appContext.LocalRepo.GetMessagesByChatId(ctx, chatId, 50, 0)
 		if err != nil {
 			m.logger.Error("failed loading messages", zap.Error(err))
-			return nil
+			return ChatModelHandleErrorMsg{Err: err}
 		}
 
 		return MessagesLoadedMsg{
@@ -239,8 +253,14 @@ func (m *MessagesListModel) loadMessagesFromDb(chatId string) tea.Cmd {
 	}
 }
 
-func (m *MessagesListModel) sendToServer(msg storage.Message) tea.Cmd {
+func (m *MessagesListModel) sendToServer(msg storage.Message, retryCount int) tea.Cmd {
 	return func() tea.Msg {
+		m.logger.Debug(
+			"sending message to server",
+			zap.String("id", msg.Id),
+			zap.Int("attempt", retryCount),
+		)
+
 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 5*time.Second)
 		defer cancel()
 
@@ -252,9 +272,8 @@ func (m *MessagesListModel) sendToServer(msg storage.Message) tea.Cmd {
 			},
 		)
 
-		// TODO: depends what happend
 		if err != nil {
-			return DeliveryRetryMsg{Message: msg, Err: err}
+			return DeliveryRetryMsg{Message: msg, Err: err, RetryCount: retryCount}
 		}
 
 		return DeliverySuccessMsg{
