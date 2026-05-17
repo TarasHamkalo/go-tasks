@@ -10,7 +10,7 @@ export JWT_PRIVATE_KEY="resources/jwt-keys/private.key"
 export TLS_CERT="resources/certs/localhost-cert.pem"
 export TLS_KEY="resources/certs/localhost-privkey.pem"
 
-export JWT_ISSUER="hamkatar-gomessenger"
+export JWT_ISSUER="hamkatar-gommessenger"
 
 export PORT="8081"
 

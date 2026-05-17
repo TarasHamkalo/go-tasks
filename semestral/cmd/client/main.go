@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"log"
 	"os"
 
@@ -18,50 +19,69 @@ import (
 	"gomessenger/internal/auth"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/caarlos0/env/v11"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-const AppLogFilePath = "logs/tui.log"
-const Issuer = "hamkatar-gommessenger"
-const ServerCertPath = "resources/certs/localhost-cert.pem"
+type Config struct {
+	AppLogFilePath string `env:"APP_LOG_FILE,required"`
 
-const JwtPublicKeyPath = "resources/jwt-keys/public.key"
-const	ProfilesApiAddr = "localhost:8081"
-const	MessagingApiAddr = "localhost:8082"
-const LocalDataDir = "data"
+	// Trusted JWT issuer and verification key.
+	TokenIssuer      string `env:"JWT_ISSUER,required"`
+	JwtPublicKeyPath string `env:"JWT_PUBLIC_KEY,required"`
+
+	// TLS certificate trusted by the client when connecting to servers.
+	ServerCertPath string `env:"SERVER_CERT,required"`
+
+	// gRPC endpoints.
+	ProfilesApiAddr  string `env:"PROFILES_API_ADDR,required"`
+	MessagingApiAddr string `env:"MESSAGING_API_ADDR,required"`
+
+	// Directory for local client state (tokens, cache, etc.).
+	LocalDataDir string `env:"LOCAL_DATA_DIR,required"`
+}
+
+var cfg Config
+
+func init() {
+	if err := env.Parse(&cfg); err != nil {
+		panic(fmt.Errorf("failed to load configuration: %w", err))
+	}
+}
 
 func main() {
 	verificationKey, tlsCfg := loadSecurityAssets(
-		JwtPublicKeyPath, ServerCertPath,
+		cfg.JwtPublicKeyPath,
+		cfg.ServerCertPath,
 	)
 
- 	appLogFile := createLogFile()
- 	defer appLogFile.Close()
+	appLogFile := createLogFile()
+	defer appLogFile.Close()
 
- 	logger := internal.LogInit(appLogFile, true)
+	logger := internal.LogInit(appLogFile, true)
 
-	// cancel global context when framework loop exits 
+	// cancel global context when framework loop exits
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	appContext := &state.AppContext{
 		Ctx: ctx,
 
 		RootLogger: logger,
 
 		Config: &state.Config{
-			ProfilesApiAddr:  ProfilesApiAddr,
-			MessagingApiAddr: MessagingApiAddr,
-			TokenIssuer:      Issuer,
-			LocalDataDir:     LocalDataDir,
+			ProfilesApiAddr:  cfg.ProfilesApiAddr,
+			MessagingApiAddr: cfg.MessagingApiAddr,
+			TokenIssuer:      cfg.TokenIssuer,
+			LocalDataDir:     cfg.LocalDataDir,
 		},
 
 		VerificationKey: verificationKey,
 		TlsConfig:       tlsCfg,
 	}
-	
+
 	// close context it is everything that was initialized (repo, connection)
 	defer appContext.Close()
 
@@ -82,13 +102,15 @@ func createLogFile() *os.File {
 	}
 
 	appLogFile, err := os.OpenFile(
-		AppLogFilePath,
+		cfg.AppLogFilePath,
 		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
 		0600,
 	)
 	if err != nil {
 		log.Fatalf(
-			"Failed to create app server log, file=%s, err=%v", AppLogFilePath, err,
+			"Failed to create app server log, file=%s, err=%v",
+			cfg.AppLogFilePath,
+			err,
 		)
 	}
 
@@ -125,7 +147,7 @@ func loadSecurityAssets(
 	return publicKey, tlsCfg
 }
 
-func setupClients(appContext  *state.AppContext) {
+func setupClients(appContext *state.AppContext) {
 	credentialsInterceptor := auth.NewTokenCredentialsInterecptor(
 		appContext.Config.TokenIssuer,
 		appContext.VerificationKey,
@@ -139,7 +161,7 @@ func setupClients(appContext  *state.AppContext) {
 	}
 
 	profileConn, err := grpc.NewClient(
-		appContext.Config.ProfilesApiAddr, opts...
+		appContext.Config.ProfilesApiAddr, opts...,
 	)
 	if err != nil {
 		appContext.RootLogger.Fatal(
@@ -149,7 +171,7 @@ func setupClients(appContext  *state.AppContext) {
 	profileClient := pb.NewProfileServiceClient(profileConn)
 
 	messagingConn, err := grpc.NewClient(
-		appContext.Config.MessagingApiAddr, opts...
+		appContext.Config.MessagingApiAddr, opts...,
 	)
 
 	if err != nil {
@@ -168,5 +190,5 @@ func setupClients(appContext  *state.AppContext) {
 
 	appContext.MessagingClient = messagingClient
 	appContext.ProfileClient = profileClient
-	
+
 }
