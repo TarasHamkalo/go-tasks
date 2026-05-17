@@ -373,6 +373,7 @@ func ToStorageMessage(msg *pb.IncomingMessage) storage.Message {
 		SenderId: msg.SenderId,
 		Content:  msg.Content,
 		SentAt:   msg.SentAt.AsTime(),
+		IsPending: false,
 	}
 }
 
