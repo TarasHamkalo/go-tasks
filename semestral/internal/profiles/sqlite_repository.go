@@ -46,17 +46,27 @@ const (
 	`
 )
 
+// SqliteRepository implements the Repository interface using a SQLite database
 type SqliteRepository struct {
 	Db *sqlx.DB
 }
 
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
-	dsn := "file:" + dbPath + "?_pragma=foreign_keys=1&_pragma=journal_mode=WAL&_pragma=busy_timeout=5000&_pragma=synchronous=NORMAL"
+	// SQLite DSN configuration:
+	// - foreign_keys=1     enables foreign key constraint enforcement
+	// - journal_mode=WAL   allows concurrent reads during writes
+	// - busy_timeout=5000  waits up to 5 seconds if the database is locked
+	// - synchronous=NORMAL balances durability and performance
+	dsn := "file:" + dbPath +
+			"?_pragma=foreign_keys=1" +
+			"&_pragma=journal_mode=WAL" +
+			"&_pragma=busy_timeout=5000" +
+			"&_pragma=synchronous=NORMAL"
 	db, err := sqlx.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
-
+	// Configure connection pool limits
 	db.SetMaxOpenConns(4)
 	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(1 * time.Hour)
@@ -79,7 +89,7 @@ func (r SqliteRepository) InsertProfile(ctx context.Context, p *Profile) error {
 	res, err := r.Db.NamedExecContext(queryCtx, INSERT_QUERY, p)
 	if err != nil {
 		if isUniqueConstraint(err) {
-			// This will now trigger if the username is already taken
+			// this will now trigger if the username is already taken
 			return ErrorUniqueConstraintViolated
 		}
 		return err
@@ -127,7 +137,9 @@ func (r SqliteRepository) UpdateProfile(
 	queryCtx, cancel := context.WithTimeout(ctx, time.Second*2)
 	defer cancel()
 
-	_, err := r.Db.ExecContext(queryCtx, UPDATE_PROFILE_QUERY, username, bio, userId)
+	_, err := r.Db.ExecContext(
+		queryCtx, UPDATE_PROFILE_QUERY, username, bio, userId,
+	)
 	if err != nil {
 		if isUniqueConstraint(err) {
 			return ErrorUniqueConstraintViolated

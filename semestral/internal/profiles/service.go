@@ -17,18 +17,33 @@ import (
 	"gomessenger/internal/auth"
 )
 
+// ProfileService implements user registration, authentication,
+// token refresh, and profile management operations.
 type ProfileService struct {
+	// Persistent storage backend for profiles.
 	repo Repository
 
+	// JWT issuer claim used when generating and validating tokens.
 	issuer string
 
+	// Public key used to verify JWT signatures.
 	verificationKey *rsa.PublicKey
-	signingKey      *rsa.PrivateKey
 
+	// Private key used to sign JWT tokens.
+	signingKey *rsa.PrivateKey
+
+	// Structured application logger.
 	logger *zap.Logger
 
+	// Maps refresh token JTI to owning user Id.
+	// Used to enforce one-time refresh token usage.
+	// 
+	// NOTE: ideally will be stored on separate key value db were will not be 
+	// affected by chosen server (LB) or restart. Leaving as is for demo 
 	activeRefreshTokens map[string]string
-	mu                  sync.RWMutex
+
+	// Protects activeRefreshTokens.
+	mu sync.RWMutex
 
 	pb.UnimplementedProfileServiceServer
 }
@@ -69,7 +84,7 @@ func (s *ProfileService) RegisterProfile(
 
 	if len(req.Password) < 8 || len(req.Password) > 72 {
 		return nil, status.Error(
-			codes.InvalidArgument, "password has to have between 8 and 71 chars",
+			codes.InvalidArgument, "password has to have between 8 and 72 chars",
 		)
 	}
 
@@ -85,7 +100,7 @@ func (s *ProfileService) RegisterProfile(
 
 	// database generates id
 	profile := Profile{
-		Username: req.Username,
+		Username: trimmedUsername,
 		Password: hash,
 	}
 
@@ -166,7 +181,7 @@ func (s *ProfileService) Login(
 		zap.String("addr", peerAddress(ctx)),
 	)
 	return nil, status.Error(
-		codes.InvalidArgument, "userId or password does not match",
+		codes.Unauthenticated, "userId or password does not match",
 	)
 }
 
