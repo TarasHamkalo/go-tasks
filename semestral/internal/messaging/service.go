@@ -25,6 +25,8 @@ type MessagingService struct {
 
 	broker *Broker
 
+	profileServiceClient pb.ProfileServiceClient
+
 	logger *zap.Logger
 
 	pb.UnimplementedMessagingServiceServer
@@ -32,12 +34,14 @@ type MessagingService struct {
 
 func NewMessagingService(
 	repo Repository,
+	profileServiceClient pb.ProfileServiceClient,
 	logger *zap.Logger,
 ) *MessagingService {
 	broker := NewBroker(logger.With(zap.String("module", "broker")))
 	return &MessagingService{
 		repo:   repo,
 		broker: broker,
+		profileServiceClient: profileServiceClient,
 		logger: logger,
 	}
 }
