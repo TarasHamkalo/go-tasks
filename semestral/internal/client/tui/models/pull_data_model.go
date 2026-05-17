@@ -100,14 +100,19 @@ func (m *PullDataModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case PullUserData:
 		switch msg := msg.(type) {
+		case DataPullSucceededMsg:
+			m.subState = InitDatabase
+			return m, func() tea.Msg {
+				return RootUserDataInitializedMsg{}
+			}
+
 		case DataPullFailedMsg:
 			m.subState = InitDatabase
-			cmd := func() tea.Msg {
+			return m, func() tea.Msg {
 				return RootHandleErrorMsg{
 					Err: fmt.Errorf("failed synchronizing account data: %w", msg.Err),
 				}
 			}
-			return m, cmd
 		}
 	}
 

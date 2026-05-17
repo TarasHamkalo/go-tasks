@@ -22,6 +22,9 @@ type RootClientAuthenticatedMsg struct {
 	RefreshToken string
 }
 
+type RootUserDataInitializedMsg struct {
+}
+
 type RootModel struct {
 	currentSubModel SubModel
 
@@ -101,8 +104,8 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentSubModel = m.pullDataModel
 		return m, m.currentSubModel.Init()
 
-	case DataPullSucceededMsg:
-		m.logger.Info("user data sync completely succeeded")
+	case RootUserDataInitializedMsg:
+		m.logger.Info("user data initialization complete")
 		// m.currentSubModel = m.chatModel
 		m.currentSubModel = TodoSubModel{}
 		return m, m.currentSubModel.Init() 
