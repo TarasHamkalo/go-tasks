@@ -125,7 +125,6 @@ func (m *ChatModel) recvMessage() tea.Cmd {
 				return SubscriptionErrorMsg{Err: err}
 			}
 
-			m.appContext.Session.IncrementUnread(msg.ChatId)
 			return IncomingMessageMsg{
 				Message: msg,
 			}
@@ -145,7 +144,11 @@ func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case IncomingMessageMsg:
 		// Continue listening.
 		_ = msg
+			// here is failure already
+			// m.appContext.Session.IncrementUnread(msg.ChatId)
+		// TODO: delegate this message to chat list model (can pull new chat)
 		// TODO: delegate this message to message list model 
+
 		return m, m.recvMessage()
 
 	case SubscriptionErrorMsg:
