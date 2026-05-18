@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// Config holds the application configuration parsed from environment variables
 type Config struct {
 	AppLogFilePath string `env:"APP_LOG_FILE,required"`
 
@@ -82,7 +83,7 @@ func main() {
 		TlsConfig:       tlsCfg,
 	}
 
-	// close context it is everything that was initialized (repo, connection)
+	// close context, it is everything that was initialized (repo, connection)
 	defer appContext.Close()
 
 	setupClients(appContext)
@@ -96,6 +97,7 @@ func main() {
 	}
 }
 
+// createLogFile ensures the log directory exists and opens the application log file
 func createLogFile() *os.File {
 	if err := os.Mkdir("logs", 0750); err != nil && !os.IsExist(err) {
 		log.Fatalf("Failed to create log directory: %v", err)
@@ -117,6 +119,7 @@ func createLogFile() *os.File {
 	return appLogFile
 }
 
+// loadSecurityAssets reads and parses the RSA public key and configured TLS assets
 func loadSecurityAssets(
 	publicKeyPath, certPath string,
 ) (*rsa.PublicKey, *tls.Config) {
@@ -147,6 +150,7 @@ func loadSecurityAssets(
 	return publicKey, tlsCfg
 }
 
+// setupClients configures the gRPC connections and interceptors with a dedicated token refresh client
 func setupClients(appContext *state.AppContext) {
 	credentialsInterceptor := auth.NewTokenCredentialsInterecptor(
 		appContext.Config.TokenIssuer,
@@ -206,5 +210,8 @@ func setupClients(appContext *state.AppContext) {
 
 	appContext.MessagingClient = messagingClient
 	appContext.ProfileClient = profileClient
+
+	appContext.RefreshConn = refreshConn
+	appContext.RefreshClient = refreshClient
 
 }

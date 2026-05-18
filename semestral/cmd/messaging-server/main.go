@@ -25,18 +25,22 @@ import (
 
 type Config struct {
 	AppLogFilePath  string `env:"APP_LOG_FILE,required"`
+
+	// Sqlite database file path
 	MessagingDbPath string `env:"MESSAGING_DB,required"`
 
 	// Address of the profile service used for cross-service calls
 	// (e.g. updating user presence).
 	ProfilesApiAddr string `env:"PROFILES_API_ADDR,required"`
 
+	// JWT issuer and verification key
+	Issuer string `env:"JWT_ISSUER,required"`
 	PublicKeyPath string `env:"JWT_PUBLIC_KEY,required"`
 
+	// TLS cert and private key
 	CertPath string `env:"TLS_CERT,required"`
 	KeyPath  string `env:"TLS_KEY,required"`
 
-	Issuer string `env:"JWT_ISSUER,required"`
 
 	Port int `env:"PORT,required"`
 }
@@ -104,6 +108,7 @@ func loadSecurityAssets(logger *zap.Logger) (*rsa.PublicKey, *tls.Config) {
 	return publicKey, &tlsCfg
 }
 
+// initDatabase prepares SQLite database
 func initDatabase(logger *zap.Logger) messaging.Repository {
 	repo, err := messaging.NewSqliteRepository(cfg.MessagingDbPath)
 	if err != nil {
@@ -186,7 +191,7 @@ func createLogFile() *os.File {
 	return appLogFile
 }
 
-// buildProfileClient creates a TLS-secured gRPC client for the ProfileService.
+// buildProfileClient creates a TLS-secured gRPC client for the ProfileService
 func buildProfileClient(logger *zap.Logger) (*grpc.ClientConn, pb.ProfileServiceClient) {
 	pem, err := os.ReadFile(cfg.CertPath)
 	if err != nil {

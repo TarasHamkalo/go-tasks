@@ -23,17 +23,22 @@ import (
 	"gomessenger/internal/profiles"
 )
 
+
+// Config holds the application configuration parsed from environment variables
 type Config struct {
 	AppLogFilePath string `env:"APP_LOG_FILE,required"`
+
+	// Sqlite database file path
 	ProfilesDbPath string `env:"PROFILES_DB,required"`
 
+	// JWT issuer and verification, signing keys
+	Issuer string `env:"JWT_ISSUER,required"`
 	PublicKeyPath  string `env:"JWT_PUBLIC_KEY,required"`
 	PrivateKeyPath string `env:"JWT_PRIVATE_KEY,required"`
 
+	// TLS cert and private key
 	CertPath string `env:"TLS_CERT,required"`
 	KeyPath  string `env:"TLS_KEY,required"`
-
-	Issuer string `env:"JWT_ISSUER,required"`
 
 	Port int `env:"PORT,required"`
 }
@@ -163,6 +168,7 @@ func waitForShutdown(logger *zap.Logger, server *gomessenger.GrpcServer) {
 	logger.Info("main routine exits")
 }
 
+// createLogFile ensures the log directory exists and opens the application log file
 func createLogFile() *os.File {
 	if err := os.Mkdir("logs", 0750); err != nil && !os.IsExist(err) {
 		log.Fatalf("Failed to create log directory: %v", err)

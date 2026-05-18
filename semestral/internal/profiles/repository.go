@@ -5,37 +5,33 @@ import (
 	"errors"
 )
 
-// ErrorUniqueConstraintViolated indicates that a write operation
-// failed because a unique field already exists.
+// ErrorUniqueConstraintViolated indicates a record write 
+// conflict on a unique database field.
 var ErrorUniqueConstraintViolated = errors.New(
 	"profile repository: query failed due to unique constraint violation",
 )
 
-// Repository defines persistence operations for user profiles.
+// Repository defines the persistence interface for managing user profile data.
 type Repository interface {
-	// Creates database tables if they do not already exist.
+
+	// InitializeSchema creates database tables if they do not already exist.
 	InitializeSchema(ctx context.Context) error
 
-	// Inserts a new profile and populates the generated UserId.
+	// InsertProfile Inserts a new profile and populates the generated UserId.
 	InsertProfile(ctx context.Context, p *Profile) error
 
-	// Returns a profile by its unique user ID.
-	GetProfileByUserId(ctx context.Context, userID string) (Profile, error)
+	// GetProfileByUserId fetches a single profile using its unique 9-digit identifier.
+	GetProfileByUserId(ctx context.Context, userId string) (Profile, error)
 
-	// Updates the user's online/offline status.
-	UpdateStatus(ctx context.Context, userID string, status string) error
+	// UpdateStatus transitions a user's network presence (e.g., ONLINE, OFFLINE).
+	UpdateStatus(ctx context.Context, userId string, status string) error
 
-	// Updates editable profile fields.
-	UpdateProfile(
-		ctx context.Context,
-		userId string,
-		username string,
-		bio string,
-	) error
+	// UpdateProfile updates the mutable personal fields of an existing user record.
+	UpdateProfile(ctx context.Context, userId string, username string, bio string) error
 
-	// Returns the subset of provided user Ids that exist in the database.
+	// CheckUsersExist filters a list of IDs and returns only those that exist in storage.
 	CheckUsersExist(ctx context.Context, userIds []string) ([]string, error)
 
-	// Releases repository resources.
+	// Close safely terminates database connections and frees allocated engine resources.
 	Close() error
 }

@@ -38,16 +38,17 @@ type ProfileService struct {
 	// Maps refresh token JTI to owning user Id.
 	// Used to enforce one-time refresh token usage.
 	// 
-	// NOTE: ideally will be stored on separate key value db were will not be 
+	// NOTE ideally will be stored on separate key value db were will not be 
 	// affected by chosen server (LB) or restart. Leaving as is for demo 
+	// 
+	// NOTE should be accessed under mutex below
 	activeRefreshTokens map[string]string
-
-	// Protects activeRefreshTokens.
 	mu sync.RWMutex
 
 	pb.UnimplementedProfileServiceServer
 }
 
+// NewProfileService construct new ProfileService object instance
 func NewProfileService(
 	repo Repository,
 	issuer string,
@@ -69,6 +70,14 @@ func NewProfileService(
 	}
 }
 
+// RegisterProfile registers user profile provided in request.
+// The password is hashed using bcrypt and the UserId is generated
+// by the repository layer.
+// 
+// NOTE tokens are not generated on success, request separately.
+//
+// NOTE not really sure that so much logging should be present. Maybe should
+// be refactored to interceptor or so.
 func (s *ProfileService) RegisterProfile(
 	ctx context.Context,
 	req *pb.RegisterProfileRequest,
@@ -136,6 +145,8 @@ func (s *ProfileService) RegisterProfile(
 	}, nil
 }
 
+// Login verify user credential (for password bcrypt is used).
+// On success return pair of tokens
 func (s *ProfileService) Login(
 	ctx context.Context, req *pb.LoginRequest,
 ) (*pb.LoginResponse, error) {
@@ -184,6 +195,13 @@ func (s *ProfileService) Login(
 	)
 }
 
+// Refresh creates new pair of tokens for given user. 
+//
+// NOTE User is extracted from refresh token claims.
+// 
+// NOTE Refresh tokens are of one use, JTI used to track active refresh tokens.
+// At the moment active JTIs are stored in memory so server restart requires 
+// user to login again.
 func (s *ProfileService) Refresh(
 	ctx context.Context, req *pb.RefreshRequest,
 ) (*pb.RefreshResponse, error) {
@@ -383,6 +401,8 @@ func (s *ProfileService) VerifyUsers(
 	}, nil
 }
 
+// buildTokens builds pair of tokens for given user and stores
+// refresh token JTI
 func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
 	access, refresh, jti, err := auth.BuildTokens(
 		p.UserId, s.issuer, s.signingKey,
@@ -399,6 +419,7 @@ func (s *ProfileService) buildTokens(p Profile) (string, string, error) {
 	return access, refresh, nil
 }
 
+// peerAddress helper used to pars ip address from context
 func peerAddress(ctx context.Context) string {
 	p, ok := peer.FromContext(ctx)
 	if !ok {

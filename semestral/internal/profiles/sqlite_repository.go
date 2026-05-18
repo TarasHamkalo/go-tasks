@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	// SCHEMA_QUERY create schema with user_id autoincrement sequence shifted to have 9-digits
 	SCHEMA_QUERY = `
 	CREATE TABLE IF NOT EXISTS
 			profiles(
@@ -31,6 +32,7 @@ const (
 		VALUES (:username, :password)
 	`
 
+	// GET_BY_USER_ID_QUERY gets user profile and casts id to string
 	GET_BY_USER_ID_QUERY = `
 		SELECT CAST(user_id AS TEXT) AS user_id, username, password, bio, status 
 		FROM profiles 
@@ -44,7 +46,7 @@ const (
 	UPDATE_PROFILE_QUERY = `
 		UPDATE profiles SET username = ?, bio = ? WHERE user_id = ?
 	`
-
+	// GET_EXISTING_USERS filters out ids of users that exist in db
 	GET_EXISTING_USERS = `
 		SELECT CAST(user_id AS TEXT) 
 		FROM profiles 
@@ -52,7 +54,7 @@ const (
 	`
 )
 
-// SqliteRepository implements the Repository interface using a SQLite database
+// SqliteRepository implements the profiles.Repository interface using a SQLite database
 type SqliteRepository struct {
 	Db *sqlx.DB
 }
