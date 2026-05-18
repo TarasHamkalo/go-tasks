@@ -13,71 +13,73 @@ import (
 	"gomessenger/internal/client/tui"
 )
 
-type MessageAcksLoadedMsg struct {
-	Acks []*pb.MessageAckInfo
+type ChatInfoLoadedMsg struct {
+	MemberIds []string
 }
 
-type MessageAcksLoadFailedMsg struct {
+type ChatInfoLoadFailedMsg struct {
 	Err error
 }
 
-type MessageAcksSubModel struct {
+type ChatInfoSubModel struct {
 	appContext *state.AppContext
 	returnTo   SubModel
-	msgId      string
+	chatId     string
 
-	acks   []*pb.MessageAckInfo
-	cursor int
+	memberIds []string
+	cursor    int
 
 	loading bool
 }
 
-func NewMessageAcksSubModel(
+func NewChatInfoSubModel(
 	appContext *state.AppContext,
-	msgId string,
+	chatId string,
 	returnTo SubModel,
-) *MessageAcksSubModel {
-	return &MessageAcksSubModel{
+) *ChatInfoSubModel {
+	return &ChatInfoSubModel{
 		appContext: appContext,
 		returnTo:   returnTo,
-		msgId:      msgId,
-		acks:       []*pb.MessageAckInfo{},
+		chatId:     chatId,
+		memberIds:  []string{},
 		loading:    true,
 	}
 }
 
-func (m *MessageAcksSubModel) Id() SubModelId {
-	return ScreenMessageAcks
+func (m *ChatInfoSubModel) Id() SubModelId {
+	return ScreenChatInfo
 }
 
-func (m *MessageAcksSubModel) Init() tea.Cmd {
-	return m.loadAcks()
+func (m *ChatInfoSubModel) Init() tea.Cmd {
+	return m.loadMembers()
 }
 
-func (m *MessageAcksSubModel) View() tea.View {
+func (m *ChatInfoSubModel) View() tea.View {
 	return tea.NewView("")
 }
 
-func (m *MessageAcksSubModel) ShortHelp() []tui.Binding {
+func (m *ChatInfoSubModel) ShortHelp() []tui.Binding {
 	return []tui.Binding{
 		{Key: "up/k", Description: "Up"},
 		{Key: "down/j", Description: "Down"},
-		{Key: "Enter", Description: "Open profile"},
+		{Key: "Enter", Description: "Open Profile"},
 		{Key: "Esc", Description: "Back"},
 	}
 }
 
-func (m *MessageAcksSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *ChatInfoSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case MessageAcksLoadedMsg:
-		m.acks = msg.Acks
+	case ChatInfoLoadedMsg:
+		m.memberIds = msg.MemberIds
 		m.loading = false
-		if m.cursor >= len(m.acks) {
-			m.cursor = max(0, len(m.acks)-1)
+
+		if m.cursor >= len(m.memberIds) {
+			m.cursor = max(0, len(m.memberIds)-1)
 		}
+
 		return m, nil
 
-	case MessageAcksLoadFailedMsg:
+	case ChatInfoLoadFailedMsg:
 		return NewErrorSubModel(msg.Err, m.returnTo), nil
 
 	case tea.KeyPressMsg:
@@ -92,28 +94,34 @@ func (m *MessageAcksSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "down", "j":
-			if m.cursor < len(m.acks)-1 {
+			if m.cursor < len(m.memberIds)-1 {
 				m.cursor++
 			}
 			return m, nil
 
 		case "enter":
+			if len(m.memberIds) == 0 {
+				return m, nil
+			}
+
 			model := NewProfileSubModel(
-				m.appContext, m.acks[m.cursor].UserId, false, m,
+				m.appContext,
+				m.memberIds[m.cursor],
+				false,
+				m,
 			)
 
-			return model, model.Init() 
+			return model, model.Init()
 		}
 	}
 
 	return m, nil
 }
 
-func (m *MessageAcksSubModel) ContentView(width, height int) tea.View {
+func (m *ChatInfoSubModel) ContentView(width, height int) tea.View {
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#E5E5E5")).
-		MarginBottom(1)
+		Foreground(lipgloss.Color("#E5E5E5"))
 
 	placeholderStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#666666")).
@@ -128,23 +136,26 @@ func (m *MessageAcksSubModel) ContentView(width, height int) tea.View {
 		Padding(1, 0).
 		Width(listWidth)
 
-	title := titleStyle.Render("Message Delivery Status")
+	chatName := m.chatId
+	if chat, ok := m.appContext.Session.GetChat(m.chatId); ok {
+		chatName = chat.Name()
+	}
 
 	var rows []string
 
 	switch {
 	case m.loading:
 		rows = []string{
-			placeholderStyle.Render("Loading acknowledgements..."),
+			placeholderStyle.Render("Loading chat members..."),
 		}
 
-	case len(m.acks) == 0:
+	case len(m.memberIds) == 0:
 		rows = []string{
-			placeholderStyle.Render("No acknowledgements available"),
+			placeholderStyle.Render("No members found"),
 		}
 
 	default:
-		for i, ack := range m.acks {
+		for i, memberId := range m.memberIds {
 			prefix := "  "
 			style := lipgloss.NewStyle()
 
@@ -155,25 +166,27 @@ func (m *MessageAcksSubModel) ContentView(width, height int) tea.View {
 					Foreground(lipgloss.Color("#00FFFF"))
 			}
 
-			delivered := ack.DeliveredAt != nil && ack.DeliveredAt.IsValid()
-			read := ack.ReadAt != nil && ack.ReadAt.IsValid()
+			displayName := memberId
+			if profile, ok := m.appContext.Session.GetProfile(memberId); ok {
+				displayName = fmt.Sprintf(
+					"%s (%s)",
+					profile.Username,
+					memberId,
+				)
+			}
 
-			// %t is the correct formatter for bool values.
-			row := fmt.Sprintf(
-				"%s%s  Delivered: %t  Read: %t",
-				prefix,
-				ack.UserId,
-				delivered,
-				read,
+			rows = append(
+				rows,
+				style.Render(prefix + displayName),
 			)
-
-			rows = append(rows, style.Render(row))
 		}
 	}
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		title,
+		titleStyle.Render("Chat: " + chatName),
+		"",
+		titleStyle.Render("Members:"),
 		listStyle.Render(
 			lipgloss.JoinVertical(lipgloss.Left, rows...),
 		),
@@ -194,7 +207,7 @@ func (m *MessageAcksSubModel) ContentView(width, height int) tea.View {
 	return tea.NewView(centered)
 }
 
-func (m *MessageAcksSubModel) loadAcks() tea.Cmd {
+func (m *ChatInfoSubModel) loadMembers() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(
 			m.appContext.Ctx,
@@ -202,18 +215,24 @@ func (m *MessageAcksSubModel) loadAcks() tea.Cmd {
 		)
 		defer cancel()
 
-		res, err := m.appContext.MessagingClient.GetMessageAcks(
+		res, err := m.appContext.MessagingClient.GetChatMembers(
 			ctx,
-			&pb.GetMessageAcksRequest{
-				MsgId: m.msgId,
+			&pb.GetChatMembersRequest{
+				ChatId: m.chatId,
 			},
 		)
 		if err != nil {
-			return MessageAcksLoadFailedMsg{Err: err}
+			return ChatInfoLoadFailedMsg{Err: err}
 		}
 
-		return MessageAcksLoadedMsg{
-			Acks: res.Acks,
+		// update local session cache
+		m.appContext.Session.SetChatMembers(
+			m.chatId,
+			res.MemberIds,
+		)
+
+		return ChatInfoLoadedMsg{
+			MemberIds: res.MemberIds,
 		}
 	}
 }

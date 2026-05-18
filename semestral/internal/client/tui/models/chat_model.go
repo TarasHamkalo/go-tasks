@@ -299,14 +299,30 @@ func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return createModel, createModel.Init()
 		case "i":
 			if m.chatId == "" {
-				errModel := NewErrorSubModel(errors.New("not chat selected"), m)
+				errModel := NewErrorSubModel(errors.New("no chat selected"), m)
 				return errModel, errModel.Init()
 			}
 
 			inviteModel := NewInviteUserSubModel(m.appContext, m.chatId, m)
 			return inviteModel, inviteModel.Init()
+		case "l":
+			if m.chatId == "" {
+				errModel := NewErrorSubModel(errors.New("no chat selected"), m)
+				return errModel, errModel.Init()
+			}
+			leaveModel := NewLeaveChatSubModel(m.appContext, m.chatId, m)
+			return leaveModel, leaveModel.Init()
+
+		case "m":
+			if m.chatId == "" {
+				errModel := NewErrorSubModel(errors.New("no chat selected"), m)
+				return errModel, errModel.Init()
+			}
+			infoModel := NewChatInfoSubModel(m.appContext, m.chatId, m)
+			return infoModel, infoModel.Init()
 		}
 	}
+
 	return m, nil
 }
 

@@ -18,6 +18,8 @@ const (
 	ScreenProfile
 	ScreenConfiguration
 	ScreenMessageAcks
+	ScreenLeaveChat
+	ScreenChatInfo
 	TODOScreen
 )
 

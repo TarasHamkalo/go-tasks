@@ -127,6 +127,15 @@ func (s *Session) GetProfile(userId string) (*Profile, bool) {
 	return profile, ok
 }
 
+func (s *Session) RemoveChat(chatId string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.chats, chatId)
+	delete(s.chatMembers, chatId)
+	delete(s.unreadCounts, chatId)
+	s.touch()
+}
+
 func (s *Session) InsertChat(chat Chat) {
 	if chat == nil {
 		return
