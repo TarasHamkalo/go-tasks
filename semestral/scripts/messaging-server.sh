@@ -18,4 +18,4 @@ export TLS_KEY="resources/certs/localhost-privkey.pem"
 # Listening port
 export PORT="8082"
 
-go run ./cmd/messaging-server
+./bin/messaging-server

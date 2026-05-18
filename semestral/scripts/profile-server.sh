@@ -16,4 +16,4 @@ export PORT="8081"
 
 mkdir -p logs data
 
-go run ./cmd/profile-server
+./bin/profile-server
