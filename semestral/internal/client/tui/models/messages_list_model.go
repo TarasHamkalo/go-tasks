@@ -17,6 +17,9 @@ import (
 	"gomessenger/internal/client/tui"
 )
 
+type MessageUpdateCounts struct {
+}
+
 type MessageSelectedMsg struct {
 	MsgId string
 }
@@ -26,6 +29,10 @@ type MessagesLoadedMsg struct {
 	Messages []storage.Message
 	IsAppend bool
 	HasMore  bool
+}
+
+type MarkReadSuccessMsg struct {
+	MessageIds []string
 }
 
 type TriggerDeliveryMsg struct {
@@ -86,6 +93,9 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case MarkReadSuccessMsg:
+		return m, nil
+
 	case ChatSelectedMsg:
 		// reset state
 		m.chatId = msg.ChatId
@@ -99,7 +109,7 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.chatId == msg.ChatId {
 			m.isLoading = false
 
-			// reverse array
+			// reverse array (older above)
 			var normalized []storage.Message
 			for i := len(msg.Messages) - 1; i >= 0; i-- {
 				normalized = append(normalized, msg.Messages[i])
@@ -114,6 +124,24 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.hasMore = msg.HasMore
+
+			if !m.appContext.Session.IsInvisible() {
+				// send SetRead for all loaded and not read messages
+				var unreadIds []string
+				currentUserId := m.appContext.Session.GetUserId()
+				for i, locMsg := range m.messages {
+					if locMsg.SenderId != currentUserId && !locMsg.IsRead {
+						unreadIds = append(unreadIds, locMsg.Id)
+						m.messages[i].IsRead = true
+					}
+				}
+
+				if len(unreadIds) > 0 {
+					// don't differentiate between rendered (field of view) and loaded
+					m.appContext.Session.ResetUnread(m.chatId)
+					cmds = append(cmds, m.markMessagesRead(unreadIds))
+				}
+			}
 
 			// send all unsent
 			for _, locMsg := range m.messages {
@@ -132,14 +160,31 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Message.SenderId == m.appContext.Session.GetUserId() {
 			return m, nil
 		}
-		if msg.Message.ChatId == m.chatId {
+
+		isCurrentChat := msg.Message.ChatId == m.chatId
+		isInvisible := m.appContext.Session.IsInvisible()
+		var cmd tea.Cmd
+
+		if isCurrentChat {
 			m.messages = append(m.messages, msg.Message)
 			// tail -f
 			if m.cursor == len(m.messages)-2 {
 				m.cursor++
 			}
 		}
-		return m, nil
+
+		if isCurrentChat && !isInvisible {
+			// message is from currently open chat, if not invisible send is read
+			// to remote and sync local
+			msg.Message.IsRead = true
+			cmd = m.markMessagesRead([]string{msg.Message.Id})
+		} else {
+			m.appContext.Session.IncrementUnread(msg.Message.ChatId)
+			// just to be sure that bubble tea rerenders
+			cmd = func() tea.Msg { return MessageUpdateCounts{} }
+		}
+
+		return m, cmd
 
 	case MessageInputSubmittedMsg:
 		if m.chatId == "" {
@@ -151,8 +196,9 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ChatId:    m.chatId,
 			SenderId:  m.appContext.Session.GetUserId(),
 			Content:   []byte(msg.Text),
-			SentAt:    time.Now(),
+			SentAt:    time.Now().Local(), // local time always
 			IsPending: true,
+			IsRead:    true, // always read, we typed it..
 		}
 
 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
@@ -259,7 +305,6 @@ func (m *MessagesListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *MessagesListModel) View() tea.View {
 	return tea.NewView(m.ContentView(500, 500, false))
 }
-
 
 func (m *MessagesListModel) ContentView(
 	width int, height int, focused bool,
@@ -427,6 +472,34 @@ func (m *MessagesListModel) sendToServer(
 	}
 }
 
+func (m *MessagesListModel) markMessagesRead(msgIds []string) tea.Cmd {
+	return func() tea.Msg {
+		if len(msgIds) == 0 || m.appContext.Session.IsInvisible() {
+			return nil
+		}
+
+		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 4*time.Second)
+		defer cancel()
+
+		// sync local SQLite database, not critical, ignore error
+		_ = m.appContext.LocalRepo.MarkMessagesRead(ctx, msgIds)
+
+		// sync server using gRPC
+		_, err := m.appContext.MessagingClient.SetMessagesRead(
+			ctx, &pb.SetMessagesReadRequest{
+				MsgIds: msgIds,
+			})
+		if err != nil {
+			// also not critical for client/server
+			m.logger.Error(
+				"failed to update read status for messages on server",
+				zap.Error(err),
+			)
+		}
+
+		return MarkReadSuccessMsg{MessageIds: msgIds}
+	}
+}
 func (m *MessagesListModel) ShortHelp() []tui.Binding {
 	return []tui.Binding{
 		{Key: "Enter", Description: "Show info"},

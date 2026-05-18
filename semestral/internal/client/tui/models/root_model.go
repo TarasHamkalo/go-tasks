@@ -25,6 +25,8 @@ type RootClientAuthenticatedMsg struct {
 type RootUserDataInitializedMsg struct {
 }
 
+type RootClientConfigurationSuccessMsg struct{}
+
 type RootModel struct {
 	currentSubModel SubModel
 
@@ -39,15 +41,19 @@ type RootModel struct {
 
 	pullDataModel *PullDataModel
 
+	configModel *ConfigSubModel
+
 	chatModel *ChatModel
 }
 
 func NewRootModel(appContext *state.AppContext) *RootModel {
+	appContext.Session = state.NewSession() // empty state
+
 	onboardingSubModel := NewOnboardingModel(appContext)
 	pullDataModel := NewPullDataModel(appContext)
 	chatModel := NewChatModel(appContext)
+	configModel := NewConfigSubModel(appContext)
 
-	appContext.Session = state.NewSession() // empty state
 
 	return &RootModel{
 		currentSubModel: onboardingSubModel,
@@ -58,6 +64,7 @@ func NewRootModel(appContext *state.AppContext) *RootModel {
 		onboardingSubModel: onboardingSubModel,
 		pullDataModel:      pullDataModel,
 		chatModel:          chatModel,
+		configModel:        configModel,
 	}
 }
 
@@ -86,7 +93,7 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.logger.Info("root handling error")
 		m.appContext.Session = state.NewSession() // empty state
 		m.currentSubModel = NewErrorSubModel(msg.Err, m.onboardingSubModel)
-		return m, m.currentSubModel.Init() 
+		return m, m.currentSubModel.Init()
 
 	case RootClientAuthenticatedMsg:
 		m.logger.Info("authentication succeeded", zap.String("userId", msg.UserId))
@@ -108,9 +115,11 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case RootUserDataInitializedMsg:
 		m.logger.Info("user data initialization complete")
+		m.currentSubModel = m.configModel
+		return m, m.currentSubModel.Init()
+	case RootClientConfigurationSuccessMsg:
 		m.currentSubModel = m.chatModel
-		// m.currentSubModel = TodoSubModel{}
-		return m, m.currentSubModel.Init() 
+		return m, m.currentSubModel.Init()
 	}
 
 	nextSubModel, cmd := m.currentSubModel.Update(msg)

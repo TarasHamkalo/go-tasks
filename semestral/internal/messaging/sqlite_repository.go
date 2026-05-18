@@ -128,10 +128,10 @@ const (
 		WHERE id = ?
 	`
 
-	SET_MESSAGE_READ_QUERY = `
+	SET_MESSAGES_READ_QUERY = `
 		UPDATE message_acks 
 		SET read_at = ? 
-		WHERE message_id = ? AND user_id = ? AND read_at IS NULL
+		WHERE user_id = ? AND read_at IS NULL AND message_id IN (?)
 	`
 
 	GET_MESSAGE_ACKS_QUERY = `
@@ -162,13 +162,25 @@ type SqliteRepository struct {
 }
 
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
-	dsn := "file:" + dbPath + "?_pragma=foreign_keys=1&_pragma=journal_mode=WAL&_pragma=busy_timeout=5000&_pragma=synchronous=NORMAL"
+	// SQLite DSN configuration:
+	// - foreign_keys=1     enables foreign key constraint enforcement
+	// - journal_mode=WAL   allows concurrent reads during writes
+	// - busy_timeout=5000  waits up to 5 seconds if the database is locked though
+	//			- timeouts over ctx are mostly shorter though
+	// - synchronous=NORMAL balances durability and performance
+	dsn := "file:" + dbPath +
+		"?_pragma=foreign_keys=1" +
+		"&_pragma=journal_mode=WAL" +
+		"&_pragma=busy_timeout=5000" +
+		"&_pragma=synchronous=NORMAL"
+
 	db, err := sqlx.Open("sqlite", dsn)
 
 	if err != nil {
 		return nil, err
 	}
 
+	// Configure connection pool limits
 	db.SetMaxOpenConns(4)
 	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(1 * time.Hour)
@@ -467,47 +479,26 @@ func (r SqliteRepository) AcknowledgeAndCleanupMessage(
 	return tx.Commit()
 }
 
-// func (r SqliteRepository) SetMessageDelivered(
-// 	ctx context.Context,
-// 	messageId string,
-// 	userId string,
-// 	deliveredAt time.Time,
-// ) error {
-// 	queryCtx, cancel := context.WithTimeout(
-// 		ctx, time.Duration(time.Second*2),
-// 	)
-// 	defer cancel()
-//
-// 	_, err := r.Db.ExecContext(
-// 		queryCtx,
-// 		SET_MESSAGE_DELIVERED_QUERY,
-// 		deliveredAt,
-// 		messageId,
-// 		userId,
-// 	)
-//
-// 	return err
-// }
-
-func (r SqliteRepository) SetMessageRead(
-	ctx context.Context,
-	messageId string,
-	userId string,
-	readAt time.Time,
+func (r *SqliteRepository) SetMessagesRead(
+	ctx context.Context, messageIds []string, userId string, readAt time.Time,
 ) error {
-	queryCtx, cancel := context.WithTimeout(
-		ctx, time.Duration(time.Second*2),
-	)
+	if len(messageIds) == 0 {
+		return nil
+	}
+
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
-	_, err := r.Db.ExecContext(
-		queryCtx,
-		SET_MESSAGE_READ_QUERY,
-		readAt,
-		messageId,
-		userId,
+	query, args, err := sqlx.In(
+		SET_MESSAGES_READ_QUERY, readAt, userId, messageIds,
 	)
 
+	if err != nil {
+		return err
+	}
+
+	query = r.Db.Rebind(query)
+	_, err = r.Db.ExecContext(queryCtx, query, args...)
 	return err
 }
 

@@ -20,5 +20,7 @@ type Repository interface {
 		ctx context.Context, localId string, serverId string,
 	) error 
 
+	MarkMessagesRead(ctx context.Context, ids []string) error
+
 	Close() error
 }

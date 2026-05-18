@@ -82,6 +82,7 @@ func (s *Session) IncrementUnread(chatId string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.unreadCounts[chatId]++
+	s.touch()
 }
 
 func (s *Session) GetUnread(chatId string) int {

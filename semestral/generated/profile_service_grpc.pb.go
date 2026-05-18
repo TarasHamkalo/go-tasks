@@ -58,7 +58,7 @@ type ProfileServiceClient interface {
 	// The target user is resolved from the JWT subject claim in the
 	// Authorization: Bearer <token> header.
 	UpdateUserProfile(ctx context.Context, in *UpdateUserProfileRequest, opts ...grpc.CallOption) (*UpdateUserProfileResponse, error)
-	// Verifies existence of batch of users
+	// Verifies existence of batch of users, returning existing ids
 	VerifyUsers(ctx context.Context, in *VerifyUsersRequest, opts ...grpc.CallOption) (*VerifyUsersResponse, error)
 }
 
@@ -170,7 +170,7 @@ type ProfileServiceServer interface {
 	// The target user is resolved from the JWT subject claim in the
 	// Authorization: Bearer <token> header.
 	UpdateUserProfile(context.Context, *UpdateUserProfileRequest) (*UpdateUserProfileResponse, error)
-	// Verifies existence of batch of users
+	// Verifies existence of batch of users, returning existing ids
 	VerifyUsers(context.Context, *VerifyUsersRequest) (*VerifyUsersResponse, error)
 	mustEmbedUnimplementedProfileServiceServer()
 }

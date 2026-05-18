@@ -167,7 +167,10 @@ func (m *ChatModel) handleNetworkAndSelections(
 		return m, cmd, true
 
 	// forward these specific messages down to the messages list
+
 	case TriggerDeliveryMsg,
+		MessageUpdateCounts,
+		MarkReadSuccessMsg,
 		MessagesLoadedMsg,
 		DeliverySuccessMsg,
 		DeliveryRetryMsg,
@@ -341,7 +344,10 @@ func (m *ChatModel) subscribe(delay time.Duration) tea.Cmd {
 
 		m.logger.Info("attempting to subscribe to stream...")
 		stream, err := m.appContext.MessagingClient.Subscribe(
-			m.appContext.Ctx, &pb.SubscribeRequest{},
+			m.appContext.Ctx,
+			&pb.SubscribeRequest{
+				IsInvisible: m.appContext.Session.IsInvisible(),
+			},
 		)
 		if err != nil {
 			return SubscriptionErrorMsg{Err: err}
@@ -395,8 +401,9 @@ func ToStorageMessage(msg *pb.IncomingMessage) storage.Message {
 		ChatId:    msg.ChatId,
 		SenderId:  msg.SenderId,
 		Content:   msg.Content,
-		SentAt:    msg.SentAt.AsTime(),
+		SentAt:    msg.SentAt.AsTime().Local(),
 		IsPending: false,
+		IsRead:    false,
 	}
 }
 

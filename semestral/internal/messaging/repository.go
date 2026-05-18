@@ -42,9 +42,9 @@ type Repository interface {
 		deliveredAt time.Time,
 	) error
 
-	SetMessageRead(
+	SetMessagesRead(
 		ctx context.Context,
-		messageId string,
+		messageIds []string,
 		userId string,
 		readAt time.Time,
 	) error

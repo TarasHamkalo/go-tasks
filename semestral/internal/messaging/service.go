@@ -78,9 +78,9 @@ func (s *MessagingService) AckMessage(
 	return &pb.AckMessageResponse{}, nil
 }
 
-func (s *MessagingService) SetMessageRead(
-	ctx context.Context, req *pb.SetMessageReadRequest,
-) (*pb.SetMessageReadResponse, error) {
+func (s *MessagingService) SetMessagesRead(
+	ctx context.Context, req *pb.SetMessagesReadRequest,
+) (*pb.SetMessagesReadResponse, error) {
 	claims, ok := auth.ClaimsFromContext(ctx)
 	if !ok {
 		return nil, status.Error(
@@ -88,23 +88,26 @@ func (s *MessagingService) SetMessageRead(
 		)
 	}
 
+	if len(req.MsgIds) == 0 {
+		return &pb.SetMessagesReadResponse{}, nil
+	}
+
 	userId := claims.Subject
 	readAt := time.Now().UTC()
 
-	err := s.repo.SetMessageRead(ctx, req.MsgId, userId, readAt)
+	err := s.repo.SetMessagesRead(ctx, req.MsgIds, userId, readAt)
 	if err != nil {
 		s.logger.Error(
-			"could not set read status for message",
+			"could not set batch read status for messages",
 			zap.Error(err),
-			zap.String("messageId", req.MsgId),
+			zap.Int("messageCount", len(req.MsgIds)),
 		)
 		return nil, status.Error(
-			codes.Internal, "could not set read status for message",
+			codes.Internal, "could not set read status for messages",
 		)
 	}
 
-	return &pb.SetMessageReadResponse{}, nil
-
+	return &pb.SetMessagesReadResponse{}, nil
 }
 
 func (s *MessagingService) GetMessageAcks(
@@ -648,8 +651,10 @@ func (s *MessagingService) Subscribe(
 		"user subscribed to message stream",
 		zap.String("userId", userId),
 		zap.String("addr", peerAddress(stream.Context())),
+		zap.Bool("isInvisible", req.IsInvisible), 
 	)
 
+	// TODO: change status of user here and set defer
 	session := s.broker.Subscribe(userId)
 	defer s.broker.Unsubscribe(userId, session)
 

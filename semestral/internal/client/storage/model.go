@@ -8,5 +8,6 @@ type Message struct {
 	SenderId  string    `db:"sender_id"`
 	Content   []byte    `db:"content"`
 	SentAt    time.Time `db:"sent_at"`
-	IsPending bool      `db:"is_pending"` 
+	IsPending bool      `db:"is_pending"`
+	IsRead    bool      `db:"is_read"`
 }

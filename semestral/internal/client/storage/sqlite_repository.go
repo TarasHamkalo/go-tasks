@@ -19,18 +19,19 @@ const (
 		sender_id TEXT NOT NULL,
 		content BLOB NOT NULL,
 		sent_at DATETIME NOT NULL,
-		is_pending INTEGER NOT NULL DEFAULT 0
+		is_pending INTEGER NOT NULL DEFAULT 0,
+		is_read INTEGER NOT NULL DEFAULT 0
 	);
 	CREATE INDEX IF NOT EXISTS idx_messages_chat_sent ON messages(chat_id, sent_at DESC);
 	`
 
 	INSERT_QUERY = `
-		INSERT OR IGNORE INTO messages (id, chat_id, sender_id, content, sent_at, is_pending) 
-		VALUES (:id, :chat_id, :sender_id, :content, :sent_at, :is_pending)
+		INSERT OR IGNORE INTO messages (id, chat_id, sender_id, content, sent_at, is_pending, is_read) 
+		VALUES (:id, :chat_id, :sender_id, :content, :sent_at, :is_pending, :is_read)
 	`
 
 	GET_MESSAGES_QUERY = `
-		SELECT id, chat_id, sender_id, content, sent_at, is_pending 
+		SELECT id, chat_id, sender_id, content, sent_at, is_pending, is_read 
 		FROM messages 
 		WHERE chat_id = ? 
 		ORDER BY sent_at DESC 
@@ -41,6 +42,12 @@ const (
 		UPDATE messages 
 		SET id = ?, is_pending = 0 
 		WHERE id = ?
+	`
+
+	SET_IS_READ_QUERY = `
+		UPDATE messages 
+		SET is_read = 1 
+		WHERE id IN (?)
 	`
 )
 
@@ -104,6 +111,25 @@ func (r SqliteRepository) MarkMessageDelivered(
 	defer cancel()
 
 	_, err := r.Db.ExecContext(queryCtx, MARK_DELIVERED_QUERY, serverId, localId)
+	return err
+}
+
+func (r *SqliteRepository) MarkMessagesRead(
+	ctx context.Context, ids []string,
+) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	queryCtx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
+
+	query, args, err := sqlx.In(SET_IS_READ_QUERY, ids)
+	if err != nil {
+		return err
+	}
+	query = r.Db.Rebind(query)
+
+	_, err = r.Db.ExecContext(queryCtx, query, args...)
 	return err
 }
 

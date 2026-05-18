@@ -24,6 +24,7 @@ const (
 
 type SubscribeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	IsInvisible   bool                   `protobuf:"varint,1,opt,name=is_invisible,json=isInvisible,proto3" json:"is_invisible,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -56,6 +57,13 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
 	return file_protos_messaging_service_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *SubscribeRequest) GetIsInvisible() bool {
+	if x != nil {
+		return x.IsInvisible
+	}
+	return false
 }
 
 type ServerEvent struct {
@@ -376,27 +384,27 @@ func (*AckMessageResponse) Descriptor() ([]byte, []int) {
 	return file_protos_messaging_service_proto_rawDescGZIP(), []int{6}
 }
 
-type SetMessageReadRequest struct {
+type SetMessagesReadRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MsgId         string                 `protobuf:"bytes,1,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	MsgIds        []string               `protobuf:"bytes,2,rep,name=msg_ids,json=msgIds,proto3" json:"msg_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetMessageReadRequest) Reset() {
-	*x = SetMessageReadRequest{}
+func (x *SetMessagesReadRequest) Reset() {
+	*x = SetMessagesReadRequest{}
 	mi := &file_protos_messaging_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetMessageReadRequest) String() string {
+func (x *SetMessagesReadRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetMessageReadRequest) ProtoMessage() {}
+func (*SetMessagesReadRequest) ProtoMessage() {}
 
-func (x *SetMessageReadRequest) ProtoReflect() protoreflect.Message {
+func (x *SetMessagesReadRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_protos_messaging_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -408,38 +416,38 @@ func (x *SetMessageReadRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetMessageReadRequest.ProtoReflect.Descriptor instead.
-func (*SetMessageReadRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetMessagesReadRequest.ProtoReflect.Descriptor instead.
+func (*SetMessagesReadRequest) Descriptor() ([]byte, []int) {
 	return file_protos_messaging_service_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *SetMessageReadRequest) GetMsgId() string {
+func (x *SetMessagesReadRequest) GetMsgIds() []string {
 	if x != nil {
-		return x.MsgId
+		return x.MsgIds
 	}
-	return ""
+	return nil
 }
 
-type SetMessageReadResponse struct {
+type SetMessagesReadResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SetMessageReadResponse) Reset() {
-	*x = SetMessageReadResponse{}
+func (x *SetMessagesReadResponse) Reset() {
+	*x = SetMessagesReadResponse{}
 	mi := &file_protos_messaging_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SetMessageReadResponse) String() string {
+func (x *SetMessagesReadResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SetMessageReadResponse) ProtoMessage() {}
+func (*SetMessagesReadResponse) ProtoMessage() {}
 
-func (x *SetMessageReadResponse) ProtoReflect() protoreflect.Message {
+func (x *SetMessagesReadResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_protos_messaging_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -451,8 +459,8 @@ func (x *SetMessageReadResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SetMessageReadResponse.ProtoReflect.Descriptor instead.
-func (*SetMessageReadResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetMessagesReadResponse.ProtoReflect.Descriptor instead.
+func (*SetMessagesReadResponse) Descriptor() ([]byte, []int) {
 	return file_protos_messaging_service_proto_rawDescGZIP(), []int{8}
 }
 
@@ -1281,8 +1289,9 @@ var File_protos_messaging_service_proto protoreflect.FileDescriptor
 
 const file_protos_messaging_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1eprotos/messaging_service.proto\x12\tmessaging\x1a\x1fgoogle/protobuf/timestamp.proto\"\x12\n" +
-	"\x10SubscribeRequest\"_\n" +
+	"\x1eprotos/messaging_service.proto\x12\tmessaging\x1a\x1fgoogle/protobuf/timestamp.proto\"5\n" +
+	"\x10SubscribeRequest\x12!\n" +
+	"\fis_invisible\x18\x01 \x01(\bR\visInvisible\"_\n" +
 	"\vServerEvent\x12G\n" +
 	"\x10incoming_message\x18\x01 \x01(\v2\x1a.messaging.IncomingMessageH\x00R\x0fincomingMessageB\a\n" +
 	"\x05event\"\xa6\x01\n" +
@@ -1299,10 +1308,10 @@ const file_protos_messaging_service_proto_rawDesc = "" +
 	"\x06msg_id\x18\x01 \x01(\tR\x05msgId\"*\n" +
 	"\x11AckMessageRequest\x12\x15\n" +
 	"\x06msg_id\x18\x01 \x01(\tR\x05msgId\"\x14\n" +
-	"\x12AckMessageResponse\".\n" +
-	"\x15SetMessageReadRequest\x12\x15\n" +
-	"\x06msg_id\x18\x01 \x01(\tR\x05msgId\"\x18\n" +
-	"\x16SetMessageReadResponse\"$\n" +
+	"\x12AckMessageResponse\"1\n" +
+	"\x16SetMessagesReadRequest\x12\x17\n" +
+	"\amsg_ids\x18\x02 \x03(\tR\x06msgIds\"\x19\n" +
+	"\x17SetMessagesReadResponse\"$\n" +
 	"\x12GetChatByIdRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\">\n" +
 	"\x13GetChatByIdResponse\x12'\n" +
@@ -1346,13 +1355,13 @@ const file_protos_messaging_service_proto_rawDesc = "" +
 	"\n" +
 	"\b_read_at\"G\n" +
 	"\x16GetMessageAcksResponse\x12-\n" +
-	"\x04acks\x18\x01 \x03(\v2\x19.messaging.MessageAckInfoR\x04acks2\xe6\a\n" +
+	"\x04acks\x18\x01 \x03(\v2\x19.messaging.MessageAckInfoR\x04acks2\xe9\a\n" +
 	"\x10MessagingService\x12B\n" +
 	"\tSubscribe\x12\x1b.messaging.SubscribeRequest\x1a\x16.messaging.ServerEvent0\x01\x12L\n" +
 	"\vSendMessage\x12\x1d.messaging.SendMessageRequest\x1a\x1e.messaging.SendMessageResponse\x12I\n" +
 	"\n" +
-	"AckMessage\x12\x1c.messaging.AckMessageRequest\x1a\x1d.messaging.AckMessageResponse\x12U\n" +
-	"\x0eSetMessageRead\x12 .messaging.SetMessageReadRequest\x1a!.messaging.SetMessageReadResponse\x12U\n" +
+	"AckMessage\x12\x1c.messaging.AckMessageRequest\x1a\x1d.messaging.AckMessageResponse\x12X\n" +
+	"\x0fSetMessagesRead\x12!.messaging.SetMessagesReadRequest\x1a\".messaging.SetMessagesReadResponse\x12U\n" +
 	"\x0eGetMessageAcks\x12 .messaging.GetMessageAcksRequest\x1a!.messaging.GetMessageAcksResponse\x12L\n" +
 	"\vGetChatById\x12\x1d.messaging.GetChatByIdRequest\x1a\x1e.messaging.GetChatByIdResponse\x12O\n" +
 	"\fGetUserChats\x12\x1e.messaging.GetUserChatsRequest\x1a\x1f.messaging.GetUserChatsResponse\x12U\n" +
@@ -1383,8 +1392,8 @@ var file_protos_messaging_service_proto_goTypes = []any{
 	(*SendMessageResponse)(nil),      // 4: messaging.SendMessageResponse
 	(*AckMessageRequest)(nil),        // 5: messaging.AckMessageRequest
 	(*AckMessageResponse)(nil),       // 6: messaging.AckMessageResponse
-	(*SetMessageReadRequest)(nil),    // 7: messaging.SetMessageReadRequest
-	(*SetMessageReadResponse)(nil),   // 8: messaging.SetMessageReadResponse
+	(*SetMessagesReadRequest)(nil),   // 7: messaging.SetMessagesReadRequest
+	(*SetMessagesReadResponse)(nil),  // 8: messaging.SetMessagesReadResponse
 	(*GetChatByIdRequest)(nil),       // 9: messaging.GetChatByIdRequest
 	(*GetChatByIdResponse)(nil),      // 10: messaging.GetChatByIdResponse
 	(*ChatInfo)(nil),                 // 11: messaging.ChatInfo
@@ -1416,7 +1425,7 @@ var file_protos_messaging_service_proto_depIdxs = []int32{
 	0,  // 7: messaging.MessagingService.Subscribe:input_type -> messaging.SubscribeRequest
 	3,  // 8: messaging.MessagingService.SendMessage:input_type -> messaging.SendMessageRequest
 	5,  // 9: messaging.MessagingService.AckMessage:input_type -> messaging.AckMessageRequest
-	7,  // 10: messaging.MessagingService.SetMessageRead:input_type -> messaging.SetMessageReadRequest
+	7,  // 10: messaging.MessagingService.SetMessagesRead:input_type -> messaging.SetMessagesReadRequest
 	24, // 11: messaging.MessagingService.GetMessageAcks:input_type -> messaging.GetMessageAcksRequest
 	9,  // 12: messaging.MessagingService.GetChatById:input_type -> messaging.GetChatByIdRequest
 	12, // 13: messaging.MessagingService.GetUserChats:input_type -> messaging.GetUserChatsRequest
@@ -1428,7 +1437,7 @@ var file_protos_messaging_service_proto_depIdxs = []int32{
 	1,  // 19: messaging.MessagingService.Subscribe:output_type -> messaging.ServerEvent
 	4,  // 20: messaging.MessagingService.SendMessage:output_type -> messaging.SendMessageResponse
 	6,  // 21: messaging.MessagingService.AckMessage:output_type -> messaging.AckMessageResponse
-	8,  // 22: messaging.MessagingService.SetMessageRead:output_type -> messaging.SetMessageReadResponse
+	8,  // 22: messaging.MessagingService.SetMessagesRead:output_type -> messaging.SetMessagesReadResponse
 	26, // 23: messaging.MessagingService.GetMessageAcks:output_type -> messaging.GetMessageAcksResponse
 	10, // 24: messaging.MessagingService.GetChatById:output_type -> messaging.GetChatByIdResponse
 	13, // 25: messaging.MessagingService.GetUserChats:output_type -> messaging.GetUserChatsResponse

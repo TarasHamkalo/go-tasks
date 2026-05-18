@@ -11,7 +11,8 @@ service MessagingService {
   rpc Subscribe(SubscribeRequest) returns (stream ServerEvent);
   rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
   rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
-  rpc SetMessageRead(SetMessageReadRequest) returns (SetMessageReadResponse);
+
+  rpc SetMessagesRead(SetMessagesReadRequest) returns (SetMessagesReadResponse);
 
   // message metadata
   rpc GetMessageAcks(GetMessageAcksRequest) returns (GetMessageAcksResponse);
@@ -27,7 +28,9 @@ service MessagingService {
   rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
 }
 
-message SubscribeRequest {}
+message SubscribeRequest {
+  bool is_invisible = 1; 
+}
 
 message ServerEvent {
   oneof event {
@@ -58,11 +61,11 @@ message AckMessageRequest {
 
 message AckMessageResponse {}
 
-message SetMessageReadRequest {
-  string msg_id = 1;
+message SetMessagesReadRequest {
+  repeated string msg_ids = 2; 
 }
 
-message SetMessageReadResponse {}
+message SetMessagesReadResponse {}
 
 // chat management 
 message GetChatByIdRequest {

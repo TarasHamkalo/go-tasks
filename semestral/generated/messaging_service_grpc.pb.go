@@ -22,7 +22,7 @@ const (
 	MessagingService_Subscribe_FullMethodName        = "/messaging.MessagingService/Subscribe"
 	MessagingService_SendMessage_FullMethodName      = "/messaging.MessagingService/SendMessage"
 	MessagingService_AckMessage_FullMethodName       = "/messaging.MessagingService/AckMessage"
-	MessagingService_SetMessageRead_FullMethodName   = "/messaging.MessagingService/SetMessageRead"
+	MessagingService_SetMessagesRead_FullMethodName  = "/messaging.MessagingService/SetMessagesRead"
 	MessagingService_GetMessageAcks_FullMethodName   = "/messaging.MessagingService/GetMessageAcks"
 	MessagingService_GetChatById_FullMethodName      = "/messaging.MessagingService/GetChatById"
 	MessagingService_GetUserChats_FullMethodName     = "/messaging.MessagingService/GetUserChats"
@@ -41,7 +41,7 @@ type MessagingServiceClient interface {
 	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ServerEvent], error)
 	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	AckMessage(ctx context.Context, in *AckMessageRequest, opts ...grpc.CallOption) (*AckMessageResponse, error)
-	SetMessageRead(ctx context.Context, in *SetMessageReadRequest, opts ...grpc.CallOption) (*SetMessageReadResponse, error)
+	SetMessagesRead(ctx context.Context, in *SetMessagesReadRequest, opts ...grpc.CallOption) (*SetMessagesReadResponse, error)
 	// message metadata
 	GetMessageAcks(ctx context.Context, in *GetMessageAcksRequest, opts ...grpc.CallOption) (*GetMessageAcksResponse, error)
 	// chat management
@@ -101,10 +101,10 @@ func (c *messagingServiceClient) AckMessage(ctx context.Context, in *AckMessageR
 	return out, nil
 }
 
-func (c *messagingServiceClient) SetMessageRead(ctx context.Context, in *SetMessageReadRequest, opts ...grpc.CallOption) (*SetMessageReadResponse, error) {
+func (c *messagingServiceClient) SetMessagesRead(ctx context.Context, in *SetMessagesReadRequest, opts ...grpc.CallOption) (*SetMessagesReadResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SetMessageReadResponse)
-	err := c.cc.Invoke(ctx, MessagingService_SetMessageRead_FullMethodName, in, out, cOpts...)
+	out := new(SetMessagesReadResponse)
+	err := c.cc.Invoke(ctx, MessagingService_SetMessagesRead_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ type MessagingServiceServer interface {
 	Subscribe(*SubscribeRequest, grpc.ServerStreamingServer[ServerEvent]) error
 	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
 	AckMessage(context.Context, *AckMessageRequest) (*AckMessageResponse, error)
-	SetMessageRead(context.Context, *SetMessageReadRequest) (*SetMessageReadResponse, error)
+	SetMessagesRead(context.Context, *SetMessagesReadRequest) (*SetMessagesReadResponse, error)
 	// message metadata
 	GetMessageAcks(context.Context, *GetMessageAcksRequest) (*GetMessageAcksResponse, error)
 	// chat management
@@ -229,8 +229,8 @@ func (UnimplementedMessagingServiceServer) SendMessage(context.Context, *SendMes
 func (UnimplementedMessagingServiceServer) AckMessage(context.Context, *AckMessageRequest) (*AckMessageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AckMessage not implemented")
 }
-func (UnimplementedMessagingServiceServer) SetMessageRead(context.Context, *SetMessageReadRequest) (*SetMessageReadResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method SetMessageRead not implemented")
+func (UnimplementedMessagingServiceServer) SetMessagesRead(context.Context, *SetMessagesReadRequest) (*SetMessagesReadResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetMessagesRead not implemented")
 }
 func (UnimplementedMessagingServiceServer) GetMessageAcks(context.Context, *GetMessageAcksRequest) (*GetMessageAcksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMessageAcks not implemented")
@@ -324,20 +324,20 @@ func _MessagingService_AckMessage_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MessagingService_SetMessageRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetMessageReadRequest)
+func _MessagingService_SetMessagesRead_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetMessagesReadRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MessagingServiceServer).SetMessageRead(ctx, in)
+		return srv.(MessagingServiceServer).SetMessagesRead(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MessagingService_SetMessageRead_FullMethodName,
+		FullMethod: MessagingService_SetMessagesRead_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MessagingServiceServer).SetMessageRead(ctx, req.(*SetMessageReadRequest))
+		return srv.(MessagingServiceServer).SetMessagesRead(ctx, req.(*SetMessagesReadRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -502,8 +502,8 @@ var MessagingService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _MessagingService_AckMessage_Handler,
 		},
 		{
-			MethodName: "SetMessageRead",
-			Handler:    _MessagingService_SetMessageRead_Handler,
+			MethodName: "SetMessagesRead",
+			Handler:    _MessagingService_SetMessagesRead_Handler,
 		},
 		{
 			MethodName: "GetMessageAcks",
