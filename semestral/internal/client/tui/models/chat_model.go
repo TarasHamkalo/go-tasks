@@ -51,6 +51,9 @@ type ChatModel struct {
 
 	messageStream grpc.ServerStreamingClient[pb.ServerEvent]
 
+	streamCtx    context.Context
+	cancelStream context.CancelFunc
+
 	chatId string
 
 	focusedArea FocusArea
@@ -165,11 +168,26 @@ func (m *ChatModel) handleNetworkAndSelections(
 		model, cmd := m.messagesListModel.Update(msg)
 		m.messagesListModel = model.(*MessagesListModel)
 		return m, cmd, true
-	
+
 	case MessageSelectedMsg:
-		model := NewMessageAcksSubModel(m.appContext, msg.MsgId, m) 
+		model := NewMessageAcksSubModel(m.appContext, msg.MsgId, m)
 		cmd := model.Init()
 		return model, cmd, true
+
+	case ProfileUpdateSuccessMsg:
+		// user changed visibility, abandon this subscription and restart
+		if msg.ReconnectRequired {
+			// cancel the active stream.
+			if m.cancelStream != nil {
+				m.cancelStream()
+			}
+			// reset retry count to ensure immediate, clean connection
+			m.streamRetryCount = 0
+			// don't have to trigger reconnect myself (we are listening already)
+			return m, nil, true
+		}
+
+		return m, nil, true
 
 	// forward these specific messages down to the messages list
 	case TriggerDeliveryMsg,
@@ -209,7 +227,7 @@ func (m *ChatModel) handleComponentRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.appContext, m.appContext.Session.GetUserId(), true, m,
 			)
 
-			return model, model.Init() 
+			return model, model.Init()
 		}
 
 	case FocusMessageInput:
@@ -352,8 +370,14 @@ func (m *ChatModel) subscribe(delay time.Duration) tea.Cmd {
 		}
 
 		m.logger.Info("attempting to subscribe to stream...")
+		// remove old context
+		if m.cancelStream != nil {
+			m.cancelStream()
+		}
+
+		m.streamCtx, m.cancelStream = context.WithCancel(m.appContext.Ctx)
 		stream, err := m.appContext.MessagingClient.Subscribe(
-			m.appContext.Ctx,
+			m.streamCtx,
 			&pb.SubscribeRequest{
 				IsInvisible: m.appContext.Session.IsInvisible(),
 			},
