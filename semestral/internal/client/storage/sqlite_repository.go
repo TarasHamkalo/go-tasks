@@ -51,11 +51,19 @@ const (
 	`
 )
 
+// SqliteRepository implements the storage.Repository interface using a 
+// SQLite database
 type SqliteRepository struct {
 	Db *sqlx.DB
 }
 
-func NewSqliteRepository(dataDir string, userId string) (*SqliteRepository, error) {
+// NewSqliteRepository opens a SQLite database and returns
+// a repository backed by it.
+//
+// NOTE: dataDir is created
+func NewSqliteRepository(
+	dataDir string, userId string,
+) (*SqliteRepository, error) {
 	err := os.MkdirAll(dataDir, 0750)
 	if err != nil {
 		return nil, fmt.Errorf("could not create data directory: %w", err)

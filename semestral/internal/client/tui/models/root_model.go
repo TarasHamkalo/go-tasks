@@ -1,3 +1,8 @@
+// Package models contains Bubble Tea models composing the terminal user
+// interface. The UI is organized as nested models that react to messages
+// and execute asynchronous commands to communicate with gRPC services.
+// With a some practice and time, it is possible to make this communication nice, i did not manage though :)
+// See readme for better explanation.
 package models
 
 import (
@@ -53,7 +58,6 @@ func NewRootModel(appContext *state.AppContext) *RootModel {
 	pullDataModel := NewPullDataModel(appContext)
 	chatModel := NewChatModel(appContext)
 	configModel := NewConfigSubModel(appContext)
-
 
 	return &RootModel{
 		currentSubModel: onboardingSubModel,

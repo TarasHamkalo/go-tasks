@@ -1,3 +1,4 @@
+// Package tui provides handles terminal client implementation
 package tui
 
 import (
@@ -11,8 +12,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// fetch companion profile info from ProfileService
-func ResolveDirectChatToSession(appContext *state.AppContext, chatId string) error {
+// ResolveDirectChatToSession featchs companion profile info from ProfileService
+// and stores in session
+func ResolveDirectChatToSession(
+	appContext *state.AppContext, chatId string,
+) error {
 	session := appContext.Session
 	memCtx, cancelMem := context.WithTimeout(
 		appContext.Ctx,
@@ -62,6 +66,8 @@ func ResolveDirectChatToSession(appContext *state.AppContext, chatId string) err
 	return nil
 }
 
+// ResolveProfileToSession loads a profile from the server
+// and stores it in the local session cache.
 func ResolveProfileToSession(
 	appContext *state.AppContext, profileId string,
 ) (*state.Profile, error) {
@@ -101,6 +107,7 @@ func ResolveProfileToSession(
 
 }
 
+// CleanGrpcError returns only the gRPC status message.
 func CleanGrpcError(err error) error {
 	if s, ok := status.FromError(err); ok {
 		return fmt.Errorf("%s", s.Message())

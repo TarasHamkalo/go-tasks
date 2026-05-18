@@ -59,6 +59,8 @@ type SqliteRepository struct {
 	Db *sqlx.DB
 }
 
+// NewSqliteRepository opens a SQLite database and returns
+// a repository backed by it.
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
 	// SQLite DSN configuration:
 	// - foreign_keys=1     enables foreign key constraint enforcement

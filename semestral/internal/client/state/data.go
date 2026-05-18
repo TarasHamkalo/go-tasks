@@ -1,6 +1,6 @@
 package state
 
-// Profile stores profile data fetched from the server
+// Profile stores profile data, fetched from the server
 type Profile struct {
 	Id       string
 	Username string

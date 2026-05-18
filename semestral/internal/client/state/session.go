@@ -6,26 +6,36 @@ import (
 	"sync/atomic"
 )
 
+// Session stores user session data, all access to object has to synchronized
 type Session struct {
+	// sessionVersion object version, to track changes in UI and no rerender
+	// on each frame... used only for chat list :)
 	sessionVersion atomic.Int64
 
 	userId string
 
 	// Data stores
+	// profiles is map UserId -> Profile
+	profiles    map[string]*Profile 
+	// chats is map ChatId -> Chat Interface
+	chats       map[string]Chat     
+	// chatMembers  -> []UserID
+	chatMembers map[string][]string 
 
-	profiles    map[string]*Profile // UserId -> Profile
-	chats       map[string]Chat     // ChatId -> Polymorphic Chat Interface
-	chatMembers map[string][]string // ChatId -> []UserID
+	// unread tracking (UI state), ChatId -> Count of new messages
+	unreadCounts map[string]int 
 
-	// Unread tracking (UI state)
-	unreadCounts map[string]int // ChatId -> Count of new messages
-
-	// note this one could use atomic bool
+	// isInvisible tracks whether user requested invisible session.
+	// It is status info should not be propagated. Messages should be still
+	// acked 
+	//
+	// NOTE: this one could use atomic bool
 	isInvisible bool
 
 	mu sync.RWMutex
 }
 
+// NewSession construct new session
 func NewSession() *Session {
 	return &Session{
 		profiles:     make(map[string]*Profile),

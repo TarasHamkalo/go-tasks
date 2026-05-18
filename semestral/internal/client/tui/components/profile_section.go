@@ -1,3 +1,6 @@
+// Package components should contain things that don't have its state
+// but rather render something by provided value. In bubble tea, i strugled
+// to find a lot of such. But just did not have time to refactor
 package components
 
 import (
