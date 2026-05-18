@@ -197,7 +197,7 @@ func (m *ChatModel) handleComponentRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case FocusProfile:
 		if ok && keyMsg.String() == "enter" {
 			m.isEngaged = false
-			return NewProfileSubModel(m.appContext, true, m), nil
+			return NewProfileSubModel(m.appContext, false, m), nil
 		}
 
 	case FocusMessageInput:
@@ -421,6 +421,7 @@ func (m *ChatModel) ackMessage(msgId string, retryCount int) tea.Cmd {
 
 		if err != nil {
 			if !tui.IsRetriable(err) || retryCount >= 5 {
+				// TODO: probaly to much, but just leave as is
 				return ChatModelHandleErrorMsg{
 					Err: fmt.Errorf("fatal ack error (aborted or max retries reached): %w", err),
 				}

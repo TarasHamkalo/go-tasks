@@ -16,7 +16,7 @@ const (
 	ScreenCreateChat
 	ScreenInviteUser
 	ScreenProfile
-	TODOScreen 
+	TODOScreen
 )
 
 type SubModel interface {

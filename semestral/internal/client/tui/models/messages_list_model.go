@@ -376,7 +376,9 @@ func (m *MessagesListModel) loadMessagesFromDb(chatId string, offset int) tea.Cm
 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
 		defer cancel()
 
-		msgs, err := m.appContext.LocalRepo.GetMessagesByChatId(ctx, chatId, m.limit, offset)
+		msgs, err := m.appContext.LocalRepo.GetMessagesByChatId(
+			ctx, chatId, m.limit, offset,
+		)
 		if err != nil {
 			m.logger.Error("failed loading messages from DB", zap.Error(err))
 			return ChatModelHandleErrorMsg{Err: err}
@@ -391,25 +393,9 @@ func (m *MessagesListModel) loadMessagesFromDb(chatId string, offset int) tea.Cm
 	}
 }
 
-// func (m *MessagesListModel) loadMessagesFromDb(chatId string) tea.Cmd {
-// 	return func() tea.Msg {
-// 		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
-// 		defer cancel()
-//
-// 		msgs, err := m.appContext.LocalRepo.GetMessagesByChatId(ctx, chatId, 50, 0)
-// 		if err != nil {
-// 			m.logger.Error("failed loading messages", zap.Error(err))
-// 			return ChatModelHandleErrorMsg{Err: err}
-// 		}
-//
-// 		return MessagesLoadedMsg{
-// 			ChatId:   chatId,
-// 			Messages: msgs,
-// 		}
-// 	}
-// }
-
-func (m *MessagesListModel) sendToServer(msg storage.Message, retryCount int) tea.Cmd {
+func (m *MessagesListModel) sendToServer(
+	msg storage.Message, retryCount int,
+) tea.Cmd {
 	return func() tea.Msg {
 		m.logger.Debug(
 			"sending message to server",
@@ -429,7 +415,9 @@ func (m *MessagesListModel) sendToServer(msg storage.Message, retryCount int) te
 		)
 
 		if err != nil && tui.IsRetriable(err) {
-			return DeliveryRetryMsg{Message: msg, Err: err, RetryCount: retryCount}
+			return DeliveryRetryMsg{
+				Message: msg, Err: err, RetryCount: retryCount,
+			}
 		}
 
 		return DeliverySuccessMsg{

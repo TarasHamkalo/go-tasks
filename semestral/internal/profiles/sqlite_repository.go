@@ -61,7 +61,8 @@ func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
 	// SQLite DSN configuration:
 	// - foreign_keys=1     enables foreign key constraint enforcement
 	// - journal_mode=WAL   allows concurrent reads during writes
-	// - busy_timeout=5000  waits up to 5 seconds if the database is locked
+	// - busy_timeout=5000  waits up to 5 seconds if the database is locked though 
+	//			- timeouts over ctx are mostly shorter though 
 	// - synchronous=NORMAL balances durability and performance
 	dsn := "file:" + dbPath +
 		"?_pragma=foreign_keys=1" +

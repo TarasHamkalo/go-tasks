@@ -22,6 +22,7 @@ type Session struct {
 
 	// TODO: here
 	isInvisible bool 
+
 	mu sync.RWMutex
 }
 
