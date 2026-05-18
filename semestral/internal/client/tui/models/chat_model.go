@@ -205,7 +205,6 @@ func (m *ChatModel) handleComponentRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if ok && keyMsg.String() == "enter" {
 			m.isEngaged = false
 			// no cache used
-			// TODO: status
 			model := NewProfileSubModel(
 				m.appContext, m.appContext.Session.GetUserId(), true, m,
 			)

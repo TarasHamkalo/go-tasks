@@ -98,8 +98,11 @@ func (m *MessageAcksSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "enter":
-			// Placeholder for future action
-			return m, nil
+			model := NewProfileSubModel(
+				m.appContext, m.acks[m.cursor].UserId, false, m,
+			)
+
+			return model, model.Init() 
 		}
 	}
 
