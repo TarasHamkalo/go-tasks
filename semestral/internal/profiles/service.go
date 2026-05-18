@@ -1,3 +1,6 @@
+// Package profiles implements the profile service layer, including
+// user registration, authentication, JWT token management,
+// and profile CRUD operations backed by a repository.
 package profiles
 
 import (

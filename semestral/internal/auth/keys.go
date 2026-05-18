@@ -9,6 +9,7 @@ import (
 	"os"
 )
 
+// LoadPublicKey helper to laod rsa public key
 func LoadPublicKey(path string) (*rsa.PublicKey, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -34,6 +35,7 @@ func LoadPublicKey(path string) (*rsa.PublicKey, error) {
 	return rsaKey, nil
 }
 
+// LoadPrivateKey helper to laod rsa private key
 func LoadPrivateKey(path string) (*rsa.PrivateKey, error) {
 		raw, err := os.ReadFile(path)
     if err != nil {

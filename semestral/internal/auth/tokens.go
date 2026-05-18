@@ -1,3 +1,6 @@
+// Auth package provides utils to track user identity. It is 
+// JWT tokens creation, verification and middleware/interceptors to simplify
+// usage of authentication in services/clients. 
 package auth
 
 import (
@@ -10,14 +13,20 @@ import (
 )
 
 
+// ErrorInvalidToken thrown when validated token is invalid
 var ErrorInvalidToken = errors.New("invalid token")
 
+// TokenType used to distinguish between access and refresh tokens
+// see auth.MessengerClaims
 type TokenType string
 const (
 	AccessTokenType  TokenType = "access"
 	RefreshTokenType TokenType = "refresh"
 )
 
+// BuildTokens constructs access, refresh tokens pair with given issuer 
+// and signature by signingKey and S256.
+// Rerfresh token is valid for 7d and access for 1h.
 func BuildTokens(
 	userId string,
 	issuer string,
@@ -65,6 +74,8 @@ func BuildTokens(
 	return accessToken, refreshToken, jti, nil
 }
 
+// ValidateToken, includes validation of issuer and token type claims.
+// Returns parsed claims or ErrorInvalidToken
 func ValidateToken(
 	tokenString string,
 	issuer string,

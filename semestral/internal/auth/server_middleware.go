@@ -15,7 +15,7 @@ type claimsContextKey struct{}
 
 // AuthorizationInterceptor verifies that incoming request has bearer token
 // for all methods other than publicMethods.
-// Parsed claims from JWT are added to context @see ClaimFromContext
+// Parsed claims from JWT are added to context see ClaimsFromContext
 func AuthorizationInterceptor(
 	verificationKey *rsa.PublicKey,
 	issuer string,
@@ -85,7 +85,7 @@ func AuthorizationStreamInterceptor(
 	}
 }
 
-// extractAndVerifyClaims is a that pulls metadata from a context,
+// extractAndVerifyClaims pulls metadata from a context,
 // strips the authorization prefix, and validates the incoming token.
 func extractAndVerifyClaims(
 	ctx context.Context,
@@ -114,17 +114,21 @@ func extractAndVerifyClaims(
 	return claims, nil
 }
 
+// ContextWithClaims adds claims to context with key claimsContextKey
 func ContextWithClaims(
 	ctx context.Context, messengerClaims *MessengerClaims,
 ) context.Context {
 	return context.WithValue(ctx, claimsContextKey{}, messengerClaims)
 }
 
+// ClaimsFromContext retrieves claims from context under key claimsContextKey
 func ClaimsFromContext(ctx context.Context) (*MessengerClaims, bool) {
 	claims, ok := ctx.Value(claimsContextKey{}).(*MessengerClaims)
 	return claims, ok
 }
 
+// isPublicMethod checks whether method is withing publicMethods or 
+// method is one of standard reflection methods
 func isPublicMethod(fullMethod string, publicMethods map[string]bool) bool {
 	if publicMethods[fullMethod] {
 		return true

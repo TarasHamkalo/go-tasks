@@ -13,21 +13,39 @@ import (
 	pb "gomessenger/generated"
 )
 
+// ErrSessionExpired error indicating that session is expired
+// and tokens can not be refreshed without user interaction
 var ErrSessionExpired = status.Error(codes.Unauthenticated, "session_expired")
 
-// WithPerRPCCredentials
+// TokenCredentialsInterecptor implements grpc.WithPerRPCCredentials
+// and supplies requests with authorization header (bearer token)
 type TokenCredentialsInterecptor struct {
+	// mu used to sync access of possibly multiple routines to this same interceptor
+	// 
+	// NOTE yep could be just embedded
 	mu sync.RWMutex
 
+	// userId id of user for which tokens are granted
 	userId string
 
+	// accessToken, refreshToken token strings "as are"
 	accessToken    string
 	refreshToken   string
+
+	// accessTokenExp parsed ones when tokens are set or refreshed and 
+	// verified per request
 	accessTokenExp time.Time
 
+	// issuer is token issuer 
 	issuer          string
+
+	// verificationKey public key of the pair used to sign tokens
 	verificationKey *rsa.PublicKey
 
+	// profileClient grpc client to refresh tokens transperently 
+	//
+	// NOTE separate client should be used, which does not have this interceptor set,
+	// in other case deadlock
 	profileClient pb.ProfileServiceClient
 
 	logger *zap.Logger
@@ -48,7 +66,9 @@ func NewTokenCredentialsInterecptor(
 }
 
 // SetTokens parses, validates, and stores expiration time of incoming token
-func (t *TokenCredentialsInterecptor) SetTokens(userId, access, refresh string) error {
+func (t *TokenCredentialsInterecptor) SetTokens(
+	userId, access, refresh string,
+) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -67,22 +87,20 @@ func (t *TokenCredentialsInterecptor) SetTokens(userId, access, refresh string) 
 	return nil
 }
 
-func (t *TokenCredentialsInterecptor) Clear() {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	t.userId = ""
-	t.accessToken = ""
-	t.refreshToken = ""
-	t.accessTokenExp = time.Time{}
-}
-
-func (t *TokenCredentialsInterecptor) SetProfileClient(client pb.ProfileServiceClient) {
+func (t *TokenCredentialsInterecptor) SetProfileClient(
+	client pb.ProfileServiceClient,
+) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.profileClient = client
 }
 
+// GetRequestMetadata method which is called per each request and which
+// handles tokens header insertion. 
+// 1. under read lock gets token, if token is not expired - authenticates request 
+// 2. if token is expired, acquires write lock, verifies whether in meantime
+// other routine did not refresh tokens and tries to refresh.
+// On success authenticates request, else ErrSessionExpired thrown
 func (t *TokenCredentialsInterecptor) GetRequestMetadata(
 	ctx context.Context, uri ...string,
 ) (map[string]string, error) {
@@ -126,7 +144,6 @@ func (t *TokenCredentialsInterecptor) GetRequestMetadata(
 	}
 
 	// call gRPC Refresh
-
 	t.logger.Debug("grpc tokens refresh call")
 	refreshCtx, cancel := context.WithTimeout(
 		context.Background(), time.Second*5,
@@ -173,3 +190,16 @@ func (t *TokenCredentialsInterecptor) clearLocked() {
 	t.refreshToken = ""
 	t.accessTokenExp = time.Time{}
 }
+
+
+// Clear clears session fields
+func (t *TokenCredentialsInterecptor) Clear() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.userId = ""
+	t.accessToken = ""
+	t.refreshToken = ""
+	t.accessTokenExp = time.Time{}
+}
+
