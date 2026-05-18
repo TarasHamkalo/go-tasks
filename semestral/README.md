@@ -124,57 +124,171 @@ Server neuchovává kompletní historii chatu pro všechny uživatele, stará se
 
 ---
 
-<!-- ### Kde co v projektu najít (Kód) -->
-<!---->
-<!-- * **`internal/messaging/service.go`**: Obsahuje samotnou gRPC implementaci metod `Subscribe` (správa jednosměrného streamu a presence) a `SendMessage` (validace, ukládání a spouštění distribuce). -->
-<!-- * **`internal/messaging/broker.go`**: Implementuje in-memory pub/sub vrstvu, strukturu `UserSession` s Go kanály (`messageChan`, `done`) a logiku multiplexingu (`Publish`) včetně odpojování pomalých klientů. -->
-<!-- * **`internal/messaging/sqlite_repository.go`**: Zajišťuje transakční zápis zpráv a správu/mazání doručených zpráv na úrovni SQLite databáze. -->
+## 1. Architektura TUI (Terminálové UI)
 
-<!-- = Архітектура та Організація Проекту: Go Messenger -->
-<!-- :toc: -->
+Klientská aplikace je postavena na frameworku **Bubble Tea** (architektura Elm: Model-Update-View) a pro stylování využívá knihovnu **Lip Gloss**.
+
+### Hierarchie a komunikace modelů
+UI je modulární a skládá se z hlavního kořenového modelu a specializovaných submodelů:
+
+* **`root_model.go`**: Hlavní mozek TUI. Spravuje globální stav aplikace, drží sdílený `AppContext` a směruje zprávy (`tea.Msg`) do aktivních submodelů. Reaguje na fatální chyby přepnutím na `error_model.go` nebo na úvodní obrazovku přes `onboarding_model.go`.
+* **Submodely a kompozice**:
+  * **`chat_model.go`**: Zapouzdřuje celou obrazovku chatu. Kombinuje v sobě `chat_list_model.go` (seznam dostupných konverzací), `messages_list_model.go` (historie zpráv) a `messages_input_model.go` (textové pole pro psaní).
+  * **Operace a dialogy**: Modely jako `create_chat_submodel.go`, `invite_user_model.go`, `leave_chat_submodel.go` a `message_ack_submodel.go` fungují jako modální transientní stavy (dialogová okna) pro specifické akce.
+* **Synchronizace dat (`pull_data_model.go`)**: Na pozadí nebo při startu spouští asynchronní gRPC příkazy přes `requests.go` pro stažení nových dat a následně emituje vnitřní Bubble Tea zprávy pro aktualizaci lokálního stavu.
+
+---
+
+## 2. Logika znovupřipojení (Retry mechanismus)
+
+Vzhledem k tomu, že komunikace s Messaging serverem probíhá přes dlouhožijící gRPC stream (`Subscribe`), klient implementuje robustní politiku pro potlačení výpadků sítě:
+
+1. **Detekce odpojení**: Pokud stream selže nebo vrátí chybu, gRPC klient detekne přerušení spojení.
+2. **Lokální režim**: Klient nezhavaruje, ale přepne UI do stavu offline. Uživatel může stále procházet lokální historii uloženou v SQLite.
+3. **Automatické reconnect (gRPC Connection Backoff)**: Vnitřní gRPC transport automaticky zkouší znovu navázat TLS spojení s Messaging a Profile servery pomocí exponenciálního backoff algoritmu (postupné zvyšování prodlevy mezi pokusy).
+4. **Obnova streamu**: Po obnovení síťové vrstvy klient transparentně znovu zavolá `Subscribe`, stáhne nahromaděné offline zprávy z databáze serveru a plynule pokračuje v reálném čase bez nutnosti restartu aplikace.
+
+---
+
+## 3. Presence (Správa online stavu)
+
+Stav přítomnosti uživatele je perzistentně sledován na Profile serveru a nabývá hodnot `online` nebo `offline`.
+
+* **Standardní chování**: Po úspěšné autentizaci a spuštění streamu nastaví klient stav na `online`. Při regulérním odhlášení nebo ukončení aplikace (přes `defer` v gRPC streamu) se stav automaticky změní na `offline`.
+* **Invisible Mode (Režim neviditelnosti)**: 
+  * Uživatel si může v konfiguraci navolit neviditelnost.
+  * V tomto režimu klient normálně odesílá i přijímá zprávy v reálném čase přes aktivní gRPC stream.
+  * Při volání `Subscribe` je však předán příznak `IsInvisible`, který zablokuje propagaci stavu do Profile serveru. Pro všechny ostatní uživatele v systému se tak daný uživatel jeví jako `offline`.
+
+---
+
+## 4. Skupinové chaty
+
+Systém podporuje decentralizované skupinové konverzace s následujícími pravidly:
+
+* **Správa členů**: Uživatel může vytvořit skupinu a následně do ní zvát další uživatele (`invite_user_model.go`). Každý člen má možnost ze skupiny kdykoliv odejít (`leave_chat_submodel.go`). Seznam aktuálních členů lze zobrazit přes `chat_info_submodel.go`.
+* **Omezení historie**: Z důvodu ochrany soukromí a integrity dat vidí nově přidaní uživatelé historii zpráv **pouze od okamžiku, kdy byli do skupiny přidáni**. Server filtruje zprávy na základě časového razítka zařazení uživatele do chat entity.
+
+---
+
+## 5. Potvrzení o doručení a přečtení (Message ACKs)
+
+Pro každou odeslanou zprávu generuje server v transakci sadu sledovacích záznamů pro každého příjemce. Klient tyto stavy aktualizuje pomocí asynchronních gRPC volání:
+
+* **`delivered_at` (Doručeno)**: Nastaví se v okamžiku, kdy zpráva projde push streamem do klientské aplikace a klient ji úspěšně zapíše do své lokální SQLite databáze (`internal/client/storage/`). V té chvíli již zpráva nezávisí na serveru.
+* **`read_at` (Přečteno)**: Nastaví se, jakmile uživatel v TUI aktivně otevře daný chat a zpráva se prokazatelně vykreslí na obrazovce (v `messages_list_model.go`).
+* **Zobrazení odesílateli**: Odesílatel zprávy může v TUI otevřít detail zprávy (`message_ack_submodel.go`), kde vidí přesný čas doručení a přečtení pro každého jednotlivého člena skupiny.
+
+---
+
+## 6. Lokální ukládání dat a spuštění
+
+Každý klient má izolovanou perzistenci a logování, což umožňuje spouštět více instancí na jednom stroji.
+
+### Spuštění projektu
+```bash
+# 1. Kompilace všech komponent
+./scripts/build.sh
+
+# 2. Spuštění serverové infrastruktury
+./scripts/profile-server.sh
+./scripts/messaging-server.sh
+
+# 3. Spuštění nezávislých klientských instancí
+./scripts/client.sh c1 c1   # Instance 1: data v data/c1, logy v logs/c1
+./scripts/client.sh c2 c2   # Instance 2: data v data/c2, logy v logs/c2
+<!-- Client -->
 <!---->
-<!-- Проект реалізує розподілену систему обміну повідомленнями (чат), що складається з клієнтського застосунку та двох незалежних серверів (Profile та Messaging). Комунікація між вузлами здійснюється через **gRPC** з використанням двонаправлених потоків (streams) для забезпечення реального часу. -->
+<!-- Klient je terminálová aplikace využívající: -->
 <!---->
-<!-- == 1. Головні Компоненти  -->
+<!-- Bubble Tea -->
+<!-- Lip Gloss -->
+<!-- SQLite -->
 <!---->
-<!-- Проект розділено на три незалежні виконувані програми, кожна з яких має власне локальне сховище (SQLite), що гарантує збереження даних після перезавантаження: -->
+<!-- Klient umožňuje: -->
 <!---->
-<!-- * `Profile Server`: Відповідає за реєстрацію, автентифікацію, зберігання профілів користувачів (9-значні UserID) та видачу токенів. -->
-<!-- * `Messaging Server`: Забезпечує маршрутизацію повідомлень, відстеження стану підключень (Presence) та збереження недоставлених повідомлень (Store-and-Forward). -->
-<!-- * `Client (TUI)`: Інтерактивний термінальний клієнт на базі `BubbleTea`. -->
+<!-- registraci a přihlášení -->
+<!-- zobrazení seznamu chatů -->
+<!-- odesílání zpráv -->
+<!-- úpravu profilu -->
+<!-- zobrazení profilů ostatních uživatelů -->
+<!-- vytváření skupin -->
+<!-- pozvání uživatelů -->
+<!-- opuštění skupiny -->
+<!-- zobrazení doručovacích potvrzení -->
+<!-- Presence -->
 <!---->
-<!-- Підтримує локальну історію, роботу з групами, повідомлення про прочитання (acks) та автоматичне перепідключення. -->
+<!-- Profile server uchovává stav uživatele: -->
 <!---->
-<!-- == 2. Аутентифікація та Безпека  -->
+<!-- online -->
+<!-- offline -->
 <!---->
-<!-- Для безпечної взаємодії між серверами використовується JWT: -->
+<!-- Po úspěšném přihlášení klient nastaví stav na online. -->
+<!-- Při odhlášení nebo ukončení klienta je stav změněn na offline. -->
 <!---->
-<!-- * **Зберігання паролів**: Вони хешуються (bcrypt) та безпечно зберігаються виключно на Profile Server. -->
-<!-- * **Access та Refresh токени**: При успішному вході Profile Server генерує пару токенів. Access токен (діє 1 годину) використовується для авторизації запитів до Messaging Server. Refresh токен (діє 7 днів) використовується для непомітного оновлення сесії. -->
-<!-- * **JTI (JWT ID)**: Сервер профілів відстежує унікальні ідентифікатори Refresh токенів (`activeRefreshTokens`) для запобігання атакам повторного використання (replay attacks). -->
-<!-- * **gRPC Interceptors**:  -->
-<!--   - На клієнті працює `TokenCredentialsInterecptor`, який автоматично додає токени до заголовків та прозоро оновлює їх при закінченні терміну дії (захищено через `sync.RWMutex` від стану гонки/deadlock-ів). -->
-<!--   - На серверах працює `AuthorizationInterceptor`, який перевіряє валідність підпису токенів (через RSA публічні ключі) та додає розпарсені claims у `context`. -->
+<!-- Uživatel může aktivovat Invisible Mode. V tomto režimu: -->
 <!---->
-<!-- == 3. Messaging Broker та Горутини -->
+<!-- zprávy jsou normálně přijímány i odesílány, -->
+<!-- ostatním uživatelům je zobrazován stav offline. -->
+<!-- Skupinové chaty -->
 <!---->
-<!-- Messaging Server використовує внутрішній **Broker** для мультиплексування та доставки повідомлень у реальному часі без використання polling'у: -->
+<!-- Podporované operace: -->
 <!---->
-<!-- * **Модель Pub/Sub**: Кожен підключений клієнт створює `UserSession`, яка містить буферизований канал (`messageChan`) та сигнальний канал (`done`). -->
-<!-- * **Горутини**: Читання з каналу та відправка через gRPC stream відбувається в окремих горутинах. Це дозволяє серверу асинхронно обробляти тисячі підключень. -->
-<!-- * **Синхронізація стану (Presence)**: Брокер відстежує активні сесії у thread-safe мапі (`sessionsMu sync.RWMutex`). Якщо користувач має статус "невидимка", сервер продовжує маршрутизацію повідомлень, але віддає клієнтам статус `offline`. -->
-<!-- * **Мультиплексування клієнтів**: Один користувач може мати декілька активних клієнтів одночасно. Брокер перебирає всі активні сесії для цільового `UserID` та розсилає повідомлення на всі підключені пристрої користувача. -->
-<!-- * **Обробка "повільних" клієнтів**: При переповненні буфера каналу (наприклад, через втрату мережі), сервер безпечно закриває сесію. Повідомлення залишається в базі (SQLite) і буде доставлено як offline-повідомлення при наступному підключенні. -->
+<!-- vytvoření skupiny -->
+<!-- přidání člena -->
+<!-- odebrání člena -->
+<!-- opuštění skupiny -->
+<!-- zobrazení členů skupiny -->
 <!---->
-<!-- == 4. Структура Директорій -->
+<!-- Nově přidaní členové vidí zprávy od okamžiku svého přidání. -->
 <!---->
-<!-- * `cmd/` - Вхідні точки для компіляції (`client`, `messaging-server`, `profile-server`). -->
-<!-- * `internal/auth/` - Логіка JWT, ключі (RSA) та gRPC middleware (interceptors). -->
-<!-- * `internal/messaging/` - Логіка чатів: Broker (управління сесіями), сервісний шар та SQLite репозиторій. -->
-<!-- * `internal/profiles/` - Бізнес-логіка профілів, валідація, генерація ID та управління статусами. -->
-<!-- * `internal/client/` - Логіка клієнта: -->
-<!--   - `state/` - Глобальний контекст, конфігурація та підключення. -->
-<!--   - `storage/` - Локальна БД клієнта для кешування історії. -->
-<!--   - `tui/` - Візуальні компоненти термінального інтерфейсу (моделі, стани екранів). -->
-<!-- * `data/` - Файли баз даних SQLite для серверів та індивідуальних клієнтів. -->
-<!-- * `protos/` та `generated/` - gRPC контракти (`.proto`) та згенерований Go код. -->
+<!-- Potvrzení doručení a přečtení zpráv -->
+<!---->
+<!-- Ke každé zprávě se eviduje záznam pro každého příjemce. -->
+<!---->
+<!-- Sledované údaje: -->
+<!---->
+<!-- delivered_at – klient úspěšně zprávu uložil lokálně -->
+<!-- read_at – klient zprávu zobrazil -->
+<!---->
+<!-- Odesílatel může zobrazit detailní stav zprávy pro všechny příjemce. -->
+<!---->
+<!-- Ukládání dat -->
+<!---->
+<!-- Pro perzistenci je použita SQLite. -->
+<!-- Spuštění projektu -->
+<!-- Build -->
+<!-- ./scripts/build.sh -->
+<!-- Spuštění serverů -->
+<!-- ./scripts/profile-server.sh -->
+<!-- ./scripts/messaging-server.sh -->
+<!-- Spuštění klienta -->
+<!-- ./scripts/client.sh c1 c1 -->
+<!-- ./scripts/client.sh c2 c2 -->
+<!---->
+<!-- První argument určuje adresář pro lokální data, druhý adresář pro logy. -->
+<!---->
+<!-- Konfigurace -->
+<!---->
+<!-- Všechny komponenty používají konfiguraci přes proměnné prostředí. -->
+<!---->
+<!-- Konfigurovat lze například: -->
+<!---->
+<!-- porty serverů -->
+<!-- cesty k databázím -->
+<!-- cesty ke klíčům a certifikátům -->
+<!-- JWT issuer -->
+<!---->
+<!-- Ukázkové hodnoty jsou nastaveny ve skriptech v adresáři scripts/. -->
+<!-- == 4. Структура Директорій --> -->
+<!---->
+<!-- * `cmd/` - Вхідні точки для компіляції (`client`, `messaging-server`, `profile-server`). --> -->
+<!-- * `internal/auth/` - Логіка JWT, ключі (RSA) та gRPC middleware (interceptors). --> -->
+<!-- * `internal/messaging/` - Логіка чатів: Broker (управління сесіями), сервісний шар та SQLite репозиторій. --> -->
+<!-- * `internal/profiles/` - Бізнес-логіка профілів, валідація, генерація ID та управління статусами. --> -->
+<!--  * `internal/client/` - Логіка клієнта: --> -->
+<!--    - `state/` - Глобальний контекст, конфігурація та підключення. --> -->
+<!--    - `storage/` - Локальна БД клієнта для кешування історії. --> -->
+<!--    - `tui/` - Візуальні компоненти термінального інтерфейсу (моделі, стани екранів). --> -->
+<!--  * `data/` - Файли баз даних SQLite для серверів та індивідуальних клієнтів. --> -->
+<!--  * `protos/` та `generated/` - gRPC контракти (`.proto`) та згенерований Go код. --> -->
