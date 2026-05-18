@@ -94,17 +94,8 @@ func (m *ProfileSubModel) Init() tea.Cmd {
 	return m.loadProfile()
 }
 
-// func (m *ProfileSubModel) Init() tea.Cmd {
-// 	if m.isEditable {
-// 		return textinput.Blink
-// 	}
-// 	return nil
-// }
-
 func (m *ProfileSubModel) loadProfile() tea.Cmd {
 	return func() tea.Msg {
-
-		m.appContext.RootLogger.Info("i calling resolve  to session")
 		profile, err := tui.ResolveProfileToSession(
 			m.appContext,
 			m.userId,
@@ -181,7 +172,6 @@ func (m *ProfileSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case ProfileLoadedMsg:
-		m.appContext.RootLogger.Info("i loaded profile")
 		m.loading = false
 		m.username.SetValue(msg.Profile.Username)
 		m.bio.SetValue(msg.Profile.Bio)

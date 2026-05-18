@@ -623,7 +623,6 @@ func (s *MessagingService) SendMessage(
 		zap.Int("recipientCount", len(acks)),
 	)
 
-	// TODO: refactor all references / pass by values
 	go s.broker.Publish(&message, acks)
 
 	return &pb.SendMessageResponse{
@@ -696,7 +695,6 @@ func (s *MessagingService) Subscribe(
 		}
 	}()
 
-	// TODO: change status of user here and set defer
 	session := s.broker.Subscribe(userId)
 	defer s.broker.Unsubscribe(userId, session)
 

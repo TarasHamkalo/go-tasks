@@ -35,8 +35,7 @@ type SubModel interface {
 	tea.Model
 }
 
-type TodoSubModel struct {
-}
+type TodoSubModel struct {}
 
 func (t TodoSubModel) Id() SubModelId { return TODOScreen }
 

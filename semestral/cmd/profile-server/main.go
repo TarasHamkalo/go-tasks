@@ -117,8 +117,6 @@ func initGrpcServer(
 	repo *profiles.SqliteRepository,
 ) *gomessenger.GrpcServer {
 
-	// TODO: maybe separate but loggers by modules
-
 	// define unprotected routes
 	publicRoutes := map[string]bool{
 		pb.ProfileService_RegisterProfile_FullMethodName: true,

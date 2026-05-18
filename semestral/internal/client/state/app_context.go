@@ -26,9 +26,11 @@ type AppContext struct {
 
 	CredentialsInterceptor *auth.TokenCredentialsInterecptor
 
+	RefreshConn *grpc.ClientConn
 	ProfileConn   *grpc.ClientConn
 	MessagingConn *grpc.ClientConn
 
+	RefreshClient pb.ProfileServiceClient
 	ProfileClient   pb.ProfileServiceClient
 	MessagingClient pb.MessagingServiceClient
 
@@ -38,6 +40,10 @@ type AppContext struct {
 func (a *AppContext) Close() {
 	if a.LocalRepo != nil {
 		_ = a.LocalRepo.Close()
+	}
+
+	if a.RefreshConn != nil {
+		_ = a.RefreshConn.Close()
 	}
 
 	if a.ProfileConn != nil {

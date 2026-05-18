@@ -72,7 +72,6 @@ func (m *PullDataModel) ShortHelp() []tui.Binding {
 }
 
 func (m *PullDataModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.logger.Info("received message", zap.Any("msg", msg))
 	var cmds []tea.Cmd
 
 	var spinCmd tea.Cmd

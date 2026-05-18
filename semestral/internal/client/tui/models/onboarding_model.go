@@ -103,10 +103,6 @@ func NewOnboardingModel(appContext *state.AppContext) *OnboardingSubModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-
-	//TODO: remove
-	userId.SetValue("100000000")
-	password.SetValue("taras123")
 	return &OnboardingSubModel{
 		profileClient: appContext.ProfileClient,
 		ctx:           appContext.Ctx,
@@ -147,7 +143,6 @@ func (m *OnboardingSubModel) ShortHelp() []tui.Binding {
 }
 
 func (m *OnboardingSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.logger.Info("received message", zap.Any("msg", msg))
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 

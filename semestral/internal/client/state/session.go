@@ -20,7 +20,7 @@ type Session struct {
 	// Unread tracking (UI state)
 	unreadCounts map[string]int // ChatId -> Count of new messages
 
-	// TODO: could use atomic bool
+	// note this one could use atomic bool
 	isInvisible bool
 
 	mu sync.RWMutex

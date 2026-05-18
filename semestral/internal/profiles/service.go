@@ -69,7 +69,6 @@ func NewProfileService(
 	}
 }
 
-// TODO: move errors to interceptor
 func (s *ProfileService) RegisterProfile(
 	ctx context.Context,
 	req *pb.RegisterProfileRequest,
