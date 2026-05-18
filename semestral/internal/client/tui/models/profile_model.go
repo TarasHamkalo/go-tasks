@@ -18,6 +18,14 @@ import (
 type ProfileUpdateSuccessMsg struct {
 	Username string
 	Bio      string
+
+	// True when invisible flag changed and the chat model
+	// should reconnect / resubscribe to apply new presence mode.
+	ReconnectRequired bool
+}
+
+type ProfileLoadedMsg struct {
+	Profile *state.Profile
 }
 
 type ProfileSubModel struct {
@@ -25,18 +33,20 @@ type ProfileSubModel struct {
 	returnTo   SubModel
 	isEditable bool
 
+	userId string
+
 	username    textinput.Model
 	bio         textinput.Model
+	status      string
 	isInvisible bool
 
-	// Focus order:
-	// Editable:     0 (Username) -> 1 (Bio) -> 2 (Invisible Toggle)
-	// Non-Editable: 0 (Invisible Toggle)
+	loading    bool
 	focusIndex int
 }
 
 func NewProfileSubModel(
 	appContext *state.AppContext,
+	userId string,
 	isEditable bool,
 	returnTo SubModel,
 ) *ProfileSubModel {
@@ -57,23 +67,19 @@ func NewProfileSubModel(
 	bioInput.Placeholder = "Bio (Optional)"
 	bioInput.SetWidth(30)
 
-	userId := appContext.Session.GetUserId()
-	if profile, ok := appContext.Session.GetProfile(userId); ok {
-		uname.SetValue(profile.Username)
-		bioInput.SetValue(profile.Bio)
-	}
-
 	m := &ProfileSubModel{
 		appContext:  appContext,
 		returnTo:    returnTo,
 		isEditable:  isEditable,
+		userId:      userId,
 		username:    uname,
 		bio:         bioInput,
-		isInvisible: false,
+		isInvisible: appContext.Session.IsInvisible(),
+		loading:     true,
 		focusIndex:  0,
 	}
 
-	if m.isEditable {
+	if isEditable {
 		m.username.Focus()
 	}
 
@@ -85,10 +91,32 @@ func (m *ProfileSubModel) Id() SubModelId {
 }
 
 func (m *ProfileSubModel) Init() tea.Cmd {
-	if m.isEditable {
-		return textinput.Blink
+	return m.loadProfile()
+}
+
+// func (m *ProfileSubModel) Init() tea.Cmd {
+// 	if m.isEditable {
+// 		return textinput.Blink
+// 	}
+// 	return nil
+// }
+
+func (m *ProfileSubModel) loadProfile() tea.Cmd {
+	return func() tea.Msg {
+
+		m.appContext.RootLogger.Info("i calling resolve  to session")
+		profile, err := tui.ResolveProfileToSession(
+			m.appContext,
+			m.userId,
+		)
+		if err != nil {
+			return NewErrorSubModel(tui.CleanGrpcError(err), m.returnTo)
+		}
+
+		return ProfileLoadedMsg{
+			Profile: profile,
+		}
 	}
-	return nil
 }
 
 func (m *ProfileSubModel) isUsernameFocused() bool {
@@ -152,13 +180,24 @@ func (m *ProfileSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case ProfileLoadedMsg:
+		m.appContext.RootLogger.Info("i loaded profile")
+		m.loading = false
+		m.username.SetValue(msg.Profile.Username)
+		m.bio.SetValue(msg.Profile.Bio)
+		m.status = msg.Profile.Status
+		return m, textinput.Blink
+
 	case ProfileUpdateSuccessMsg:
-		userId := m.appContext.Session.GetUserId()
-		if profile, ok := m.appContext.Session.GetProfile(userId); ok {
+		// update session cache
+		if profile, ok := m.appContext.Session.GetProfile(m.userId); ok {
 			profile.Username = msg.Username
 			profile.Bio = msg.Bio
 		}
-		return m.returnTo, nil
+
+		return m.returnTo, func() tea.Msg {
+			return msg
+		}
 
 	case tea.KeyPressMsg:
 		keyStr := msg.String()
@@ -171,7 +210,7 @@ func (m *ProfileSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.nextFocus()
 			return m, nil
 
-		case " ":
+		case "space":
 			if m.isInvisibleToggleFocused() {
 				m.isInvisible = !m.isInvisible
 				return m, nil
@@ -183,6 +222,7 @@ func (m *ProfileSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					errModel := NewErrorSubModel(err, m)
 					return errModel, errModel.Init()
 				}
+
 				return m, m.submitProfileUpdate()
 			}
 		}
@@ -191,6 +231,7 @@ func (m *ProfileSubModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.username, cmd = m.username.Update(msg)
 			return m, cmd
 		}
+
 		if m.isBioFocused() {
 			m.bio, cmd = m.bio.Update(msg)
 			return m, cmd
@@ -205,32 +246,40 @@ func (m *ProfileSubModel) View() tea.View {
 }
 
 func (m *ProfileSubModel) ContentView(width, height int) tea.View {
-	title := "User Profile (View Only)"
+	if m.loading {
+		content := tui.DialogBoxStyle.Render("Loading profile...")
+		return tea.NewView(
+			lipgloss.Place(
+				width,
+				height,
+				lipgloss.Center,
+				lipgloss.Center,
+				content,
+			),
+		)
+	}
+
+	title := "User Profile"
 	if m.isEditable {
-		title = "Edit Profile Settings"
+		title = "Edit Profile"
 	}
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("#E5E5E5")).
-		MarginBottom(1)
+		Foreground(lipgloss.Color("#E5E5E5"))
 
 	labelStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#A0A0A0")).
-		MarginTop(1)
+		Foreground(lipgloss.Color("#A0A0A0"))
 
 	valueStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Padding(0, 1)
-
-	toggleStyle := lipgloss.NewStyle().
-		Padding(0, 1)
+		Foreground(lipgloss.Color("#FFFFFF"))
 
 	makeInputStyle := func(focused bool) lipgloss.Style {
 		color := "#3C3C3C"
 		if focused {
 			color = "#FF007F"
 		}
+
 		return lipgloss.NewStyle().
 			Width(34).
 			Padding(0, 1).
@@ -239,67 +288,101 @@ func (m *ProfileSubModel) ContentView(width, height int) tea.View {
 	}
 
 	var sections []string
-	sections = append(sections, titleStyle.Render(title), "")
 
-	// 1. Account User ID Field (Always Read Only)
 	sections = append(
 		sections,
-		labelStyle.Render("Account User ID:"),
-		valueStyle.Render(fmt.Sprintf("ID: %s", m.appContext.Session.GetUserId())),
+		titleStyle.Render(title),
+		"",
+		labelStyle.Render("User ID"),
+		valueStyle.Render(m.userId),
+		"",
+		labelStyle.Render("Status"),
+		valueStyle.Render(m.status),
+		"",
+		labelStyle.Render("Username"),
 	)
 
-	// 2. Username Field View Calculation
-	sections = append(sections, labelStyle.Render("Username:"))
 	if m.isEditable {
-		sections = append(sections, makeInputStyle(m.isUsernameFocused()).Render(m.username.View()))
+		sections = append(
+			sections,
+			makeInputStyle(m.isUsernameFocused()).Render(m.username.View()),
+		)
 	} else {
 		sections = append(sections, valueStyle.Render(m.username.Value()))
 	}
 
-	// 3. Biography Field View Calculation
-	sections = append(sections, labelStyle.Render("Biography Status:"))
+	sections = append(
+		sections,
+		"",
+		labelStyle.Render("Biography"),
+	)
+
 	if m.isEditable {
-		sections = append(sections, makeInputStyle(m.isBioFocused()).Render(m.bio.View()))
+		sections = append(
+			sections,
+			makeInputStyle(m.isBioFocused()).Render(m.bio.View()),
+		)
 	} else {
-		bioVal := m.bio.Value()
-		if bioVal == "" {
-			bioVal = "No biography written yet."
+		bio := m.bio.Value()
+		if bio == "" {
+			bio = "No biography written yet."
 		}
-		sections = append(sections, valueStyle.Render(bioVal))
+		sections = append(sections, valueStyle.Render(bio))
 	}
 
-	if m.isEditable {
-		// 4. Invisible Status Checkbox Component Block
-		sections = append(sections, labelStyle.Render("Privacy Options:"))
-		checkboxSymbol := "[ ]"
+	// Show visibility toggle only for current user profile.
+	if m.userId == m.appContext.Session.GetUserId() {
+		checkbox := "[ ] Invisible Mode"
 		if m.isInvisible {
-			checkboxSymbol = "[x]"
+			checkbox = "[x] Invisible Mode"
 		}
 
-		toggleContent := fmt.Sprintf("%s Go Invisible Mode", checkboxSymbol)
 		if m.isInvisibleToggleFocused() {
-			toggleContent = lipgloss.NewStyle().
+			checkbox = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#00FFFF")).
 				Bold(true).
-				Render(fmt.Sprintf("> %s Go Invisible Mode", checkboxSymbol))
-		} else {
-			toggleContent = toggleStyle.Foreground(lipgloss.Color("#888888")).Render(toggleContent)
+				Render("> " + checkbox)
 		}
-		sections = append(sections, toggleContent)
+
+		sections = append(
+			sections,
+			"",
+			labelStyle.Render("Privacy"),
+			checkbox,
+		)
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
-	dialog := tui.DialogBoxStyle.BorderForeground(lipgloss.Color("#3C3C3C")).Render(content)
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		sections...,
+	)
 
-	return tea.NewView(lipgloss.Place(width, height, lipgloss.Center, lipgloss.Center, dialog))
+	dialog := tui.DialogBoxStyle.Render(content)
+
+	centered := lipgloss.Place(
+		width,
+		height,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialog,
+	)
+
+	return tea.NewView(centered)
 }
 
 func (m *ProfileSubModel) submitProfileUpdate() tea.Cmd {
 	uname := strings.TrimSpace(m.username.Value())
 	bioText := strings.TrimSpace(m.bio.Value())
-	m.appContext.RootLogger.Info("i am here")
+
+	oldInvisible := m.appContext.Session.IsInvisible()
+	newInvisible := m.isInvisible
+	reconnectRequired := oldInvisible != newInvisible
+
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 3*time.Second)
+		ctx, cancel := context.WithTimeout(
+			m.appContext.Ctx,
+			3*time.Second,
+		)
 		defer cancel()
 
 		_, err := m.appContext.ProfileClient.UpdateUserProfile(
@@ -307,15 +390,20 @@ func (m *ProfileSubModel) submitProfileUpdate() tea.Cmd {
 			&pb.UpdateUserProfileRequest{
 				Username: uname,
 				Bio:      bioText,
-			})
-
+			},
+		)
 		if err != nil {
-			return NewErrorSubModel(tui.CleanGrpcError(err), m)
+			return NewErrorSubModel(
+				tui.CleanGrpcError(err),
+				m,
+			)
 		}
 
+		m.appContext.Session.SetInvisible(newInvisible)
 		return ProfileUpdateSuccessMsg{
-			Username: uname,
-			Bio:      bioText,
+			Username:          uname,
+			Bio:               bioText,
+			ReconnectRequired: reconnectRequired,
 		}
 	}
 }

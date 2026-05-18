@@ -82,11 +82,18 @@ func ResolveProfileToSession(
 
 	if err != nil {
 		return nil, err
+
+	}
+	status := "offline"
+	if profRes.Status == *pb.UserStatus_ONLINE.Enum() {
+		status = "online"
 	}
 
 	profile := &state.Profile{
 		Id:       profRes.UserId,
 		Username: profRes.Username,
+		Bio:      profRes.Bio,
+		Status:   status,
 	}
 
 	session.SetProfile(profile)
