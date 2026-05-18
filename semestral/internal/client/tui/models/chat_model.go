@@ -165,9 +165,13 @@ func (m *ChatModel) handleNetworkAndSelections(
 		model, cmd := m.messagesListModel.Update(msg)
 		m.messagesListModel = model.(*MessagesListModel)
 		return m, cmd, true
+	
+	case MessageSelectedMsg:
+		model := NewMessageAcksSubModel(m.appContext, msg.MsgId, m) 
+		cmd := model.Init()
+		return model, cmd, true
 
 	// forward these specific messages down to the messages list
-
 	case TriggerDeliveryMsg,
 		MessageUpdateCounts,
 		MarkReadSuccessMsg,

@@ -15,7 +15,7 @@ var (
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("#874BFD")).
 		Padding(1, 2).
-		Width(45) 
+		Width(55) 
 
 )
 

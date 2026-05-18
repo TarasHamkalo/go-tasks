@@ -17,6 +17,7 @@ const (
 	ScreenInviteUser
 	ScreenProfile
 	ScreenConfiguration
+	ScreenMessageAcks
 	TODOScreen
 )
 
