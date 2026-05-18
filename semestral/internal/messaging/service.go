@@ -645,14 +645,56 @@ func (s *MessagingService) Subscribe(
 		return status.Error(codes.Internal, "missing authentication claims")
 	}
 
+	// extract authorization metadata to pass to the Profile service
+	// will be surely present, see above check
+	md, _ := metadata.FromIncomingContext(stream.Context())
+
 	userId := claims.Subject
 
 	s.logger.Info(
 		"user subscribed to message stream",
 		zap.String("userId", userId),
 		zap.String("addr", peerAddress(stream.Context())),
-		zap.Bool("isInvisible", req.IsInvisible), 
+		zap.Bool("isInvisible", req.IsInvisible),
 	)
+
+	if !req.IsInvisible {
+		outCtx, cancel := context.WithTimeout(
+			metadata.NewOutgoingContext(stream.Context(), md), 5*time.Second,
+		)
+
+		_, err := s.profileClient.UpdateStatus(outCtx, &pb.UpdateStatusRequest{
+			Status: pb.UserStatus_ONLINE,
+		})
+		cancel()
+
+		if err != nil {
+			s.logger.Warn(
+				"failed to set user online status",
+				zap.Error(err),
+				zap.String("userId", userId),
+			)
+		}
+	}
+	defer func() {
+		// when the client disconnects, stream.Context() is canceled.
+		outCtx, cancel := context.WithTimeout(
+			metadata.NewOutgoingContext(context.Background(), md), 5*time.Second,
+		)
+		defer cancel()
+
+		_, err := s.profileClient.UpdateStatus(outCtx, &pb.UpdateStatusRequest{
+			Status: pb.UserStatus_OFFLINE,
+		})
+
+		if err != nil {
+			s.logger.Warn(
+				"failed to set user offline status",
+				zap.Error(err),
+				zap.String("userId", userId),
+			)
+		}
+	}()
 
 	// TODO: change status of user here and set defer
 	session := s.broker.Subscribe(userId)

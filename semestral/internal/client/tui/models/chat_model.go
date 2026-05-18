@@ -359,7 +359,8 @@ func (m *ChatModel) ShortHelp() []tui.Binding {
 		{Key: "Tab", Description: "Next section"},
 		{Key: "Enter", Description: "Interact"},
 		{Key: "d/g", Description: "New Direct/Group"},
-		{Key: "m/i", Description: "Members/Invite"},
+		{Key: "m", Description: "Members"},
+		{Key: "i/l", Description: "Invite/Leave"},
 	}
 }
 

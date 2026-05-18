@@ -331,7 +331,7 @@ func (m *ProfileSubModel) ContentView(width, height int) tea.View {
 	}
 
 	// Show visibility toggle only for current user profile.
-	if m.userId == m.appContext.Session.GetUserId() {
+	if m.isEditable && m.userId == m.appContext.Session.GetUserId() {
 		checkbox := "[ ] Invisible Mode"
 		if m.isInvisible {
 			checkbox = "[x] Invisible Mode"
