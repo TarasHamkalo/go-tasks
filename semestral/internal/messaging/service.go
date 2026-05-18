@@ -1,3 +1,5 @@
+// Package messaging handles everything related to message representation, 
+// chat identification, message forwarding and querying of related metadata.
 package messaging
 
 import (
@@ -21,11 +23,19 @@ import (
 	"gomessenger/internal/auth"
 )
 
+// MessagingService implements the gRPC messaging service,
+// including real-time message delivery, offline message storage,
+// chat membership management, and client subscriptions.
 type MessagingService struct {
+	// Persistent storage backend for messages, chats and other
 	repo Repository
-
+	
+	// broker handles routing/multiplexing of incoming messages 
+	// to connected clients 
 	broker *Broker
-
+	
+	// profileClient grpc client to profiles.ProfileService used e.g.
+	// to verify that request group contains valid target users
 	profileClient pb.ProfileServiceClient
 
 	logger *zap.Logger
@@ -33,6 +43,7 @@ type MessagingService struct {
 	pb.UnimplementedMessagingServiceServer
 }
 
+// NewMessagingService constructs new instance of given service
 func NewMessagingService(
 	repo Repository,
 	profileClient pb.ProfileServiceClient,
@@ -47,7 +58,14 @@ func NewMessagingService(
 	}
 }
 
-// --- Delivery & Read Tracking ---
+// AckMessage used to track message delivery from client.
+// Active client should send this message when it is successfully stored
+// in local storage.
+// 
+// NOTE: when all recipients of the message ack given message, message 
+// is dropped from server db
+//
+// NOTE: client can send multiple acks resulting in NOP
 func (s *MessagingService) AckMessage(
 	ctx context.Context, req *pb.AckMessageRequest,
 ) (*pb.AckMessageResponse, error) {
@@ -78,6 +96,7 @@ func (s *MessagingService) AckMessage(
 	return &pb.AckMessageResponse{}, nil
 }
 
+// SetMessagesRead sets "read" status/time for a batch of messages
 func (s *MessagingService) SetMessagesRead(
 	ctx context.Context, req *pb.SetMessagesReadRequest,
 ) (*pb.SetMessagesReadResponse, error) {
@@ -110,6 +129,10 @@ func (s *MessagingService) SetMessagesRead(
 	return &pb.SetMessagesReadResponse{}, nil
 }
 
+// GetMessageAcks returns acks for specified message.
+//
+// NOTE: user has to be part of chat id message belongs to, for request
+// to succeed, otherwise PermissionDenied
 func (s *MessagingService) GetMessageAcks(
 	ctx context.Context, req *pb.GetMessageAcksRequest,
 ) (*pb.GetMessageAcksResponse, error) {
@@ -170,7 +193,7 @@ func (s *MessagingService) GetMessageAcks(
 	return &pb.GetMessageAcksResponse{Acks: pbAcks}, nil
 }
 
-// --- Chat Management ---
+// GetUserChats returns chats for authenticated user (claims subject) 
 func (s *MessagingService) GetUserChats(
 	ctx context.Context, req *pb.GetUserChatsRequest,
 ) (*pb.GetUserChatsResponse, error) {
@@ -203,6 +226,9 @@ func (s *MessagingService) GetUserChats(
 	return &pb.GetUserChatsResponse{Chats: pbChats}, nil
 }
 
+// GetUserChats returns chat members specified chat
+// 
+// NOTE: caller has to be part of chat, otherwise PermissionDenied
 func (s *MessagingService) GetChatMembers(
 	ctx context.Context, req *pb.GetChatMembersRequest,
 ) (*pb.GetChatMembersResponse, error) {
@@ -227,18 +253,25 @@ func (s *MessagingService) GetChatMembers(
 
 	// verify the caller is part of the chat
 	if !slices.Contains(members, claims.Subject) {
-		return nil, status.Error(codes.PermissionDenied, "user is not a member of this chat")
+		return nil, status.Error(
+			codes.PermissionDenied, "user is not a member of this chat",
+		)
 	}
 
 	return &pb.GetChatMembersResponse{MemberIds: members}, nil
 }
 
+// CreateDirectChat creates direct chat with user from claims and target user
+// 
+// NOTE: target user id is verified against profiles.ProfileClient 
 func (s *MessagingService) CreateDirectChat(
 	ctx context.Context, req *pb.CreateDirectChatRequest,
 ) (*pb.CreateDirectChatResponse, error) {
 	claims, ok := auth.ClaimsFromContext(ctx)
 	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "missing authentication claims")
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
 	}
 
 	userId := claims.Subject
@@ -302,7 +335,10 @@ func (s *MessagingService) CreateDirectChat(
 
 	return &pb.CreateDirectChatResponse{ChatId: chatId}, nil
 }
-
+// CreateGroupChat creates group chat adding all 
+// members from request and user from claims 
+// 
+// NOTE: all user ids are verified against profiles.ProfileService
 func (s *MessagingService) CreateGroupChat(
 	ctx context.Context, req *pb.CreateGroupChatRequest,
 ) (*pb.CreateGroupChatResponse, error) {
@@ -373,6 +409,10 @@ func (s *MessagingService) CreateGroupChat(
 	return &pb.CreateGroupChatResponse{ChatId: chatId}, nil
 }
 
+// AddChatMember add user to chat, user from claims has to be part of 
+// chat to add someone to it 
+// 
+// NOTE: target user id is verified against profiles.ProfileClient 
 func (s *MessagingService) AddChatMember(
 	ctx context.Context, req *pb.AddChatMemberRequest,
 ) (*pb.AddChatMemberResponse, error) {
@@ -433,11 +473,15 @@ func (s *MessagingService) AddChatMember(
 	)
 	if err != nil {
 		s.logger.Error("failed call to verify target user", zap.Error(err))
-		return nil, status.Error(codes.Internal, "could not verify target user presence")
+		return nil, status.Error(
+			codes.Internal, "could not verify target user presence",
+		)
 	}
 
 	if len(verifyResp.ExistingUserIds) != 1 {
-		return nil, status.Error(codes.NotFound, "target user profile does not exist")
+		return nil, status.Error(
+			codes.NotFound, "target user profile does not exist",
+		)
 	}
 
 	err = s.repo.AddChatMember(ctx, req.ChatId, targetUserId)
@@ -498,7 +542,9 @@ func (s *MessagingService) LeaveChat(
 ) (*pb.LeaveChatResponse, error) {
 	claims, ok := auth.ClaimsFromContext(ctx)
 	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "missing authentication claims")
+		return nil, status.Error(
+			codes.Unauthenticated, "missing authentication claims",
+		)
 	}
 
 	chat, err := s.repo.GetChatById(ctx, req.ChatId)
@@ -516,7 +562,7 @@ func (s *MessagingService) LeaveChat(
 			codes.InvalidArgument, "can not leave direct chat",
 		)
 	}
-
+	// TODO: dangling chats if no members left, echh... 
 	err = s.repo.RemoveChatMember(ctx, req.ChatId, claims.Subject)
 	if err != nil {
 		s.logger.Error(
@@ -530,6 +576,11 @@ func (s *MessagingService) LeaveChat(
 	return &pb.LeaveChatResponse{}, nil
 }
 
+// SendMessage receives message from client, stores it in db
+// and forwards it to broker to multiplex and route message to all
+// subscribed clients.
+//
+// NOTE: message is routed based on chat id, user has to be part of it
 func (s *MessagingService) SendMessage(
 	ctx context.Context, req *pb.SendMessageRequest,
 ) (*pb.SendMessageResponse, error) {
@@ -547,7 +598,7 @@ func (s *MessagingService) SendMessage(
 
 	userId := claims.Subject
 	sentAt := time.Now().UTC()
-	// if chat exists then message is valid, no need to verify recepients
+	// if chat exists then message is valid, no need to verify recipients
 	message := Message{
 		Id:       uuid.New().String(),
 		ChatId:   req.ChatId,
@@ -570,7 +621,7 @@ func (s *MessagingService) SendMessage(
 
 	userIsPartOfChat := false
 	acks := make([]MessageAck, 0, len(chatMembers))
-
+	// construct acks for each recipient and verify user is part of target chat
 	for _, chatMember := range chatMembers {
 		if chatMember == userId {
 			// verify that the sender belongs to the chat and
@@ -597,6 +648,14 @@ func (s *MessagingService) SendMessage(
 			codes.PermissionDenied,
 			"user is not a part of given chat",
 		)
+	}
+
+	// if no recipients apart from client which send it, then don't store in db.
+	// sender responsible for management of its stored messages
+	if len(acks) == 0 {
+		return &pb.SendMessageResponse{
+			MsgId: message.Id,
+		}, nil
 	}
 
 	err = s.repo.InsertMessageWithAcks(ctx, &message, acks)
@@ -630,6 +689,25 @@ func (s *MessagingService) SendMessage(
 	}, nil
 }
 
+// Subscribe handles client subscription to message stream and owns this stream
+// till client is disconnected.
+//
+// Each subscribe call results in one long lived goroutine created, managing
+// client stream. At start, subscribe create session channel (in messaging.broker) 
+// to which messages published through SendMessage are forwarded. Then
+// this routine queries all undelivered messages from database, send them
+// and sleep awaiting either new incomming message from broker or end of client
+// session (either killed by broker or by client disconnect).
+//
+// NOTE: at start and right before exit (defer), user status is propagated
+// to profiles.ProfileService, it is user marked as online/offline 
+//
+// NOTE: if IsInvisible parameter set, user status won't be propagated to 
+// profile service
+//
+// NOTE: if client can not keep up with incoming messages, session is closed
+// and user have to reconnect (client should handle this). No messages
+// will be lost (they are not removed until client call AckMessage).
 func (s *MessagingService) Subscribe(
 	req *pb.SubscribeRequest,
 	stream grpc.ServerStreamingServer[pb.ServerEvent],
@@ -658,6 +736,8 @@ func (s *MessagingService) Subscribe(
 	)
 
 	if !req.IsInvisible {
+		// if user did not request invisible session, propagate status 
+		// to profile server
 		outCtx, cancel := context.WithTimeout(
 			metadata.NewOutgoingContext(stream.Context(), md), 5*time.Second,
 		)
@@ -675,6 +755,8 @@ func (s *MessagingService) Subscribe(
 			)
 		}
 	}
+
+	// set user status to offline when subscribe exits
 	defer func() {
 		// when the client disconnects, stream.Context() is canceled.
 		outCtx, cancel := context.WithTimeout(
@@ -695,6 +777,7 @@ func (s *MessagingService) Subscribe(
 		}
 	}()
 
+	// register user session in broker
 	session := s.broker.Subscribe(userId)
 	defer s.broker.Unsubscribe(userId, session)
 
@@ -757,6 +840,8 @@ func (s *MessagingService) Subscribe(
 	}
 }
 
+// sendUndeliveredMessages helper to pull messages from db and flush them
+// to stream
 func (s *MessagingService) sendUndeliveredMessages(
 	stream grpc.ServerStreamingServer[pb.ServerEvent],
 	userId string,
@@ -776,6 +861,7 @@ func (s *MessagingService) sendUndeliveredMessages(
 	return nil
 }
 
+// toIncomingMessageEvent mapper to grpc response...
 func toIncomingMessageEvent(message *Message) *pb.ServerEvent {
 	incomingMessage := pb.IncomingMessage{
 		Id:       message.Id,
@@ -785,7 +871,6 @@ func toIncomingMessageEvent(message *Message) *pb.ServerEvent {
 		SentAt:   timestamppb.New(message.SentAt),
 	}
 
-	// pretty nice syntax :)
 	return &pb.ServerEvent{
 		Event: &pb.ServerEvent_IncomingMessage{
 			IncomingMessage: &incomingMessage,

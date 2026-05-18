@@ -9,9 +9,6 @@ import (
 )
 
 const (
-	// not sure whether to add foreign keys at all, we can not bound
-	// sender id still, so...
-	// Just leaving constraints that are possible to verify (inside single db)
 	SCHEMA_QUERY = `
 	PRAGMA foreign_keys = ON;
 	CREATE TABLE IF NOT EXISTS
@@ -157,10 +154,13 @@ const (
 	`
 )
 
+// SqliteRepository implements messaging.Repository using SQLite.
 type SqliteRepository struct {
 	Db *sqlx.DB
 }
 
+// NewSqliteRepository opens a SQLite database and returns
+// a repository backed by it.
 func NewSqliteRepository(dbPath string) (*SqliteRepository, error) {
 	// SQLite DSN configuration:
 	// - foreign_keys=1     enables foreign key constraint enforcement

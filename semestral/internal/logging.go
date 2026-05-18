@@ -9,8 +9,7 @@ import (
 
 
 
-// LogInit is helper function to init logger to my preferences,
-// not really a part of pkg
+// LogInit is helper function to init logger to my preferences
 func LogInit(file *os.File, debug bool) *zap.Logger {
 	pe := zap.NewProductionEncoderConfig()
 	//fileEncoder := zapcore.NewJSONEncoder(pe)
@@ -31,8 +30,7 @@ func LogInit(file *os.File, debug bool) *zap.Logger {
 	return l
 }
 
-// LogInitWithConsole is helper function to init logger to my preferences,
-// not really a part of pkg
+// LogInitWithConsole is helper function to init logger to my preferences
 func LogInitWithConsole(file *os.File, debug bool) *zap.Logger {
 	pe := zap.NewProductionEncoderConfig()
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder

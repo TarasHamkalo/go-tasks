@@ -7,18 +7,33 @@ import (
 	"go.uber.org/zap"
 )
 
+
+// UserSession represents active/subscribed user 
 type UserSession struct {
+	// id is UserSession id (uuid used)
 	id          string
+
+	// messageChan channel to pass messages to given user.
+	//
+	// Reader end of the channel is used in routine handling user subscription stream 
+	// Writer end is used in Publish method and respectively SendMessage rpc
 	messageChan chan *Message
+	
+	// done is closed to identify that given session is terminated and no new messages
+	// will be sent to messageChan. 
 	done        chan struct{}
+
+	// closeOnce is guard to close done channel
 	closeOnce   sync.Once
 }
 
+// messageTarget internal struct to identify message target
 type messageTarget struct {
 	userId  string
 	session *UserSession
 }
 
+// newUserSession creates new sesssion with buffered channel, allow 30 messages 
 func newUserSession() *UserSession {
 	return &UserSession{
 		id:          uuid.New().String(),
@@ -45,13 +60,19 @@ func (s *UserSession) Close() {
 	})
 }
 
+
+// Broker handles multiplexing and routing of messages to users/routines
+// handling user subscription stream 
 type Broker struct {
+	// sessions map of session per user, user can have multiple sessions
 	sessions   map[string][]*UserSession
 	sessionsMu sync.RWMutex
 
 	logger *zap.Logger
 }
 
+
+// NewBroker constructs new broker instance
 func NewBroker(logger *zap.Logger) *Broker {
 	return &Broker{
 		sessions:   make(map[string][]*UserSession, 10),
@@ -60,6 +81,7 @@ func NewBroker(logger *zap.Logger) *Broker {
 	}
 }
 
+// Subscribe create new session for given user
 func (b *Broker) Subscribe(userId string) *UserSession {
 	b.sessionsMu.Lock()
 	defer b.sessionsMu.Unlock()
@@ -77,6 +99,7 @@ func (b *Broker) Subscribe(userId string) *UserSession {
 	return userSession
 }
 
+// Unsubscribe removes session for user
 func (b *Broker) Unsubscribe(userId string, targetSession *UserSession) {
 	b.sessionsMu.Lock()
 	defer b.sessionsMu.Unlock()
@@ -96,7 +119,10 @@ func (b *Broker) Unsubscribe(userId string, targetSession *UserSession) {
 
 	if len(filtered) == 0 {
 		delete(b.sessions, userId)
-		b.logger.Info("all sessions removed for user, clearing map entry", zap.String("userId", userId))
+		b.logger.Info(
+			"all sessions removed for user, clearing map entry",
+			zap.String("userId", userId),
+		)
 	} else {
 		b.sessions[userId] = filtered
 		b.logger.Debug(
@@ -107,6 +133,11 @@ func (b *Broker) Unsubscribe(userId string, targetSession *UserSession) {
 	}
 }
 
+// Publish constructs message targets (it is all active user sessions)
+// from acks object under read lock and sends those corresponding channels
+//
+// NOTE: channels write is unblocking, slow clients session is force closed,
+// no messages are lost at this point as they are store in db
 func (b *Broker) Publish(message *Message, acks []MessageAck) {
 	// make copy of all target sessions under read lock
 	b.sessionsMu.RLock()
