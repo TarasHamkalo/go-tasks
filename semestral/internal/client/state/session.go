@@ -20,8 +20,8 @@ type Session struct {
 	// Unread tracking (UI state)
 	unreadCounts map[string]int // ChatId -> Count of new messages
 
-	// TODO: here
-	isInvisible bool 
+	// TODO: could use atomic bool
+	isInvisible bool
 
 	mu sync.RWMutex
 }
@@ -39,8 +39,28 @@ func (s *Session) touch() {
 	s.sessionVersion.Add(1)
 }
 
+
 func (s *Session) Version() int64 {
 	return s.sessionVersion.Load()
+}
+
+func (s *Session) IsInvisible() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.isInvisible
+}
+
+func (s *Session) SetInvisible(invisible bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.isInvisible == invisible {
+		return
+	}
+
+	s.isInvisible = invisible
+	s.touch()
 }
 
 func (s *Session) SetUserId(userId string) {
@@ -134,7 +154,6 @@ func (s *Session) GetChatsSnapshot() map[string]Chat {
 	maps.Copy(out, s.chats)
 	return out
 }
-
 
 func (s *Session) SetChatMembers(chatId string, members []string) {
 	s.mu.Lock()
