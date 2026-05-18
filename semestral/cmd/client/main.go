@@ -163,6 +163,7 @@ func setupClients(appContext *state.AppContext) {
 	profileConn, err := grpc.NewClient(
 		appContext.Config.ProfilesApiAddr, opts...,
 	)
+
 	if err != nil {
 		appContext.RootLogger.Fatal(
 			"failed to connect to profile server", zap.Error(err),
@@ -181,7 +182,22 @@ func setupClients(appContext *state.AppContext) {
 	}
 
 	messagingClient := pb.NewMessagingServiceClient(messagingConn)
-	credentialsInterceptor.SetProfileClient(profileClient)
+
+	// use separate client to refresh tokens (no recursion in interceptor)
+	refreshConn, err := grpc.NewClient(
+		appContext.Config.ProfilesApiAddr,
+		grpc.WithTransportCredentials(credentials.NewTLS(appContext.TlsConfig)),
+	)
+
+	if err != nil {
+		appContext.RootLogger.Fatal(
+			"failed to connect to profile server", zap.Error(err),
+		)
+	}
+
+	refreshClient := pb.NewProfileServiceClient(refreshConn)
+	credentialsInterceptor.SetProfileClient(refreshClient)
+
 
 	appContext.CredentialsInterceptor = credentialsInterceptor
 
