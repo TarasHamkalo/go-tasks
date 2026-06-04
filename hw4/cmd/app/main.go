@@ -22,10 +22,9 @@ import (
 	pb "http-mocker/generated"
 )
 
-const AppLogFilePath = "logs/mocker.log"
-
 func main() {
-	certPath, keyPath := "certs/server.crt", "certs/server.key"
+	certPath := os.Getenv("CERT_FILE")
+	keyPath := os.Getenv("KEY_FILE")
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	tlsCfg := tls.Config{Certificates: []tls.Certificate{cert}}
 
@@ -33,10 +32,7 @@ func main() {
 		log.Fatalf("Failed to load server certificate and key: %v", err)
 	}
 
-	appLogFile := createLogFile()
-	defer appLogFile.Close()
-
-	appLogger := internal.LogInitWithConsole(appLogFile, true)
+	appLogger := internal.LogInit(true)
 
 	httpServer, grpcServer := setupServers(appLogger, &tlsCfg)
 	if err = grpcServer.Serve(8081); err != nil {
@@ -69,28 +65,6 @@ func main() {
 	wg.Wait()
 
 	appLogger.Info("Main routine exits")
-}
-
-func createLogFile() *os.File {
-	if err := os.Mkdir("logs", 0755); err != nil && !os.IsExist(err) {
-		log.Fatalf("Failed to create log directory: %v", err)
-	}
-
-	appLogFile, err := os.OpenFile(
-		AppLogFilePath,
-		os.O_CREATE|os.O_WRONLY|os.O_TRUNC,
-		0644,
-	)
-
-	if err != nil {
-		log.Fatalf(
-			"Failed to create app server log, file=%s, err=%v",
-			AppLogFilePath,
-			err,
-		)
-	}
-
-	return appLogFile
 }
 
 func setupServers(

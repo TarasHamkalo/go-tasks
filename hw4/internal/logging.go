@@ -37,3 +37,20 @@ func LogInitWithConsole(file *os.File, debug bool) *zap.Logger {
 
 	return zap.New(core)
 }
+
+// LogInit is helper function to init logger to my preferences
+func LogInit(debug bool) *zap.Logger {
+	encoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
+	level := zap.InfoLevel
+	if debug {
+		level = zap.DebugLevel
+	}
+
+	core := zapcore.NewTee(
+		zapcore.NewCore(encoder, zapcore.AddSync(os.Stdout), level),
+	)
+
+	l := zap.New(core)
+
+	return l
+}
