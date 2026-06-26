@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+option go_package = "./generated;pb";
+
+package profile;
+
+// protoc \
+//   --go_out=. \
+//   --go-grpc_out=. \
+//   protos/profile_service.proto
+// ProfileService provides user registration, authentication,
+// token refresh, and profile management operations.
+service ProfileService {
+
+  // Creates a new user profile and returns the generated user ID
+  //
+  // NOTE: Response contains generated 9-digit user ID.
+  rpc RegisterProfile(RegisterProfileRequest) returns (RegisterProfileResponse);
+
+  // Authenticates the user and returns a new access/refresh token pair.
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Exchanges a valid refresh token for a new access/refresh token pair.
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+
+  // Retrieves a public profile by user ID.
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse);
+
+  // Updates the authenticated user's online status.
+  // The target user is resolved from the JWT subject claim in the
+  // Authorization: Bearer <token> header.
+  rpc UpdateStatus(UpdateStatusRequest) returns (UpdateStatusResponse);
+
+  // Updates the authenticated user's profile fields.
+  // The target user is resolved from the JWT subject claim in the
+  // Authorization: Bearer <token> header.
+  rpc UpdateUserProfile(UpdateUserProfileRequest) returns (UpdateUserProfileResponse);
+  
+  // Verifies existence of batch of users, returning existing ids
+  rpc VerifyUsers(VerifyUsersRequest) returns (VerifyUsersResponse);
+}
+
+// UserStatus represents the current presence state of a user.
+enum UserStatus {
+  OFFLINE = 0;
+  ONLINE = 1;
+}
+
+message RegisterProfileRequest {
+  string username = 1;
+  bytes password = 2;
+}
+
+message RegisterProfileResponse {
+  string user_id = 1;
+}
+
+message Tokens {
+  string access_token = 1;
+  string refresh_token = 2;
+}
+
+message LoginRequest {
+  string user_id = 1;
+  bytes password = 2;
+}
+
+message LoginResponse {
+  Tokens tokens = 1;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  Tokens tokens = 1;
+}
+
+message GetUserProfileRequest {
+  string user_id = 1; 
+}
+
+message GetUserProfileResponse {
+  string user_id = 1;
+  string username = 2;
+  string bio = 3;
+  UserStatus status = 4;
+}
+
+message UpdateStatusRequest {
+  UserStatus status = 2;
+}
+
+message UpdateStatusResponse {}
+
+message UpdateUserProfileRequest {
+  string username = 1;
+  string bio = 2;
+}
+
+message UpdateUserProfileResponse {}
+
+message VerifyUsersRequest {
+  repeated string user_ids = 1;
+}
+
+message VerifyUsersResponse {
+  repeated string existing_user_ids = 1;
+}

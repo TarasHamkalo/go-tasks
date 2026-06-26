@@ -1,0 +1,492 @@
+~/repositories/ni-gol/hw4 tasks/http-mocker*
+❯ ./demo/demo.sh
+=== Example 1: Empty state test ===
+gRPC Call: method: ClearDatabase
+{}
+
+Test: Expect 501 when no configuration exists
+HTTP Request: method: GET, path: /users
+HTTP/1.1 501 Not Implemented
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 0
+
+
+=== Example 2: Basic GET configuration ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, method: GET, path: /users
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users",
+        "method": "GET"
+      },
+      "res": {
+        "statusCode": 200,
+        "body": "WyJ1c2VyLTEiLCJ1c2VyLTIiXQ=="
+      }
+    }
+  ]
+}
+
+Test: Expect 200 on path match
+HTTP Request: method: GET, path: /users
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 19
+Content-Type: text/plain; charset=utf-8
+
+["user-1","user-2"]
+Test: Expect 404 on path mismatch
+HTTP Request: method: GET, path: /invalid
+HTTP/1.1 404 Not Found
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 0
+
+
+=== Example 3: POST body exact match ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, method: POST, path: /users/user-1, req_body: {"name":"user-name"}
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "POST",
+        "body": "eyJuYW1lIjoidXNlci1uYW1lIn0="
+      },
+      "res": {
+        "statusCode": 200
+      }
+    }
+  ]
+}
+
+Test: Expect 200 on matching body
+HTTP Request: method: POST, path: /users/user-1, body: {"name":"user-name"}
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 0
+
+
+Test: Expect 404 on body content mismatch
+HTTP Request: method: POST, path: /users/user-1, body: {"name":"wrong"}
+HTTP/1.1 404 Not Found
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 0
+
+
+=== Example 4: Query parameter permutation ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, path: /test?name=Name&name=Surname&name=Nickname
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/test",
+        "method": "GET",
+        "query": {
+          "name": {
+            "values": [
+              "Nickname",
+              "Name",
+              "Surname"
+            ]
+          }
+        }
+      },
+      "res": {
+        "statusCode": 200,
+        "body": "eyJvayI6IHRydWV9"
+      }
+    }
+  ]
+}
+
+Test: Expect 200 even if query order is different
+HTTP Request: method: GET, path: /test?name=Surname&name=Nickname&name=Name
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 12
+Content-Type: text/plain; charset=utf-8
+
+{"ok": true}
+=== Example 5: Plain text body mismatch ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, method: POST, req_body: aaa
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/test",
+        "method": "POST",
+        "body": "YWFh"
+      },
+      "res": {
+        "statusCode": 200
+      }
+    }
+  ]
+}
+
+Test: Expect 404 for provided body 'bbb'
+HTTP Request: method: POST, path: /test, body: bbb
+HTTP/1.1 404 Not Found
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 0
+
+
+=== Example 6: Duplicate query keys ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, path: /test?name=A&name=A
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/test",
+        "method": "GET",
+        "query": {
+          "name": {
+            "values": [
+              "A",
+              "A"
+            ]
+          }
+        }
+      },
+      "res": {
+        "statusCode": 200,
+        "body": "b2s="
+      }
+    }
+  ]
+}
+
+Test: Expect 200 on exact count match
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 2
+Content-Type: text/plain; charset=utf-8
+
+ok
+Test: Expect 404 when query parameter count differs
+HTTP/1.1 404 Not Found
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+Content-Length: 0
+
+
+=== Example 7: Method Enforcement (HTTP 405 and gRPC Validation) ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, method: GET, path: /users
+{}
+Test: Expect 405, reason: HEAD is not supported by mocker
+HTTP Request: method: HEAD, path: /users
+HTTP/1.1 405 Method Not Allowed
+Date: Tue, 21 Apr 2026 10:16:45 GMT
+
+
+Test: Expect gRPC Error, reason: Cannot configure unsupported method
+gRPC Call: method: SetReply, method: HEAD, path: /users
+ERROR:
+  Code: InvalidArgument
+  Message: could not set reply: mocker: method not supported
+gRPC call failed as expected
+
+=== Example 8: Custom Headers/Cookies ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, adding Content-Type and multiple Cookie values
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "POST",
+        "body": "eyJuYW1lIjoidXNlci1uYW1lIn0="
+      },
+      "res": {
+        "statusCode": 200,
+        "headers": {
+          "Content-Type": {
+            "values": [
+              "application/json"
+            ]
+          },
+          "Cookie": {
+            "values": [
+              "a",
+              "b"
+            ]
+          }
+        },
+        "body": "eyJvayI6IHRydWV9"
+      }
+    }
+  ]
+}
+
+Test: Verify response headers in output
+HTTP/1.1 200 OK
+Content-Type: application/json
+Cookie: a
+Cookie: b
+Date: Tue, 21 Apr 2026 10:16:46 GMT
+Content-Length: 12
+
+{"ok": true}
+=== Example 9: Overwriting existing configuration (matching despite different request body) ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, initial config: {"name":"old-name"}
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "POST",
+        "body": "eyJuYW1lIjoib2xkLW5hbWUifQ=="
+      },
+      "res": {
+        "statusCode": 200
+      }
+    }
+  ]
+}
+
+gRPC Call: method: SetReply, updated config: {"name":"new-name"}
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "POST",
+        "body": "eyJuYW1lIjoibmV3LW5hbWUifQ=="
+      },
+      "res": {
+        "statusCode": 200
+      }
+    }
+  ]
+}
+
+=== Example 10: Extended HTTP Methods (PUT, DELETE, PATCH) ===
+gRPC Call: method: ClearDatabase
+{}
+
+gRPC Call: method: SetReply, method: PUT, path: /users/user-1
+{}
+gRPC Call: method: SetReply, method: DELETE, path: /users/user-1
+{}
+gRPC Call: method: SetReply, method: PATCH, path: /users/user-1
+{}
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "PUT",
+        "body": "eyJzdGF0dXMiOiJhY3RpdmUifQ=="
+      },
+      "res": {
+        "statusCode": 204
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "DELETE"
+      },
+      "res": {
+        "statusCode": 200,
+        "body": "eyJkZWxldGVkIjp0cnVlfQ=="
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "PATCH"
+      },
+      "res": {
+        "statusCode": 200
+      }
+    }
+  ]
+}
+
+Test: Expect 204 No Content for PUT
+HTTP/1.1 204 No Content
+Date: Tue, 21 Apr 2026 10:16:46 GMT
+
+
+Test: Expect 200 OK for DELETE
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:46 GMT
+Content-Length: 16
+Content-Type: text/plain; charset=utf-8
+
+{"deleted":true}
+Test: Expect 200 OK for PATCH
+HTTP/1.1 200 OK
+Date: Tue, 21 Apr 2026 10:16:46 GMT
+Content-Length: 0
+
+
+=== Final Database State ===
+gRPC Call: method: DumpDatabase
+{
+  "config": [
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "PUT",
+        "body": "eyJzdGF0dXMiOiJhY3RpdmUifQ=="
+      },
+      "res": {
+        "statusCode": 204
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "DELETE"
+      },
+      "res": {
+        "statusCode": 200,
+        "body": "eyJkZWxldGVkIjp0cnVlfQ=="
+      }
+    },
+    {
+      "req": {
+        "path": "/users/user-1",
+        "method": "PATCH"
+      },
+      "res": {
+        "statusCode": 200
+      }
+    }
+  ]
+}
+
+gRPC Call: method: ListRequests
+{
+  "requests": [
+    {
+      "path": "/users",
+      "method": "GET"
+    },
+    {
+      "path": "/users",
+      "method": "GET"
+    },
+    {
+      "path": "/invalid",
+      "method": "GET"
+    },
+    {
+      "path": "/users/user-1",
+      "method": "POST",
+      "body": "eyJuYW1lIjoidXNlci1uYW1lIn0="
+    },
+    {
+      "path": "/users/user-1",
+      "method": "POST",
+      "body": "eyJuYW1lIjoid3JvbmcifQ=="
+    },
+    {
+      "path": "/test",
+      "method": "GET",
+      "query": {
+        "name": {
+          "values": [
+            "Surname",
+            "Nickname",
+            "Name"
+          ]
+        }
+      }
+    },
+    {
+      "path": "/test",
+      "method": "POST",
+      "body": "YmJi"
+    },
+    {
+      "path": "/test",
+      "method": "GET",
+      "query": {
+        "name": {
+          "values": [
+            "A",
+            "A"
+          ]
+        }
+      }
+    },
+    {
+      "path": "/test",
+      "method": "GET",
+      "query": {
+        "name": {
+          "values": [
+            "A"
+          ]
+        }
+      }
+    },
+    {
+      "path": "/users",
+      "method": "HEAD"
+    },
+    {
+      "path": "/users/user-1",
+      "method": "POST",
+      "body": "eyJuYW1lIjoidXNlci1uYW1lIn0="
+    },
+    {
+      "path": "/users/user-1",
+      "method": "PUT",
+      "body": "eyJzdGF0dXMiOiJhY3RpdmUifQ=="
+    },
+    {
+      "path": "/users/user-1",
+      "method": "DELETE"
+    },
+    {
+      "path": "/users/user-1",
+      "method": "PATCH"
+    }
+  ]
+}
+~/repositories/ni-gol/hw4 tasks/http-mocker*
+❯

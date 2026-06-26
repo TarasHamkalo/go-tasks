@@ -1,0 +1,141 @@
+~/repositories/ni-gol/hw3 tasks/downloader*
+❯ go run ./cmd/app
+>>> download https://nbg1-speed.hetzner.com/10GB.bin /tmp/4
+Download submitted with id: 89bb713a-062f-48b1-858b-5532aa7dc91d
+>>>
+[start]	89bb713a -> downloading (9.77 GB)
+>>> status 89bb713a-062f-48b1-858b-5532aa7dc91d
+
+ID:           89bb713a-062f-48b1-858b-5532aa7dc91d
+URL:          https://nbg1-speed.hetzner.com/10GB.bin
+Destination:  /tmp/4
+Status:       in_progress
+
+Speed:        59.64 MB/s
+
+Progress (%)  0.02%
+Downloaded:   221.80 MB
+Expected:     9.77 GB
+Total:        0 B
+
+Requested:    2026-04-04 16:00:54.412532608 +0200 CEST m=+3.663760566
+Started:      2026-04-04 16:00:54.512514774 +0200 CEST m=+3.763742702
+Finished:     0001-01-01 00:00:00 +0000 UTC
+
+
+>>> status
+ID       URL                                 DEST                                               STATUS            SPEED    PROGRESS (%)      DOWNLOADED        EXPECTED
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+89bb713a https://nbg1-speed.hetzner.com/10GB /tmp/4                                             in_progres   62.87 MB/s           0.04%       402.87 MB         9.77 GB
+
+>>> status
+ID       URL                                 DEST                                               STATUS            SPEED    PROGRESS (%)      DOWNLOADED        EXPECTED
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+89bb713a https://nbg1-speed.hetzner.com/10GB /tmp/4                                             in_progres   61.70 MB/s           0.06%       617.16 MB         9.77 GB
+
+>>> status
+ID       URL                                 DEST                                               STATUS            SPEED    PROGRESS (%)      DOWNLOADED        EXPECTED
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+89bb713a https://nbg1-speed.hetzner.com/10GB /tmp/4                                             in_progres   61.41 MB/s           0.07%       670.52 MB         9.77 GB
+
+>>> cancel 89bb713a-062f-48b1-858b-5532aa7dc91d
+Download 89bb713a-062f-48b1-858b-5532aa7dc91d cancelled
+>>>
+[cancel]	89bb713a -> cancelled
+>>> status
+ID       URL                                 DEST                                               STATUS            SPEED    PROGRESS (%)      DOWNLOADED        EXPECTED
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+89bb713a https://nbg1-speed.hetzner.com/10GB /tmp/4                                             canceled          0 B/s           0.11%         1.06 GB         9.77 GB
+
+>>> status 89bb713a-062f-48b1-858b-5532aa7dc91d
+
+ID:           89bb713a-062f-48b1-858b-5532aa7dc91d
+URL:          https://nbg1-speed.hetzner.com/10GB.bin
+Destination:  /tmp/4
+Status:       canceled
+
+Speed:        0 B/s
+
+Progress (%)  0.11%
+Downloaded:   1.06 GB
+Expected:     9.77 GB
+Total:        0 B
+
+Requested:    2026-04-04 16:00:54.412532608 +0200 CEST m=+3.663760566
+Started:      2026-04-04 16:00:54.512514774 +0200 CEST m=+3.763742702
+Finished:     2026-04-04 16:01:11.595499729 +0200 CEST m=+20.846727657
+
+
+>>> download https://nbg1-speed.hetzner.com/100MB.bin /tmp/4
+Download submitted with id: f3d37d94-61e9-4303-b137-3904c4a4c959
+>>>
+[start]	f3d37d94 -> downloading (100.00 MB)
+>>> download https://nbg1-speed.hetzner.com/100MB.bin /tmp/4
+[done]	f3d37d94 -> completed (100.00 MB)
+>>> download https://nbg1-speed.hetzner.com/10GB.bin /tmp/5
+Download submitted with id: 890b71b0-502e-40ae-8bf8-fd218c991fee
+>>>
+[start]	890b71b0 -> downloading (9.77 GB)
+>>> download https://nbg1-speed.hetzner.com/10GB.bin /tmp/6
+Download submitted with id: 8057f5b6-f11c-4b7d-b486-4c080d4e36df
+>>>
+[start]	8057f5b6 -> downloading (9.77 GB)
+>>> download https://nbg1-speed.hetzner.com/10GB.bin /tmp/7
+Download submitted with id: 380ae894-d9a3-4f17-98b6-9736044dc828
+>>>
+[start]	380ae894 -> downloading (9.77 GB)
+>>> status
+ID       URL                                 DEST                                               STATUS            SPEED    PROGRESS (%)      DOWNLOADED        EXPECTED
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+8057f5b6 https://nbg1-speed.hetzner.com/10GB /tmp/6                                             in_progres   40.42 MB/s           0.01%       129.03 MB         9.77 GB
+380ae894 https://nbg1-speed.hetzner.com/10GB /tmp/7                                             in_progres   16.41 MB/s           0.00%        29.27 MB         9.77 GB
+89bb713a https://nbg1-speed.hetzner.com/10GB /tmp/4                                             canceled          0 B/s           0.11%         1.06 GB         9.77 GB
+f3d37d94 https://nbg1-speed.hetzner.com/100M /tmp/4                                             completed         0 B/s        100.00 %       100.00 MB       100.00 MB
+890b71b0 https://nbg1-speed.hetzner.com/10GB /tmp/5                                             in_progres   53.77 MB/s           0.03%       263.55 MB         9.77 GB
+
+>>>
+>>> status
+ID       URL                                 DEST                                               STATUS            SPEED    PROGRESS (%)      DOWNLOADED        EXPECTED
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+89bb713a https://nbg1-speed.hetzner.com/10GB /tmp/4                                             canceled          0 B/s           0.11%         1.06 GB         9.77 GB
+f3d37d94 https://nbg1-speed.hetzner.com/100M /tmp/4                                             completed         0 B/s        100.00 %       100.00 MB       100.00 MB
+890b71b0 https://nbg1-speed.hetzner.com/10GB /tmp/5                                             in_progres   48.70 MB/s           0.05%       474.72 MB         9.77 GB
+8057f5b6 https://nbg1-speed.hetzner.com/10GB /tmp/6                                             in_progres   37.14 MB/s           0.03%       298.56 MB         9.77 GB
+380ae894 https://nbg1-speed.hetzner.com/10GB /tmp/7                                             in_progres   25.47 MB/s           0.02%       168.87 MB         9.77 GB
+
+>>> cancel 380ae894-d9a3-4f17-98b6-9736044dc828
+Download 380ae894-d9a3-4f17-98b6-9736044dc828 cancelled
+>>>
+[cancel]	380ae894 -> cancelled
+>>> status
+ID       URL                                 DEST                                               STATUS            SPEED    PROGRESS (%)      DOWNLOADED        EXPECTED
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+8057f5b6 https://nbg1-speed.hetzner.com/10GB /tmp/6                                             in_progres   40.02 MB/s           0.06%       630.33 MB         9.77 GB
+380ae894 https://nbg1-speed.hetzner.com/10GB /tmp/7                                             canceled          0 B/s           0.04%       357.66 MB         9.77 GB
+89bb713a https://nbg1-speed.hetzner.com/10GB /tmp/4                                             canceled          0 B/s           0.11%         1.06 GB         9.77 GB
+f3d37d94 https://nbg1-speed.hetzner.com/100M /tmp/4                                             completed         0 B/s        100.00 %       100.00 MB       100.00 MB
+890b71b0 https://nbg1-speed.hetzner.com/10GB /tmp/5                                             in_progres   41.79 MB/s           0.07%       729.75 MB         9.77 GB
+
+>>> status f3d37d94-61e9-4303-b137-3904c4a4c959
+
+ID:           f3d37d94-61e9-4303-b137-3904c4a4c959
+URL:          https://nbg1-speed.hetzner.com/100MB.bin
+Destination:  /tmp/4
+Status:       completed
+
+Speed:        0 B/s
+
+Progress (%)  100.00 %
+Downloaded:   100.00 MB
+Expected:     100.00 MB
+Total:        100.00 MB
+
+Requested:    2026-04-04 16:01:34.364241606 +0200 CEST m=+43.615469544
+Started:      2026-04-04 16:01:34.439595473 +0200 CEST m=+43.690823431
+Finished:     2026-04-04 16:01:35.830300182 +0200 CEST m=+45.081528100
+
+
+>>> exit
+Shutting down downloader (timeout 5s)...
+Shutdown complete.
+Main routine await shutdown.

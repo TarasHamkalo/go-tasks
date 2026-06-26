@@ -1,0 +1,491 @@
+package models
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
+	pb "gomessenger/generated"
+	"gomessenger/internal/client/state"
+	"gomessenger/internal/client/storage"
+	"gomessenger/internal/client/tui"
+	"gomessenger/internal/client/tui/components"
+)
+
+// Messages
+type ChatModelHandleErrorMsg struct{ Err error }
+
+// Handle server stream connection
+type SubscriptionStartedMsg struct{}
+type SubscriptionErrorMsg struct{ Err error }
+type ReconnectMsg struct{ RetryCount int }
+
+type IncomingMessageMsg struct{ Message storage.Message }
+
+// Handle message acks
+type RetryAckMsg struct {
+	MsgId      string
+	RetryCount int
+}
+
+type AckSuccessMsg struct{ MsgId string }
+
+type FocusArea int
+
+const (
+	FocusProfile FocusArea = iota
+	FocusChatsList
+	FocusMessageList
+	FocusMessageInput
+)
+
+type ChatModel struct {
+	appContext *state.AppContext
+
+	messageStream grpc.ServerStreamingClient[pb.ServerEvent]
+
+	streamCtx    context.Context
+	cancelStream context.CancelFunc
+
+	chatId string
+
+	focusedArea FocusArea
+	isEngaged   bool
+
+	activeModel SectionModel
+
+	messageInputSection *MessagesInputModel
+	messagesListModel   *MessagesListModel
+	chatsListModel      *ChatsListModel
+
+	streamRetryCount int
+
+	logger *zap.Logger
+}
+
+func NewChatModel(appContext *state.AppContext) *ChatModel {
+	return &ChatModel{
+		appContext: appContext,
+
+		focusedArea: FocusProfile,
+		isEngaged:   false,
+
+		streamRetryCount: 0,
+
+		messageInputSection: NewMessageInputModel(),
+		messagesListModel:   NewMessagesListModel(appContext),
+		chatsListModel:      NewChatsListModel(appContext),
+
+		logger: appContext.RootLogger.With(zap.String("mvc", "chat")),
+	}
+}
+
+func (m *ChatModel) Id() SubModelId {
+	return ScreenActiveChat
+}
+
+func (m *ChatModel) Init() tea.Cmd {
+	return m.subscribe(0)
+}
+
+func (m *ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.logger.Info("handling message", zap.String("type", fmt.Sprintf("%T", msg)))
+
+	// handle global errors
+	if errMsg, ok := msg.(ChatModelHandleErrorMsg); ok {
+		m.logger.Error("chat model encountered fatal error", zap.Error(errMsg.Err))
+		errModel := NewErrorSubModel(errMsg.Err, m)
+		return errModel, errModel.Init()
+	}
+
+	// handle network / stream events
+	if model, cmd, handled := m.handleNetworkAndSelections(msg); handled {
+		return model, cmd
+	}
+
+	// handle keyboard routing
+	if !m.isEngaged {
+		return m.handleOwnKeys(msg)
+	}
+
+	return m.handleComponentRouting(msg)
+}
+
+func (m *ChatModel) handleNetworkAndSelections(
+	msg tea.Msg,
+) (tea.Model, tea.Cmd, bool) {
+	switch msg := msg.(type) {
+	case SubscriptionStartedMsg:
+		m.logger.Info("subscription stream started")
+		m.streamRetryCount = 0 // Reset counter on successful stream establish
+		return m, m.recvMessage(), true
+
+	case IncomingMessageMsg:
+		model, cmd := m.handleIncomingMessage(msg)
+		return model, cmd, true
+
+	case SubscriptionErrorMsg:
+		m.logger.Error("subscription connection error", zap.Error(msg.Err))
+		if !tui.IsRetriable(msg.Err) {
+			return m, func() tea.Msg { return ChatModelHandleErrorMsg(msg) }, true
+		}
+		return m, func() tea.Msg { return ReconnectMsg{RetryCount: m.streamRetryCount} }, true
+
+	case RetryAckMsg:
+		return m, m.ackMessage(msg.MsgId, msg.RetryCount), true
+
+	case AckSuccessMsg:
+		m.logger.Debug("message acked successfully", zap.String("msgId", msg.MsgId))
+		return m, nil, true
+
+	case ReconnectMsg:
+		if msg.RetryCount >= 5 {
+			return m, func() tea.Msg {
+				return ChatModelHandleErrorMsg{
+					Err: errors.New("max reconnect attempts reached, restart program or continue offline"),
+				}
+			}, true
+		}
+
+		delay := tui.CalculateBackoff(msg.RetryCount)
+		m.logger.Warn(
+			"reconnecting stream",
+			zap.Duration("delay", delay),
+			zap.Int("attempt", msg.RetryCount),
+		)
+		m.streamRetryCount++
+		return m, m.subscribe(delay), true
+
+	case ChatSelectedMsg:
+		m.chatId = msg.ChatId
+		model, cmd := m.messagesListModel.Update(msg)
+		m.messagesListModel = model.(*MessagesListModel)
+		return m, cmd, true
+
+	case MessageSelectedMsg:
+		model := NewMessageAcksSubModel(m.appContext, msg.MsgId, m)
+		cmd := model.Init()
+		return model, cmd, true
+
+	case ProfileUpdateSuccessMsg:
+		// user changed visibility, abandon this subscription and restart
+		if msg.ReconnectRequired {
+			// cancel the active stream.
+			if m.cancelStream != nil {
+				m.cancelStream()
+			}
+			// reset retry count to ensure immediate, clean connection
+			m.streamRetryCount = 0
+			// don't have to trigger reconnect myself (we are listening already)
+			return m, nil, true
+		}
+
+		return m, nil, true
+
+	// forward these specific messages down to the messages list
+	case TriggerDeliveryMsg,
+		MessageUpdateCounts,
+		MarkReadSuccessMsg,
+		MessagesLoadedMsg,
+		DeliverySuccessMsg,
+		DeliveryRetryMsg,
+		MessageInputSubmittedMsg:
+		model, cmd := m.messagesListModel.Update(msg)
+		m.messagesListModel = model.(*MessagesListModel)
+		return m, cmd, true
+	}
+
+	return m, nil, false
+}
+
+func (m *ChatModel) handleComponentRouting(msg tea.Msg) (tea.Model, tea.Cmd) {
+	keyMsg, ok := msg.(tea.KeyPressMsg)
+	if ok && keyMsg.String() == "esc" {
+		m.isEngaged = false
+		if m.activeModel != nil {
+			return m, m.activeModel.SetEngaged(false)
+		}
+		return m, nil
+	}
+
+	var model tea.Model
+	var cmd tea.Cmd
+
+	switch m.focusedArea {
+	case FocusProfile:
+		if ok && keyMsg.String() == "enter" {
+			m.isEngaged = false
+			// no cache used
+			model := NewProfileSubModel(
+				m.appContext, m.appContext.Session.GetUserId(), true, m,
+			)
+
+			return model, model.Init()
+		}
+
+	case FocusMessageInput:
+		model, cmd = m.messageInputSection.Update(msg)
+		m.messageInputSection = model.(*MessagesInputModel)
+
+	case FocusChatsList:
+		model, cmd = m.chatsListModel.Update(msg)
+		m.chatsListModel = model.(*ChatsListModel)
+
+	case FocusMessageList:
+		model, cmd = m.messagesListModel.Update(msg)
+		m.messagesListModel = model.(*MessagesListModel)
+	}
+
+	return m, cmd
+}
+
+func (m *ChatModel) handleIncomingMessage(
+	msg IncomingMessageMsg,
+) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	chatListModel, chatListCmd := m.chatsListModel.Update(msg)
+	m.chatsListModel = chatListModel.(*ChatsListModel)
+	if chatListCmd != nil {
+		cmds = append(cmds, chatListCmd)
+	}
+
+	msgListModel, msgListCmd := m.messagesListModel.Update(msg)
+	m.messagesListModel = msgListModel.(*MessagesListModel)
+	if msgListCmd != nil {
+		cmds = append(cmds, msgListCmd)
+	}
+
+	cmds = append(cmds, m.ackMessage(msg.Message.Id, 0))
+	cmds = append(cmds, m.recvMessage())
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *ChatModel) handleOwnKeys(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case "shift+tab":
+			m.focusedArea = (m.focusedArea + 3) % 4
+		case "tab":
+			m.focusedArea = (m.focusedArea + 1) % 4
+		case "enter":
+			m.isEngaged = true
+
+			switch m.focusedArea {
+			case FocusChatsList:
+				m.activeModel = m.chatsListModel
+			case FocusMessageList:
+				m.activeModel = m.messagesListModel
+			case FocusMessageInput:
+				m.activeModel = m.messageInputSection
+			}
+
+			if m.activeModel != nil {
+				return m, m.activeModel.SetEngaged(true)
+			}
+		case "d": // direct chat
+			createModel := NewCreateChatSubModel(m.appContext, false, m)
+			return createModel, createModel.Init()
+		case "g": // group chat
+			createModel := NewCreateChatSubModel(m.appContext, true, m)
+			return createModel, createModel.Init()
+		case "i":
+			if m.chatId == "" {
+				errModel := NewErrorSubModel(errors.New("no chat selected"), m)
+				return errModel, errModel.Init()
+			}
+
+			inviteModel := NewInviteUserSubModel(m.appContext, m.chatId, m)
+			return inviteModel, inviteModel.Init()
+		case "l":
+			if m.chatId == "" {
+				errModel := NewErrorSubModel(errors.New("no chat selected"), m)
+				return errModel, errModel.Init()
+			}
+			leaveModel := NewLeaveChatSubModel(m.appContext, m.chatId, m)
+			return leaveModel, leaveModel.Init()
+
+		case "m":
+			if m.chatId == "" {
+				errModel := NewErrorSubModel(errors.New("no chat selected"), m)
+				return errModel, errModel.Init()
+			}
+			infoModel := NewChatInfoSubModel(m.appContext, m.chatId, m)
+			return infoModel, infoModel.Init()
+		}
+	}
+
+	return m, nil
+}
+
+func (m *ChatModel) View() tea.View { return m.ContentView(80, 24) }
+
+func (m *ChatModel) ContentView(width, height int) tea.View {
+	profileHeight := 5
+	messageInputHeight := 5
+
+	leftWidth := int(float64(width) * 0.30)
+	rightWidth := width - leftWidth
+
+	chatsHeight := height - profileHeight
+	messageListHeight := height - messageInputHeight
+
+	p, _ := m.appContext.Session.GetCurrentUserProfile()
+	profileView := components.RenderProfileSection(p, leftWidth, profileHeight, m.focusedArea == FocusProfile, m.isEngaged)
+	chatListView := m.chatsListModel.ContentView(leftWidth, chatsHeight, m.focusedArea == FocusChatsList)
+	messageListView := m.messagesListModel.ContentView(rightWidth, messageListHeight, m.focusedArea == FocusMessageList)
+	messageInputView := m.messageInputSection.ContentView(rightWidth, messageInputHeight, m.focusedArea == FocusMessageInput)
+
+	leftPanel := lipgloss.JoinVertical(lipgloss.Left, profileView, chatListView)
+	rightPanel := lipgloss.JoinVertical(lipgloss.Left, messageListView, messageInputView)
+	mainLayout := lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel)
+
+	return tea.NewView(mainLayout)
+}
+
+func (m *ChatModel) ShortHelp() []tui.Binding {
+	if m.isEngaged {
+		bindings := []tui.Binding{}
+		if m.activeModel != nil {
+			bindings = append(bindings, m.activeModel.ShortHelp()...)
+		}
+
+		if m.focusedArea == FocusProfile {
+			bindings = append(
+				bindings,
+				tui.Binding{Key: "Enter", Description: "Open user profile"},
+			)
+		}
+
+		return append(
+			bindings, tui.Binding{Key: "Esc", Description: "Unfocus Section"},
+		)
+	}
+
+	return []tui.Binding{
+		{Key: "Shift+Tab", Description: "Previous section"},
+		{Key: "Tab", Description: "Next section"},
+		{Key: "Enter", Description: "Interact"},
+		{Key: "d/g", Description: "New Direct/Group"},
+		{Key: "m", Description: "Members"},
+		{Key: "i/l", Description: "Invite/Leave"},
+	}
+}
+
+func (m *ChatModel) subscribe(delay time.Duration) tea.Cmd {
+	return func() tea.Msg {
+		if delay > 0 {
+			time.Sleep(delay)
+		}
+
+		m.logger.Info("attempting to subscribe to stream...")
+		// remove old context
+		if m.cancelStream != nil {
+			m.cancelStream()
+		}
+
+		m.streamCtx, m.cancelStream = context.WithCancel(m.appContext.Ctx)
+		stream, err := m.appContext.MessagingClient.Subscribe(
+			m.streamCtx,
+			&pb.SubscribeRequest{
+				IsInvisible: m.appContext.Session.IsInvisible(),
+			},
+		)
+		if err != nil {
+			return SubscriptionErrorMsg{Err: err}
+		}
+
+		m.messageStream = stream
+		return SubscriptionStartedMsg{}
+	}
+}
+
+func (m *ChatModel) recvMessage() tea.Cmd {
+	return func() tea.Msg {
+		if m.messageStream == nil {
+			return SubscriptionErrorMsg{
+				Err: errors.New("subscription stream is nil"),
+			}
+		}
+
+		res, err := m.messageStream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return ReconnectMsg{RetryCount: m.streamRetryCount}
+			}
+			if errors.Is(err, context.Canceled) {
+				return nil
+			}
+			return SubscriptionErrorMsg{Err: err}
+		}
+
+		switch event := res.Event.(type) {
+		case *pb.ServerEvent_IncomingMessage:
+			msg := ToStorageMessage(event.IncomingMessage)
+			ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
+			defer cancel()
+
+			if err := m.appContext.LocalRepo.InsertMessage(ctx, &msg); err != nil {
+				return ChatModelHandleErrorMsg{
+					Err: fmt.Errorf("failed to save incoming message: %w", err),
+				}
+			}
+			return IncomingMessageMsg{Message: msg}
+		}
+
+		return ReconnectMsg{RetryCount: m.streamRetryCount}
+	}
+}
+
+func ToStorageMessage(msg *pb.IncomingMessage) storage.Message {
+	return storage.Message{
+		Id:        msg.Id,
+		ChatId:    msg.ChatId,
+		SenderId:  msg.SenderId,
+		Content:   msg.Content,
+		SentAt:    msg.SentAt.AsTime().Local(),
+		IsPending: false,
+		IsRead:    false,
+	}
+}
+
+func (m *ChatModel) ackMessage(msgId string, retryCount int) tea.Cmd {
+	return func() tea.Msg {
+		if retryCount > 0 {
+			time.Sleep(tui.CalculateBackoff(retryCount))
+		}
+
+		m.logger.Debug(
+			"sending ack",
+			zap.String("msgId", msgId),
+			zap.Int("attempt", retryCount),
+		)
+
+		ctx, cancel := context.WithTimeout(m.appContext.Ctx, 2*time.Second)
+		defer cancel()
+
+		_, err := m.appContext.MessagingClient.AckMessage(
+			ctx, &pb.AckMessageRequest{MsgId: msgId},
+		)
+
+		if err != nil {
+			if !tui.IsRetriable(err) || retryCount >= 5 {
+				// TODO: probaly to much, but just leave as is
+				return ChatModelHandleErrorMsg{
+					Err: fmt.Errorf("fatal ack error (aborted or max retries reached): %w", err),
+				}
+			}
+			return RetryAckMsg{MsgId: msgId, RetryCount: retryCount + 1}
+		}
+
+		return AckSuccessMsg{MsgId: msgId}
+	}
+}

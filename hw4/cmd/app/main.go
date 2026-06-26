@@ -1,0 +1,96 @@
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+
+	"http-mocker/internal"
+	"http-mocker/internal/handler"
+	"http-mocker/internal/middleware"
+	"http-mocker/internal/server"
+	"http-mocker/pkg/mocker"
+
+	pb "http-mocker/generated"
+)
+
+func main() {
+	certPath := os.Getenv("CERT_FILE")
+	keyPath := os.Getenv("KEY_FILE")
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	tlsCfg := tls.Config{Certificates: []tls.Certificate{cert}}
+
+	if err != nil {
+		log.Fatalf("Failed to load server certificate and key: %v", err)
+	}
+
+	appLogger := internal.LogInit(true)
+
+	httpServer, grpcServer := setupServers(appLogger, &tlsCfg)
+	if err = grpcServer.Serve(8081); err != nil {
+		log.Fatalf("Failed to start GRPC server: %v", err)
+	}
+
+	// problem of design, application don't detect whether http server
+	// started successfully, will make it better next time
+	httpServer.Run(":8080", ":8443", certPath, keyPath)
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	appLogger.Info("Received os signal, starting graceful shutdown...")
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	go (func() {
+		defer wg.Done()
+		httpServer.Shutdown(ctx)
+	})()
+	go (func() {
+		defer wg.Done()
+		grpcServer.Shutdown(ctx)
+	})()
+
+	wg.Wait()
+
+	appLogger.Info("Main routine exits")
+}
+
+func setupServers(
+	appLogger *zap.Logger,
+	tlsCfg *tls.Config,
+) (*server.HttpServer, *server.GrpcServer) {
+	m := mocker.NewHttpMocker()
+	httpServerLogger := appLogger.With(zap.String("module", "http-server"))
+	httpServer := server.NewHttpServer(
+		middleware.HttpTracing(
+			middleware.HttpLogging(httpServerLogger,
+				handler.NewMockHttpHandler(m, httpServerLogger))),
+		httpServerLogger,
+	)
+
+	grpcServerLogger := appLogger.With(zap.String("module", "grpc-server"))
+	grpcServer := server.NewGrpcServer(
+		tlsCfg,
+		grpcServerLogger,
+		middleware.GrpcTracing(),
+		middleware.GrpcLogging(grpcServerLogger),
+	)
+
+	grpcServer.WithServer(func(srv *grpc.Server) {
+		pb.RegisterManagementServiceServer(srv, handler.NewManagementService(m))
+	})
+
+	return httpServer, grpcServer
+}

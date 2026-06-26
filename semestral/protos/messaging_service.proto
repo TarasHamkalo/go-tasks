@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+option go_package = "./generated;pb";
+
+package messaging;
+
+import "google/protobuf/timestamp.proto";
+
+service MessagingService {
+  // message passing and state
+  rpc Subscribe(SubscribeRequest) returns (stream ServerEvent);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc AckMessage(AckMessageRequest) returns (AckMessageResponse);
+
+  rpc SetMessagesRead(SetMessagesReadRequest) returns (SetMessagesReadResponse);
+
+  // message metadata
+  rpc GetMessageAcks(GetMessageAcksRequest) returns (GetMessageAcksResponse);
+  
+  // chat management
+  rpc GetChatById(GetChatByIdRequest) returns (GetChatByIdResponse);
+
+  rpc GetUserChats(GetUserChatsRequest) returns (GetUserChatsResponse);
+  rpc GetChatMembers(GetChatMembersRequest) returns (GetChatMembersResponse);
+  rpc CreateDirectChat(CreateDirectChatRequest) returns (CreateDirectChatResponse);
+  rpc CreateGroupChat(CreateGroupChatRequest) returns (CreateGroupChatResponse);
+  rpc AddChatMember(AddChatMemberRequest) returns (AddChatMemberResponse);
+  rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
+}
+
+message SubscribeRequest {
+  bool is_invisible = 1; 
+}
+
+message ServerEvent {
+  oneof event {
+    IncomingMessage incoming_message = 1;
+  }
+}
+
+message IncomingMessage {
+  string id = 1;
+  string sender_id = 2;
+  string chat_id = 3;
+  bytes content = 4;
+  google.protobuf.Timestamp sent_at = 5;
+}
+
+message SendMessageRequest {
+  string chat_id = 1;
+  bytes content = 2;
+}
+
+message SendMessageResponse {
+  string msg_id = 1;
+}
+
+message AckMessageRequest {
+  string msg_id = 1;
+}
+
+message AckMessageResponse {}
+
+message SetMessagesReadRequest {
+  repeated string msg_ids = 2; 
+}
+
+message SetMessagesReadResponse {}
+
+// chat management 
+message GetChatByIdRequest {
+  string id = 1;
+}
+
+message GetChatByIdResponse {
+  ChatInfo chat = 1;
+}
+
+message ChatInfo {
+  string id = 1;
+  string name = 2;
+  bool is_group = 3;
+}
+
+message GetUserChatsRequest {}
+
+message GetUserChatsResponse {
+  repeated ChatInfo chats = 1;
+}
+
+//TODO: verify that user can not request for those it is not part of
+message GetChatMembersRequest {
+  string chat_id = 1;
+}
+
+message GetChatMembersResponse {
+  // UserId from Profile Service
+  repeated string member_ids = 1; 
+}
+
+message CreateDirectChatRequest {
+  // id of the user the caller wants to chat with
+  string target_user_id = 1; 
+}
+
+message CreateDirectChatResponse {
+  string chat_id = 1;
+}
+
+message CreateGroupChatRequest {
+  string name = 1;
+  repeated string member_ids = 2; // initial group members to add
+}
+
+message CreateGroupChatResponse {
+  string chat_id = 1;
+}
+
+message AddChatMemberRequest {
+  string chat_id = 1;
+  string target_user_id = 2;
+}
+
+message AddChatMemberResponse {}
+
+message LeaveChatRequest {
+  string chat_id = 1;
+}
+
+message LeaveChatResponse {}
+
+// message metadata 
+message GetMessageAcksRequest {
+  string msg_id = 1;
+}
+
+message MessageAckInfo {
+  string user_id = 1;
+  optional google.protobuf.Timestamp delivered_at = 2; // can be null if not delivered yet
+  optional google.protobuf.Timestamp read_at = 3;      // can be null if not read yet
+}
+
+message GetMessageAcksResponse {
+  repeated MessageAckInfo acks = 1;
+}
